@@ -131,6 +131,49 @@ impl LayoutTree {
             }
         }
     }
+
+    pub fn set_split_ratio(&mut self, path: &[Side], ratio: f32) -> bool {
+        let mut node = &mut self.root;
+        for side in path {
+            match node {
+                Node::Split { a, b, .. } => {
+                    node = match side {
+                        Side::A => a.as_mut(),
+                        Side::B => b.as_mut(),
+                    };
+                }
+                Node::Leaf(_) => return false,
+            }
+        }
+        match node {
+            Node::Split { ratio: r, .. } => {
+                *r = ratio.clamp(0.0, 1.0);
+                true
+            }
+            Node::Leaf(_) => false,
+        }
+    }
+
+    pub fn clamp_ratio_for(
+        root: Rect,
+        dir: Dir,
+        gutter: f32,
+        min_w: f32,
+        min_h: f32,
+        ratio: f32,
+    ) -> f32 {
+        let (avail, min_child) = match dir {
+            Dir::Horizontal => ((root.w - gutter).max(1.0), min_w),
+            Dir::Vertical => ((root.h - gutter).max(1.0), min_h),
+        };
+        let lo = (min_child / avail).clamp(0.0, 1.0);
+        let hi = (1.0 - min_child / avail).clamp(0.0, 1.0);
+        if lo > hi {
+            0.5
+        } else {
+            ratio.clamp(lo, hi)
+        }
+    }
 }
 
 /// Divide `rect` along `dir` by `ratio`, reserving `gutter` px between children.
@@ -245,5 +288,61 @@ mod tests {
         let mut expected = vec![a, b, c];
         expected.sort_by_key(|k| format!("{:?}", k));
         assert_eq!(ids, expected);
+    }
+}
+
+#[cfg(test)]
+mod drag_tests {
+    use super::*;
+    use slotmap::SlotMap;
+
+    #[test]
+    fn set_split_ratio_updates_root_split() {
+        let mut sm: SlotMap<PaneId, ()> = SlotMap::with_key();
+        let a = sm.insert(());
+        let b = sm.insert(());
+        let mut tree = LayoutTree::new(a);
+        tree.split(a, b, Dir::Horizontal, 0.5);
+        // Root split is reached by an empty path.
+        assert!(tree.set_split_ratio(&[], 0.25));
+        let rects = tree.compute_rects(Rect { x: 0.0, y: 0.0, w: 804.0, h: 600.0 }, 4.0);
+        let ra = rects.iter().find(|(id, _)| *id == a).unwrap().1;
+        // avail 800 * 0.25 = 200.
+        assert!((ra.w - 200.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn set_split_ratio_follows_path_into_nested_split() {
+        let mut sm: SlotMap<PaneId, ()> = SlotMap::with_key();
+        let a = sm.insert(());
+        let b = sm.insert(());
+        let c = sm.insert(());
+        let mut tree = LayoutTree::new(a);
+        tree.split(a, b, Dir::Horizontal, 0.5); // root split; a=A, b=B
+        tree.split(b, c, Dir::Vertical, 0.5);   // b's leaf becomes a nested split at path [B]
+        assert!(tree.set_split_ratio(&[Side::B], 0.75));
+        // The nested split now favours its A child (b) at 0.75 of the height.
+        let rects = tree.compute_rects(Rect { x: 0.0, y: 0.0, w: 804.0, h: 604.0 }, 4.0);
+        let rb = rects.iter().find(|(id, _)| *id == b).unwrap().1;
+        // nested avail height 600 * 0.75 = 450.
+        assert!((rb.h - 450.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn clamp_keeps_both_children_above_min_width() {
+        // root 200 wide, gutter 4 => avail 196, min_w 40.
+        // ratio 0.01 would give A=1.96px < 40 => clamp up to 40/196.
+        let clamped = LayoutTree::clamp_ratio_for(
+            Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 },
+            Dir::Horizontal,
+            4.0,
+            40.0,
+            10.0,
+            0.01,
+        );
+        let a_w = 196.0 * clamped;
+        let b_w = 196.0 - a_w;
+        assert!(a_w >= 40.0 - 0.01);
+        assert!(b_w >= 40.0 - 0.01);
     }
 }

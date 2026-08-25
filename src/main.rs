@@ -1,4 +1,5 @@
 mod render;
+mod terminal;
 mod text;
 
 use render::renderer::Renderer;

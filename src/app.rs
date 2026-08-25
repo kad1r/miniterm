@@ -1,4 +1,5 @@
-use crate::layout::tree::{Dir, LayoutTree, PaneId, Rect};
+use crate::layout::hit::SplitHit;
+use crate::layout::tree::{split_rect, Dir, LayoutTree, Node, PaneId, Rect, Side};
 use crate::render::atlas_gpu::GpuAtlas;
 use crate::render::grid_draw::{build_instances, CellView, QuadInstance};
 use crate::terminal::session::Session;
@@ -186,6 +187,49 @@ impl App {
         }
         let idx = ids.iter().position(|&id| id == self.focus).unwrap_or(0);
         self.focus = ids[(idx + 1) % ids.len()];
+    }
+
+    pub fn pane_at_point(&self, p: (f32, f32)) -> Option<PaneId> {
+        for (id, r) in &self.rects {
+            if p.0 >= r.x && p.0 <= r.x + r.w && p.1 >= r.y && p.1 <= r.y + r.h {
+                return Some(*id);
+            }
+        }
+        None
+    }
+
+    /// Recompute the dragged split's ratio from the cursor and refresh rects (visual only).
+    pub fn apply_drag(&mut self, hit: &SplitHit, cursor: (f32, f32), root_rect: Rect) {
+        // Walk to the split's own rect following hit.path.
+        let mut rect = root_rect;
+        let mut node = &self.tree.root;
+        for side in &hit.path {
+            if let Node::Split { dir, ratio, a, b } = node {
+                let (ra, rb) = split_rect(rect, *dir, *ratio, self.gutter);
+                match side {
+                    Side::A => { rect = ra; node = a; }
+                    Side::B => { rect = rb; node = b; }
+                }
+            }
+        }
+        // `rect` is now the rect of the split whose ratio we adjust; `hit.dir` is its orientation.
+        let raw = match hit.dir {
+            crate::layout::tree::Dir::Horizontal => {
+                let avail = (rect.w - self.gutter).max(1.0);
+                ((cursor.0 - rect.x) / avail).clamp(0.0, 1.0)
+            }
+            crate::layout::tree::Dir::Vertical => {
+                let avail = (rect.h - self.gutter).max(1.0);
+                ((cursor.1 - rect.y) / avail).clamp(0.0, 1.0)
+            }
+        };
+        let min_w = self.metrics.cell_w * 2.0;
+        let min_h = self.metrics.cell_h * 1.0;
+        let clamped = LayoutTree::clamp_ratio_for(
+            rect, hit.dir, self.gutter, min_w, min_h, raw,
+        );
+        self.tree.set_split_ratio(&hit.path, clamped);
+        self.rects = self.tree.compute_rects(root_rect, self.gutter);
     }
 }
 

@@ -10,10 +10,10 @@ use render::atlas_gpu::GpuAtlas;
 use render::renderer::Renderer;
 use terminal::session::Session;
 use text::metrics::{measure, CellMetrics};
-use winit::event::{ElementState, Event, WindowEvent};
+use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
-use winit::window::WindowBuilder;
+use winit::window::{CursorIcon, WindowBuilder};
 
 const FONT_BYTES: &[u8] = include_bytes!("../assets/font/CascadiaMono.ttf");
 const FONT_PX: f32 = 18.0;
@@ -65,6 +65,11 @@ fn main() {
 
     // Track modifier state (updated by ModifiersChanged events).
     let mut mods = ModifiersState::empty();
+
+    // Mouse drag state.
+    let mut cursor_pos = (0.0f32, 0.0f32);
+    let mut drag: Option<crate::layout::hit::SplitHit> = None;
+    let mut last_resize = std::time::Instant::now();
 
     // Request an initial draw so the window isn't blank at startup.
     window.request_redraw();
@@ -208,6 +213,65 @@ fn main() {
                         // queue() shared borrow ends before draw_quads's &mut self borrow.
                         let (bg, glyphs) = app.build_frame(renderer.queue(), &mut atlas);
                         renderer.draw_quads(&bg, &glyphs, &atlas);
+                    }
+
+                    // ── Cursor movement ─────────────────────────────────────
+                    WindowEvent::CursorMoved { position, .. } => {
+                        cursor_pos = (position.x as f32, position.y as f32);
+                        let (sw, sh) = renderer.surface_size();
+                        let root_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                        if let Some(hit) = &drag {
+                            app.apply_drag(hit, cursor_pos, root_rect);
+                            // Debounce ConPTY resize to ~16ms during a live drag.
+                            if last_resize.elapsed().as_millis() >= 16 {
+                                app.relayout(root_rect);
+                                last_resize = std::time::Instant::now();
+                            }
+                            window.request_redraw();
+                        } else {
+                            // Set the resize cursor when hovering a divider.
+                            let hovering = crate::layout::hit::hit_test(
+                                &app.tree, root_rect, app.gutter, cursor_pos, 3.0,
+                            );
+                            let icon = match hovering.as_ref().map(|h| h.dir) {
+                                Some(crate::layout::tree::Dir::Horizontal) => CursorIcon::EwResize,
+                                Some(crate::layout::tree::Dir::Vertical) => CursorIcon::NsResize,
+                                None => CursorIcon::Default,
+                            };
+                            window.set_cursor_icon(icon);
+                        }
+                    }
+
+                    // ── Mouse buttons ────────────────────────────────────────
+                    WindowEvent::MouseInput { state, button, .. }
+                        if button == MouseButton::Left =>
+                    {
+                        match state {
+                            ElementState::Pressed => {
+                                let (sw, sh) = renderer.surface_size();
+                                let root_rect =
+                                    Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                                drag = crate::layout::hit::hit_test(
+                                    &app.tree, root_rect, app.gutter, cursor_pos, 3.0,
+                                );
+                                if drag.is_none() {
+                                    if let Some(id) = app.pane_at_point(cursor_pos) {
+                                        app.focus = id;
+                                        window.request_redraw();
+                                    }
+                                }
+                            }
+                            ElementState::Released => {
+                                if drag.is_some() {
+                                    let (sw, sh) = renderer.surface_size();
+                                    let root_rect =
+                                        Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                                    app.relayout(root_rect);
+                                    window.request_redraw();
+                                }
+                                drag = None;
+                            }
+                        }
                     }
 
                     _ => {}

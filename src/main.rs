@@ -15,7 +15,9 @@ use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{CursorIcon, WindowBuilder};
 
-const FONT_BYTES: &[u8] = include_bytes!("../assets/font/consola.ttf");
+/// Fallback font, bundled so the app always has a valid monospace face even if
+/// the user's configured terminal font cannot be resolved.
+const BUNDLED_FONT: &[u8] = include_bytes!("../assets/font/consola.ttf");
 const FONT_PX: f32 = 18.0;
 
 #[derive(Debug, Clone)]
@@ -33,16 +35,21 @@ fn main() {
         .unwrap();
     let mut renderer = Renderer::new(&window);
 
+    // Resolve the user's configured terminal font (Windows Terminal / console),
+    // falling back to the bundled Consolas.
+    let (font_bytes, font_label) = text::font_source::resolve_font(BUNDLED_FONT);
+    eprintln!("[miniterm] font: {font_label}");
+
     // Build the GpuAtlas once (stored alongside renderer).
     let mut atlas = GpuAtlas::new(
         renderer.device(),
         renderer.atlas_bind_group_layout(),
-        FONT_BYTES.to_vec(),
+        font_bytes.clone(),
         FONT_PX,
     );
 
     // Measure cell metrics using the same font bytes.
-    let metrics: CellMetrics = measure(FONT_BYTES, FONT_PX);
+    let metrics: CellMetrics = measure(&font_bytes, FONT_PX);
 
     // Build root rect from current surface size.
     let (sw, sh) = renderer.surface_size();

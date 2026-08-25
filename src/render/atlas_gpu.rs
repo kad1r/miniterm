@@ -1,3 +1,4 @@
+use crate::render::grid_draw::GlyphInfo;
 use crate::text::atlas::{GlyphKey, GlyphRect, ShelfPacker};
 use std::collections::HashMap;
 use swash::scale::{Render, ScaleContext, Source, StrikeWith};
@@ -12,7 +13,7 @@ pub struct GpuAtlas {
     pub sampler: wgpu::Sampler,
     pub bind_group: wgpu::BindGroup,
     packer: ShelfPacker,
-    uvs: HashMap<GlyphKey, ([f32; 2], [f32; 2])>,
+    uvs: HashMap<GlyphKey, GlyphInfo>,
     font: Vec<u8>,
     px: f32,
     scale_cx: ScaleContext,
@@ -72,10 +73,10 @@ impl GpuAtlas {
         &mut self,
         queue: &wgpu::Queue,
         ch: char,
-    ) -> ([f32; 2], [f32; 2]) {
+    ) -> GlyphInfo {
         let key = GlyphKey { ch, bold: false, italic: false };
-        if let Some(uv) = self.uvs.get(&key) {
-            return *uv;
+        if let Some(info) = self.uvs.get(&key) {
+            return *info;
         }
         let font = FontRef::from_index(&self.font, 0).unwrap();
         let glyph_id = font.charmap().map(ch);
@@ -93,13 +94,15 @@ impl GpuAtlas {
         .format(Format::Alpha)
         .render(&mut scaler, glyph_id);
 
-        let (w, h, data) = match image {
+        let (w, h, left, top, data) = match image {
             Some(img) => (
                 img.placement.width.max(1),
                 img.placement.height.max(1),
+                img.placement.left,
+                img.placement.top,
                 img.data,
             ),
-            None => (1, 1, vec![0u8]),
+            None => (1, 1, 0, 0, vec![0u8]),
         };
         let rect: GlyphRect = self.packer.insert(w, h);
         queue.write_texture(
@@ -118,11 +121,13 @@ impl GpuAtlas {
             wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
         );
         let f = ATLAS_SIZE as f32;
-        let uv = (
-            [rect.x as f32 / f, rect.y as f32 / f],
-            [(rect.x + w) as f32 / f, (rect.y + h) as f32 / f],
-        );
-        self.uvs.insert(key, uv);
-        uv
+        let info = GlyphInfo {
+            uv_min: [rect.x as f32 / f, rect.y as f32 / f],
+            uv_max: [(rect.x + w) as f32 / f, (rect.y + h) as f32 / f],
+            px_size: [w as f32, h as f32],
+            offset: [left as f32, top as f32],
+        };
+        self.uvs.insert(key, info);
+        info
     }
 }

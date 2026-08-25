@@ -15,7 +15,7 @@ use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{CursorIcon, WindowBuilder};
 
-const FONT_BYTES: &[u8] = include_bytes!("../assets/font/CascadiaMono.ttf");
+const FONT_BYTES: &[u8] = include_bytes!("../assets/font/consola.ttf");
 const FONT_PX: f32 = 18.0;
 
 #[derive(Debug, Clone)]

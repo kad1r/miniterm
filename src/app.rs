@@ -1,7 +1,7 @@
 use crate::layout::hit::SplitHit;
 use crate::layout::tree::{split_rect, Dir, LayoutTree, Node, PaneId, Rect, Side};
 use crate::render::atlas_gpu::GpuAtlas;
-use crate::render::grid_draw::{build_instances, CellView, QuadInstance};
+use crate::render::grid_draw::{build_instances, CellView, GlyphInfo, QuadInstance};
 use crate::terminal::session::Session;
 use crate::text::metrics::CellMetrics;
 use alacritty_terminal::grid::Dimensions;
@@ -40,6 +40,33 @@ pub struct App {
     pub metrics: CellMetrics,
     pub rects: Vec<(PaneId, Rect)>,
     pub gutter: f32,
+    /// Stable per-pane border color, assigned at creation.
+    pub colors: std::collections::HashMap<PaneId, [f32; 4]>,
+    /// Monotonic counter feeding the golden-ratio hue generator.
+    color_seed: u32,
+}
+
+/// Distinct, visually-spread border color from a counter (golden-ratio hue walk).
+fn pane_color(n: u32) -> [f32; 4] {
+    let hue = (n as f32 * 0.618_034).fract(); // 0..1
+    let (r, g, b) = hsv_to_rgb(hue, 0.65, 0.95);
+    [r, g, b, 1.0]
+}
+
+fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
+    let i = (h * 6.0).floor();
+    let f = h * 6.0 - i;
+    let p = v * (1.0 - s);
+    let q = v * (1.0 - f * s);
+    let t = v * (1.0 - (1.0 - f) * s);
+    match (i as i32).rem_euclid(6) {
+        0 => (v, t, p),
+        1 => (q, v, p),
+        2 => (p, v, t),
+        3 => (p, q, v),
+        4 => (t, p, v),
+        _ => (v, p, q),
+    }
 }
 
 impl App {
@@ -54,7 +81,18 @@ impl App {
         let tree = LayoutTree::new(first);
         let gutter = 4.0;
         let rects = tree.compute_rects(root_rect, gutter);
-        App { sessions, tree, focus: first, metrics, rects, gutter }
+        let mut colors = std::collections::HashMap::new();
+        colors.insert(first, pane_color(0));
+        App {
+            sessions,
+            tree,
+            focus: first,
+            metrics,
+            rects,
+            gutter,
+            colors,
+            color_seed: 1,
+        }
     }
 
     pub fn rows_cols_for_rect(rect: Rect, m: &CellMetrics) -> (u16, u16) {
@@ -90,8 +128,8 @@ impl App {
             };
             let (cells, (cur_line, cur_col)) = snapshot_cells(session);
 
-            // Pre-resolve UVs for this pane's distinct glyphs.
-            let mut uv_map: std::collections::HashMap<char, ([f32; 2], [f32; 2])> =
+            // Pre-resolve UVs + glyph placement for this pane's distinct glyphs.
+            let mut uv_map: std::collections::HashMap<char, GlyphInfo> =
                 std::collections::HashMap::new();
             for row in &cells {
                 for cell in row {
@@ -100,12 +138,17 @@ impl App {
                     }
                 }
             }
-            let default_uv = ([0.0f32; 2], [0.0f32; 2]);
+            let default_glyph = GlyphInfo {
+                uv_min: [0.0, 0.0],
+                uv_max: [0.0, 0.0],
+                px_size: [0.0, 0.0],
+                offset: [0.0, 0.0],
+            };
             let (mut bg, glyphs) = build_instances(
                 &cells,
                 &metrics,
                 [rect.x, rect.y],
-                &|ch| uv_map.get(&ch).copied().unwrap_or(default_uv),
+                &|ch| uv_map.get(&ch).copied().unwrap_or(default_glyph),
             );
 
             // Cursor block only for the focused pane.
@@ -129,13 +172,21 @@ impl App {
             all_glyphs.extend(glyphs);
         }
 
-        // Focus border: four thin quads around the focused pane's rect.
-        if let Some((_, frect)) = rects.iter().find(|(id, _)| *id == self.focus) {
-            let t = 2.0f32;
-            let color = [0.30, 0.55, 0.90, 1.0];
-            for q in border_quads(*frect, t, color) {
-                all_bg.push(q);
+        // Per-pane left-edge border: a thin colored vertical line at each pane's
+        // left boundary, except panes flush against the window's left edge.
+        let t = 2.0f32;
+        for (id, rect) in &rects {
+            if rect.x <= 0.5 {
+                continue; // leftmost pane gets no left border
             }
+            let color = self.colors.get(id).copied().unwrap_or([0.5, 0.5, 0.5, 1.0]);
+            all_bg.push(QuadInstance {
+                pos: [rect.x - t, rect.y],
+                size: [t, rect.h],
+                uv_min: [0.0, 0.0],
+                uv_max: [0.0, 0.0],
+                color,
+            });
         }
 
         (all_bg, all_glyphs)
@@ -157,6 +208,8 @@ impl App {
         let (rows, cols) = Self::rows_cols_for_rect(focus_rect, &self.metrics);
         let new_id = self.sessions.insert(spawn(rows.max(1), cols.max(1)));
         if self.tree.split(self.focus, new_id, dir, 0.5) {
+            self.colors.insert(new_id, pane_color(self.color_seed));
+            self.color_seed += 1;
             self.focus = new_id;
             self.relayout(root_rect);
         } else {
@@ -172,6 +225,7 @@ impl App {
         let closing = self.focus;
         if self.tree.close(closing) {
             self.sessions.remove(closing); // drops Session => PTY + reader thread end
+            self.colors.remove(&closing);
             // Focus the first remaining leaf.
             if let Some(next) = self.tree.pane_ids().first().copied() {
                 self.focus = next;
@@ -231,22 +285,6 @@ impl App {
         self.tree.set_split_ratio(&hit.path, clamped);
         self.rects = self.tree.compute_rects(root_rect, self.gutter);
     }
-}
-
-fn border_quads(r: Rect, t: f32, color: [f32; 4]) -> [QuadInstance; 4] {
-    let mk = |x: f32, y: f32, w: f32, h: f32| QuadInstance {
-        pos: [x, y],
-        size: [w, h],
-        uv_min: [0.0, 0.0],
-        uv_max: [0.0, 0.0],
-        color,
-    };
-    [
-        mk(r.x, r.y, r.w, t),               // top
-        mk(r.x, r.y + r.h - t, r.w, t),     // bottom
-        mk(r.x, r.y, t, r.h),               // left
-        mk(r.x + r.w - t, r.y, t, r.h),     // right
-    ]
 }
 
 #[cfg(test)]

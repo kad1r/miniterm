@@ -24,7 +24,7 @@ pub fn measure(font_bytes: &[u8], px: f32) -> CellMetrics {
 mod tests {
     use super::*;
 
-    const FONT: &[u8] = include_bytes!("../../assets/font/CascadiaMono.ttf");
+    const FONT: &[u8] = include_bytes!("../../assets/font/consola.ttf");
 
     #[test]
     fn metrics_are_positive_and_monospace_sized() {

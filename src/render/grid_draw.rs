@@ -16,11 +16,23 @@ pub struct CellView {
     pub bg: [f32; 3],
 }
 
+/// Glyph atlas lookup result: UV rect plus the actual glyph bitmap size and
+/// its baseline-relative offset (swash placement left/top).
+#[derive(Clone, Copy)]
+pub struct GlyphInfo {
+    pub uv_min: [f32; 2],
+    pub uv_max: [f32; 2],
+    /// Actual glyph bitmap size in px (placement width/height).
+    pub px_size: [f32; 2],
+    /// Placement offset: left = x from pen origin, top = y above baseline.
+    pub offset: [f32; 2],
+}
+
 pub fn build_instances(
     cells: &[Vec<CellView>],
     m: &CellMetrics,
     origin: [f32; 2],
-    atlas_uv: &dyn Fn(char) -> ([f32; 2], [f32; 2]),
+    atlas_uv: &dyn Fn(char) -> GlyphInfo,
 ) -> (Vec<QuadInstance>, Vec<QuadInstance>) {
     let mut bg = Vec::new();
     let mut glyphs = Vec::new();
@@ -36,12 +48,16 @@ pub fn build_instances(
                 color: [cell.bg[0], cell.bg[1], cell.bg[2], 1.0],
             });
             if cell.ch != ' ' && cell.ch != '\0' {
-                let (uv_min, uv_max) = atlas_uv(cell.ch);
+                let g = atlas_uv(cell.ch);
+                // Size the quad to the actual glyph bitmap and place it at the
+                // baseline: pen x + left, (top of cell + ascent) - top.
+                let gx = x + g.offset[0];
+                let gy = y + m.ascent - g.offset[1];
                 glyphs.push(QuadInstance {
-                    pos: [x, y],
-                    size: [m.cell_w, m.cell_h],
-                    uv_min,
-                    uv_max,
+                    pos: [gx, gy],
+                    size: g.px_size,
+                    uv_min: g.uv_min,
+                    uv_max: g.uv_max,
                     color: [cell.fg[0], cell.fg[1], cell.fg[2], 1.0],
                 });
             }
@@ -61,7 +77,12 @@ mod tests {
             CellView { ch: 'A', fg: [1.0, 1.0, 1.0], bg: [0.0, 0.0, 0.0] },
             CellView { ch: ' ', fg: [1.0, 1.0, 1.0], bg: [0.0, 0.0, 0.0] },
         ]];
-        let uv = |_c: char| ([0.0, 0.0], [0.5, 0.5]);
+        let uv = |_c: char| GlyphInfo {
+            uv_min: [0.0, 0.0],
+            uv_max: [0.5, 0.5],
+            px_size: [8.0, 12.0],
+            offset: [1.0, 10.0],
+        };
         let (bg, glyphs) = build_instances(&cells, &m, [100.0, 50.0], &uv);
         // One bg quad per cell.
         assert_eq!(bg.len(), 2);
@@ -69,7 +90,9 @@ mod tests {
         assert_eq!(bg[0].size, [10.0, 20.0]);
         // Spaces produce no glyph quad.
         assert_eq!(glyphs.len(), 1);
-        assert_eq!(glyphs[0].pos, [100.0, 50.0]);
+        // Glyph sized to bitmap, placed at baseline: x+left, y+ascent-top.
+        assert_eq!(glyphs[0].pos, [101.0, 55.0]);
+        assert_eq!(glyphs[0].size, [8.0, 12.0]);
         assert_eq!(glyphs[0].uv_max, [0.5, 0.5]);
     }
 }

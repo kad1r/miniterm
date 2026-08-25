@@ -1,5 +1,6 @@
 use swash::FontRef;
 
+#[derive(Clone, Copy, Debug)]
 pub struct CellMetrics {
     pub cell_w: f32,
     pub cell_h: f32,

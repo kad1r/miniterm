@@ -277,6 +277,10 @@ impl Renderer {
         &self.atlas_layout
     }
 
+    pub fn surface_size(&self) -> (u32, u32) {
+        (self.config.width, self.config.height)
+    }
+
     pub fn queue(&self) -> &wgpu::Queue {
         &self.queue
     }

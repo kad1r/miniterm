@@ -1,4 +1,5 @@
 mod app;
+mod layout;
 mod render;
 mod terminal;
 mod text;

@@ -172,21 +172,31 @@ impl App {
             all_glyphs.extend(glyphs);
         }
 
-        // Per-pane left-edge border: a thin colored vertical line at each pane's
-        // left boundary, except panes flush against the window's left edge.
+        // Per-pane boundary borders: a thin colored line on the left edge of
+        // panes not flush to the window's left, and on the top edge of panes
+        // not flush to the window's top (stacked splits). Leftmost/topmost
+        // panes get no border on that side.
         let t = 2.0f32;
         for (id, rect) in &rects {
-            if rect.x <= 0.5 {
-                continue; // leftmost pane gets no left border
-            }
             let color = self.colors.get(id).copied().unwrap_or([0.5, 0.5, 0.5, 1.0]);
-            all_bg.push(QuadInstance {
-                pos: [rect.x - t, rect.y],
-                size: [t, rect.h],
-                uv_min: [0.0, 0.0],
-                uv_max: [0.0, 0.0],
-                color,
-            });
+            if rect.x > 0.5 {
+                all_bg.push(QuadInstance {
+                    pos: [rect.x - t, rect.y],
+                    size: [t, rect.h],
+                    uv_min: [0.0, 0.0],
+                    uv_max: [0.0, 0.0],
+                    color,
+                });
+            }
+            if rect.y > 0.5 {
+                all_bg.push(QuadInstance {
+                    pos: [rect.x, rect.y - t],
+                    size: [rect.w, t],
+                    uv_min: [0.0, 0.0],
+                    uv_max: [0.0, 0.0],
+                    color,
+                });
+            }
         }
 
         (all_bg, all_glyphs)

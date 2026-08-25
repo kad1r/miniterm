@@ -237,42 +237,6 @@ impl Renderer {
         self.surface.configure(&self.device, &self.config);
     }
 
-    pub fn render(&mut self) {
-        let frame = match self.surface.get_current_texture() {
-            Ok(f) => f,
-            Err(_) => {
-                self.surface.configure(&self.device, &self.config);
-                return;
-            }
-        };
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-        {
-            let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("clear"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.05, g: 0.05, b: 0.06, a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-        }
-        self.queue.submit([encoder.finish()]);
-        frame.present();
-    }
-
     pub fn atlas_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
         &self.atlas_layout
     }

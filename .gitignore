@@ -1,3 +1,6 @@
 /target
 **/*.rs.bk
 Cargo.lock
+
+# OMC plugin runtime state/scratch
+.omc/

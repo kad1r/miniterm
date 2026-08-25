@@ -89,7 +89,7 @@ impl Session {
         }
         self.size = (rows, cols);
         self.pty.resize(rows, cols);
-        let mut term = self.term.lock().unwrap();
+        let mut term = self.term.lock().unwrap_or_else(|e| e.into_inner());
         term.resize(TermSize::new(cols as usize, rows as usize));
     }
 }

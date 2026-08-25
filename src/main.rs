@@ -5,7 +5,7 @@ mod text;
 
 use app::grid_to_cells;
 use render::atlas_gpu::GpuAtlas;
-use render::grid_draw::build_instances;
+use render::grid_draw::{build_instances, QuadInstance};
 use render::renderer::Renderer;
 use terminal::session::Session;
 use text::metrics::{measure, CellMetrics};
@@ -50,11 +50,15 @@ fn main() {
     rows = rows.max(1);
     cols = cols.max(1);
 
-    // Spawn session; wakeup proxy sends PtyOutput into the event loop.
+    // Spawn session.
+    // Fix 1: the AtomicBool gate inside session.rs ensures only one PtyOutput
+    // wakeup is in-flight per frame; the closure itself just forwards to the proxy.
     let proxy = event_loop.create_proxy();
     let mut session = Session::spawn(rows, cols, "cmd.exe", move || {
         let _ = proxy.send_event(UserEvent::PtyOutput);
     });
+    // Clone the pending flag so RedrawRequested can clear it (Fix 1).
+    let redraw_pending = std::sync::Arc::clone(&session.redraw_pending);
 
     // Request an initial draw so the window isn't blank at startup.
     window.request_redraw();
@@ -116,9 +120,14 @@ fn main() {
 
                     // ── Redraw ──────────────────────────────────────────────
                     WindowEvent::RedrawRequested => {
+                        // Fix 1: clear the pending flag BEFORE snapshotting so the
+                        // next output chunk can queue exactly one more wakeup.
+                        redraw_pending.store(false, std::sync::atomic::Ordering::SeqCst);
+
                         // 1. Snapshot the terminal grid.
-                        let cells =
-                            grid_to_cells(&session, rows as usize, cols as usize);
+                        // Fix 2: grid_to_cells now uses actual Term dimensions and
+                        // returns the cursor position (Fix 4).
+                        let (cells, (cursor_line, cursor_col)) = grid_to_cells(&session);
 
                         // 2. Collect distinct non-space, non-NUL chars.
                         let mut distinct: std::collections::HashSet<char> =
@@ -145,12 +154,29 @@ fn main() {
 
                         // 4. Build quad instances.
                         let default_uv = ([0.0f32; 2], [0.0f32; 2]);
-                        let (bg, glyphs) = build_instances(
+                        let (mut bg, glyphs) = build_instances(
                             &cells,
                             &metrics,
                             [0.0, 0.0],
                             &|ch| uv_map.get(&ch).copied().unwrap_or(default_uv),
                         );
+
+                        // Fix 4: emit a filled block cursor quad in light gray.
+                        // Guard: only if cursor is within the snapshotted grid.
+                        if cursor_line < cells.len()
+                            && !cells.is_empty()
+                            && cursor_col < cells[0].len()
+                        {
+                            let cx = cursor_col as f32 * metrics.cell_w;
+                            let cy = cursor_line as f32 * metrics.cell_h;
+                            bg.push(QuadInstance {
+                                pos: [cx, cy],
+                                size: [metrics.cell_w, metrics.cell_h],
+                                uv_min: [0.0, 0.0],
+                                uv_max: [0.0, 0.0],
+                                color: [0.85, 0.85, 0.85, 1.0],
+                            });
+                        }
 
                         // 5. Draw.
                         renderer.draw_quads(&bg, &glyphs, &atlas);

@@ -3,6 +3,7 @@ use alacritty_terminal::event::{Event, EventListener};
 use alacritty_terminal::term::{test::TermSize, Config, Term};
 use alacritty_terminal::vte::ansi::{Processor, StdSyncHandler};
 use std::io::Read;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
@@ -18,6 +19,8 @@ pub struct Session {
     writer: Box<dyn std::io::Write + Send>,
     pty: Pty,
     size: (u16, u16),
+    /// Shared "redraw pending" flag; cleared when main thread begins RedrawRequested.
+    pub redraw_pending: Arc<AtomicBool>,
 }
 
 impl Session {
@@ -39,6 +42,10 @@ impl Session {
             EventProxy,
         )));
 
+        // Fix 1: shared AtomicBool gate — only send one PtyOutput wakeup per frame.
+        let redraw_pending = Arc::new(AtomicBool::new(false));
+        let pending_reader = redraw_pending.clone();
+
         let reader_term = term.clone();
         let mut reader = std::mem::replace(
             &mut pty.reader,
@@ -52,18 +59,23 @@ impl Session {
                     Ok(0) | Err(_) => break,
                     Ok(n) => {
                         {
-                            let mut term = reader_term.lock().unwrap();
+                            // Fix 3: recover poisoned Mutex instead of panicking.
+                            let mut term = reader_term.lock()
+                                .unwrap_or_else(|e| e.into_inner());
                             for &byte in &buf[..n] {
                                 parser.advance(&mut *term, byte);
                             }
                         }
-                        on_output();
+                        // Fix 1: only call on_output() on 0→1 transition.
+                        if !pending_reader.swap(true, Ordering::SeqCst) {
+                            on_output();
+                        }
                     }
                 }
             }
         });
 
-        Session { term, writer, pty, size: (rows, cols) }
+        Session { term, writer, pty, size: (rows, cols), redraw_pending }
     }
 
     pub fn write(&mut self, bytes: &[u8]) {

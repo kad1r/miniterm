@@ -1,4 +1,4 @@
-use crate::layout::tree::{LayoutTree, PaneId, Rect};
+use crate::layout::tree::{Dir, LayoutTree, PaneId, Rect};
 use crate::render::atlas_gpu::GpuAtlas;
 use crate::render::grid_draw::{build_instances, CellView, QuadInstance};
 use crate::terminal::session::Session;
@@ -138,6 +138,54 @@ impl App {
         }
 
         (all_bg, all_glyphs)
+    }
+
+    pub fn split_focused(
+        &mut self,
+        dir: Dir,
+        root_rect: Rect,
+        spawn: impl FnOnce(u16, u16) -> Session,
+    ) {
+        // Size the new pane to roughly half the focused rect (relayout corrects it).
+        let focus_rect = self
+            .rects
+            .iter()
+            .find(|(id, _)| *id == self.focus)
+            .map(|(_, r)| *r)
+            .unwrap_or(root_rect);
+        let (rows, cols) = Self::rows_cols_for_rect(focus_rect, &self.metrics);
+        let new_id = self.sessions.insert(spawn(rows.max(1), cols.max(1)));
+        if self.tree.split(self.focus, new_id, dir, 0.5) {
+            self.focus = new_id;
+            self.relayout(root_rect);
+        } else {
+            // Split failed (focus not a leaf?) — roll back the orphan session.
+            self.sessions.remove(new_id);
+        }
+    }
+
+    pub fn close_focused(&mut self, root_rect: Rect) {
+        if self.sessions.len() <= 1 {
+            return; // never close the last pane
+        }
+        let closing = self.focus;
+        if self.tree.close(closing) {
+            self.sessions.remove(closing); // drops Session => PTY + reader thread end
+            // Focus the first remaining leaf.
+            if let Some(next) = self.tree.pane_ids().first().copied() {
+                self.focus = next;
+            }
+            self.relayout(root_rect);
+        }
+    }
+
+    pub fn focus_next(&mut self) {
+        let ids = self.tree.pane_ids();
+        if ids.len() <= 1 {
+            return;
+        }
+        let idx = ids.iter().position(|&id| id == self.focus).unwrap_or(0);
+        self.focus = ids[(idx + 1) % ids.len()];
     }
 }
 

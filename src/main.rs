@@ -5,14 +5,14 @@ mod terminal;
 mod text;
 
 use app::App;
-use layout::tree::Rect;
+use layout::tree::{Dir, Rect};
 use render::atlas_gpu::GpuAtlas;
 use render::renderer::Renderer;
 use terminal::session::Session;
 use text::metrics::{measure, CellMetrics};
 use winit::event::{ElementState, Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
-use winit::keyboard::{Key, NamedKey};
+use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::WindowBuilder;
 
 const FONT_BYTES: &[u8] = include_bytes!("../assets/font/CascadiaMono.ttf");
@@ -48,15 +48,23 @@ fn main() {
     let (sw, sh) = renderer.surface_size();
     let root_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
 
-    // Spawn closure: clones the proxy so each session can fire PtyOutput events.
+    // Keep a proxy clone alive outside App so we can build spawn_one closures
+    // inside the keyboard handler without moving our only proxy into App::new.
     let proxy = event_loop.create_proxy();
-    let spawn = |rows: u16, cols: u16| -> Session {
+
+    let spawn = {
         let p = proxy.clone();
-        Session::spawn(rows, cols, "cmd.exe", move || {
-            let _ = p.send_event(UserEvent::PtyOutput);
-        })
+        move |rows: u16, cols: u16| -> Session {
+            let pp = p.clone();
+            Session::spawn(rows, cols, "cmd.exe", move || {
+                let _ = pp.send_event(UserEvent::PtyOutput);
+            })
+        }
     };
     let mut app = App::new(root_rect, metrics, spawn);
+
+    // Track modifier state (updated by ModifiersChanged events).
+    let mut mods = ModifiersState::empty();
 
     // Request an initial draw so the window isn't blank at startup.
     window.request_redraw();
@@ -72,6 +80,11 @@ fn main() {
                 Event::WindowEvent { event, .. } => match event {
                     // ── Close ───────────────────────────────────────────────
                     WindowEvent::CloseRequested => elwt.exit(),
+
+                    // ── Modifier tracking ───────────────────────────────────
+                    WindowEvent::ModifiersChanged(new_mods) => {
+                        mods = new_mods.state();
+                    }
 
                     // ── Resize ──────────────────────────────────────────────
                     WindowEvent::Resized(size) => {
@@ -91,6 +104,69 @@ fn main() {
                         // Only act on key-press (and key-repeat), not key-release.
                         if event.state == ElementState::Released {
                             return;
+                        }
+
+                        // Check for Ctrl+Shift chord keybindings first.
+                        if mods.control_key() && mods.shift_key() {
+                            let (sw, sh) = renderer.surface_size();
+                            let root_rect =
+                                Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+
+                            let handled = match &event.logical_key {
+                                // Ctrl+Shift+D → split side-by-side (Horizontal)
+                                Key::Character(s)
+                                    if s.as_str().eq_ignore_ascii_case("d") =>
+                                {
+                                    let p = proxy.clone();
+                                    let spawn_one = move |rows: u16, cols: u16| -> Session {
+                                        let pp = p.clone();
+                                        Session::spawn(rows, cols, "cmd.exe", move || {
+                                            let _ = pp.send_event(UserEvent::PtyOutput);
+                                        })
+                                    };
+                                    app.split_focused(Dir::Horizontal, root_rect, spawn_one);
+                                    true
+                                }
+                                // Ctrl+Shift+S → split stacked (Vertical)
+                                Key::Character(s)
+                                    if s.as_str().eq_ignore_ascii_case("s") =>
+                                {
+                                    let p = proxy.clone();
+                                    let spawn_one = move |rows: u16, cols: u16| -> Session {
+                                        let pp = p.clone();
+                                        Session::spawn(rows, cols, "cmd.exe", move || {
+                                            let _ = pp.send_event(UserEvent::PtyOutput);
+                                        })
+                                    };
+                                    app.split_focused(Dir::Vertical, root_rect, spawn_one);
+                                    true
+                                }
+                                // Ctrl+Shift+W → close focused pane
+                                Key::Character(s)
+                                    if s.as_str().eq_ignore_ascii_case("w") =>
+                                {
+                                    app.close_focused(root_rect);
+                                    true
+                                }
+                                // Ctrl+Shift+Tab → cycle focus
+                                Key::Named(NamedKey::Tab) => {
+                                    app.focus_next();
+                                    true
+                                }
+                                // Ctrl+Shift+O → cycle focus (alternate)
+                                Key::Character(s)
+                                    if s.as_str().eq_ignore_ascii_case("o") =>
+                                {
+                                    app.focus_next();
+                                    true
+                                }
+                                _ => false,
+                            };
+
+                            if handled {
+                                window.request_redraw();
+                                return;
+                            }
                         }
 
                         // Map special keys first, then fall through to text.

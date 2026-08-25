@@ -1,4 +1,5 @@
 mod render;
+mod text;
 
 use render::renderer::Renderer;
 use winit::event::{Event, WindowEvent};

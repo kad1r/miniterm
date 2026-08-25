@@ -5,6 +5,7 @@ pub struct Pty {
     pub writer: Box<dyn Write + Send>,
     pub reader: Box<dyn Read + Send>,
     master: Box<dyn portable_pty::MasterPty + Send>,
+    _child: Box<dyn portable_pty::Child + Send + Sync>,
 }
 
 impl Pty {
@@ -14,10 +15,10 @@ impl Pty {
             .openpty(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
             .expect("openpty");
         let cmd = CommandBuilder::new(shell);
-        let _child = pair.slave.spawn_command(cmd).expect("spawn shell");
+        let child = pair.slave.spawn_command(cmd).expect("spawn shell");
         let writer = pair.master.take_writer().expect("writer");
         let reader = pair.master.try_clone_reader().expect("reader");
-        Pty { writer, reader, master: pair.master }
+        Pty { writer, reader, master: pair.master, _child: child }
     }
 
     pub fn resize(&mut self, rows: u16, cols: u16) {

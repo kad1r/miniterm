@@ -177,9 +177,60 @@ fn main() {
                                     app.active_tab_mut().focus_next();
                                     true
                                 }
+                                // Ctrl+Shift+N → new workspace
+                                Key::Character(s)
+                                    if s.as_str().eq_ignore_ascii_case("n") =>
+                                {
+                                    let p = proxy.clone();
+                                    let spawn_one = move |rows: u16, cols: u16| -> Session {
+                                        let pp = p.clone();
+                                        Session::spawn(rows, cols, "cmd.exe", move || {
+                                            let _ = pp.send_event(UserEvent::PtyOutput);
+                                        })
+                                    };
+                                    app.new_workspace(spawn_one);
+                                    true
+                                }
+                                // Ctrl+Shift+T → new tab
+                                Key::Character(s)
+                                    if s.as_str().eq_ignore_ascii_case("t") =>
+                                {
+                                    let p = proxy.clone();
+                                    let spawn_one = move |rows: u16, cols: u16| -> Session {
+                                        let pp = p.clone();
+                                        Session::spawn(rows, cols, "cmd.exe", move || {
+                                            let _ = pp.send_event(UserEvent::PtyOutput);
+                                        })
+                                    };
+                                    app.new_tab(spawn_one);
+                                    true
+                                }
+                                // Ctrl+Shift+PageDown → next workspace
+                                Key::Named(NamedKey::PageDown) => {
+                                    app.next_workspace();
+                                    true
+                                }
+                                // Ctrl+Shift+PageUp → prev workspace
+                                Key::Named(NamedKey::PageUp) => {
+                                    app.prev_workspace();
+                                    true
+                                }
                                 _ => false,
                             };
 
+                            if handled {
+                                window.request_redraw();
+                                return;
+                            }
+                        }
+
+                        // Ctrl-only (no Shift): tab switching
+                        if mods.control_key() && !mods.shift_key() {
+                            let handled = match &event.logical_key {
+                                Key::Named(NamedKey::PageDown) => { app.next_tab(); true }
+                                Key::Named(NamedKey::PageUp) => { app.prev_tab(); true }
+                                _ => false,
+                            };
                             if handled {
                                 window.request_redraw();
                                 return;

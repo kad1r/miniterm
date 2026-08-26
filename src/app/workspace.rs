@@ -1,7 +1,3 @@
-// Navigation actions here are forward-looking API wired up by Tasks 5/6
-// (mouse routing + keyboard chords). TODO: remove this allow once those
-// tasks land and every method has a live caller.
-#![allow(dead_code)]
 use crate::app::{pane_area_rect, sidebar_row_rect, tab_chip_rect, PAD, SIDEBAR_W, TAB_BAR_H, Tab};
 use crate::layout::tree::Rect;
 use crate::render::atlas_gpu::GpuAtlas;

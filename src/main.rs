@@ -71,7 +71,7 @@ fn main() {
             })
         }
     };
-    let mut app = App::new(pane_rect, metrics, spawn);
+    let mut app = App::new(pane_rect, metrics, config::Theme::default(), spawn);
     app.set_root_rect(pane_rect);
     app.active_ws_mut().relayout(pane_rect);
 

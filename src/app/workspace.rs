@@ -11,7 +11,11 @@ use alacritty_terminal::index::{Column, Line, Point};
 use slotmap::SlotMap;
 
 /// Snapshot one Term grid into CellView rows + cursor (line, col).
-pub fn snapshot_cells(session: &Session) -> (Vec<Vec<CellView>>, (usize, usize)) {
+pub fn snapshot_cells(
+    session: &Session,
+    fg: crate::config::Rgb,
+    bg: crate::config::Rgb,
+) -> (Vec<Vec<CellView>>, (usize, usize)) {
     let term = session.term.lock().unwrap_or_else(|e| e.into_inner());
     let grid = term.grid();
     let actual_lines = term.screen_lines();
@@ -24,11 +28,7 @@ pub fn snapshot_cells(session: &Session) -> (Vec<Vec<CellView>>, (usize, usize))
         let mut row = Vec::with_capacity(actual_cols);
         for col in 0..actual_cols {
             let cell = &grid[Point::new(Line(line as i32), Column(col))];
-            row.push(CellView {
-                ch: cell.c,
-                fg: [0.85, 0.85, 0.85],
-                bg: [0.05, 0.05, 0.06],
-            });
+            row.push(CellView { ch: cell.c, fg, bg });
         }
         out.push(row);
     }
@@ -111,6 +111,7 @@ impl Workspace {
         &mut self,
         queue: &wgpu::Queue,
         atlas: &mut GpuAtlas,
+        theme: crate::config::Theme,
     ) -> (Vec<QuadInstance>, Vec<QuadInstance>) {
         let mut all_bg: Vec<QuadInstance> = Vec::new();
         let mut all_glyphs: Vec<QuadInstance> = Vec::new();
@@ -122,7 +123,7 @@ impl Workspace {
                 Some(s) => s,
                 None => continue,
             };
-            let (cells, (cur_line, cur_col)) = snapshot_cells(session);
+            let (cells, (cur_line, cur_col)) = snapshot_cells(session, theme.foreground, theme.background);
 
             // Pre-resolve UVs + glyph placement for this pane's distinct glyphs.
             let mut uv_map: std::collections::HashMap<char, GlyphInfo> =
@@ -160,7 +161,7 @@ impl Workspace {
                     size: [metrics.cell_w, metrics.cell_h],
                     uv_min: [0.0, 0.0],
                     uv_max: [0.0, 0.0],
-                    color: [0.85, 0.85, 0.85, 1.0],
+                    color: [theme.cursor[0], theme.cursor[1], theme.cursor[2], 1.0],
                 });
             }
 
@@ -298,6 +299,7 @@ pub struct App {
     pub metrics: CellMetrics,
     pub gutter: f32,
     root_rect: Rect,
+    pub theme: crate::config::Theme,
     pub editing: Option<usize>,
     pub edit_buf: String,
 }
@@ -306,6 +308,7 @@ impl App {
     pub fn new(
         root_rect: Rect,
         metrics: CellMetrics,
+        theme: crate::config::Theme,
         spawn: impl FnMut(u16, u16) -> Session,
     ) -> App {
         let gutter = 4.0;
@@ -316,6 +319,7 @@ impl App {
             metrics,
             gutter,
             root_rect,
+            theme,
             editing: None,
             edit_buf: String::new(),
         }
@@ -404,7 +408,8 @@ impl App {
         const LABEL: [f32; 3] = [0.85, 0.85, 0.85];
 
         // 1. Active workspace's pane frame (borrows atlas mutably, returns owned Vecs).
-        let (mut bg, mut glyphs) = self.active_ws_mut().build_frame(queue, atlas);
+        let theme = self.theme;
+        let (mut bg, mut glyphs) = self.active_ws_mut().build_frame(queue, atlas, theme);
 
         let solid = |r: Rect, color: [f32; 4]| QuadInstance {
             pos: [r.x, r.y],
@@ -492,7 +497,17 @@ mod tests {
 
     fn test_app() -> App {
         let m = CellMetrics { cell_w: 10.0, cell_h: 20.0, ascent: 15.0 };
-        App::new(Rect { x: 0.0, y: 0.0, w: 800.0, h: 600.0 }, m, spawn_stub)
+        App::new(Rect { x: 0.0, y: 0.0, w: 800.0, h: 600.0 }, m, crate::config::Theme::default(), spawn_stub)
+    }
+
+    #[test]
+    fn snapshot_uses_given_colors() {
+        let s = spawn_stub(5, 10);
+        let (rows, _) = snapshot_cells(&s, [0.1, 0.2, 0.3], [0.4, 0.5, 0.6]);
+        assert!(!rows.is_empty());
+        let cell = &rows[0][0];
+        assert_eq!(cell.fg, [0.1, 0.2, 0.3]);
+        assert_eq!(cell.bg, [0.4, 0.5, 0.6]);
     }
 
     #[test]

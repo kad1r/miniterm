@@ -69,6 +69,7 @@ fn main() {
         }
     };
     let mut app = App::new(root_rect, metrics, spawn);
+    app.set_root_rect(root_rect);
 
     // Track modifier state (updated by ModifiersChanged events).
     let mut mods = ModifiersState::empty();
@@ -107,6 +108,7 @@ fn main() {
                             w: size.width as f32,
                             h: size.height as f32,
                         };
+                        app.set_root_rect(root_rect);
                         app.active_tab_mut().relayout(root_rect);
                         window.request_redraw();
                     }

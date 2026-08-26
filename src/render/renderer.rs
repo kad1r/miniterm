@@ -256,7 +256,6 @@ impl Renderer {
     }
 
     /// Set the background clear color used by both render passes.
-    #[allow(dead_code)] // consumed in Task 5 (main.rs wiring)
     pub fn set_clear_color(&mut self, rgb: [f32; 3]) {
         self.clear_color = wgpu::Color {
             r: rgb[0] as f64,

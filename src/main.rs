@@ -1,5 +1,4 @@
 mod app;
-#[allow(dead_code)] // consumed in Task 5 (main.rs wiring); keeps build clean until then
 mod config;
 mod layout;
 mod render;
@@ -20,7 +19,6 @@ use winit::window::{CursorIcon, WindowBuilder};
 /// Fallback font, bundled so the app always has a valid monospace face even if
 /// the user's configured terminal font cannot be resolved.
 const BUNDLED_FONT: &[u8] = include_bytes!("../assets/font/consola.ttf");
-const FONT_PX: f32 = 18.0;
 
 #[derive(Debug, Clone)]
 enum UserEvent {
@@ -37,21 +35,29 @@ fn main() {
         .unwrap();
     let mut renderer = Renderer::new(&window);
 
-    // Resolve the user's configured terminal font (Windows Terminal / console),
-    // falling back to the bundled Consolas.
-    let (font_bytes, font_label) = text::font_source::resolve_font(BUNDLED_FONT, None);
+    // Load user config once (theme + font); any failure falls back to defaults.
+    let config = config::load();
+
+    // Apply the background clear color immediately.
+    renderer.set_clear_color(config.theme.background);
+
+    // Resolve the terminal font: user-configured family first, else auto-detect.
+    let (font_bytes, font_label) =
+        text::font_source::resolve_font(BUNDLED_FONT, config.font.family.as_deref());
     eprintln!("[miniterm] font: {font_label}");
+
+    let font_px = config.font.size;
 
     // Build the GpuAtlas once (stored alongside renderer).
     let mut atlas = GpuAtlas::new(
         renderer.device(),
         renderer.atlas_bind_group_layout(),
         font_bytes.clone(),
-        FONT_PX,
+        font_px,
     );
 
     // Measure cell metrics using the same font bytes.
-    let metrics: CellMetrics = measure(&font_bytes, FONT_PX);
+    let metrics: CellMetrics = measure(&font_bytes, font_px);
 
     // Build root rect from current surface size.
     let (sw, sh) = renderer.surface_size();
@@ -71,7 +77,7 @@ fn main() {
             })
         }
     };
-    let mut app = App::new(pane_rect, metrics, config::Theme::default(), spawn);
+    let mut app = App::new(pane_rect, metrics, config.theme, spawn);
     app.set_root_rect(pane_rect);
     app.active_ws_mut().relayout(pane_rect);
 

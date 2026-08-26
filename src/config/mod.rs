@@ -97,6 +97,7 @@ pub fn parse_hex(s: &str) -> Option<Rgb> {
 
 /// Parse a TOML string into a Config; any parse error yields Config::default().
 /// Test/helper seam for `load` (which adds the file IO around this).
+#[cfg(test)]
 pub fn parse_str(s: &str) -> Config {
     match toml::from_str::<RawConfig>(s) {
         Ok(raw) => raw.into_config(),

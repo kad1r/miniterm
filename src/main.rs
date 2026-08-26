@@ -1,3 +1,7 @@
+// Build as a GUI app: no console window spawns on launch. stderr diagnostics
+// (config/font lines) go nowhere in release, which is the desired UX.
+#![windows_subsystem = "windows"]
+
 mod app;
 mod config;
 mod layout;

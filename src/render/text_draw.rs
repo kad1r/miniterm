@@ -5,6 +5,8 @@ use crate::text::metrics::CellMetrics;
 /// advancing one `cell_w` per character. Spaces and NULs produce no quad.
 /// Glyphs are sized to their bitmap and placed at the baseline, matching
 /// `grid_draw::build_instances`.
+// TODO: remove this allow once Task 4 (chrome rendering) calls build_text.
+#[allow(dead_code)]
 pub fn build_text(
     text: &str,
     m: &CellMetrics,

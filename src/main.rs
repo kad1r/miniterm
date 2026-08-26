@@ -1,4 +1,6 @@
 mod app;
+#[allow(dead_code)] // consumed in Task 5 (main.rs wiring); keeps build clean until then
+mod config;
 mod layout;
 mod render;
 mod terminal;

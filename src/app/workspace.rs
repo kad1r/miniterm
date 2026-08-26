@@ -1,3 +1,6 @@
+// Navigation actions here are forward-looking API wired up by Tasks 5/6
+// (mouse routing + keyboard chords). TODO: remove this allow once those
+// tasks land and every method has a live caller.
 #![allow(dead_code)]
 use crate::app::Tab;
 use crate::layout::tree::Rect;

@@ -197,6 +197,9 @@ impl App {
         (bg, glyphs)
     }
 
+    // Public convenience wrapper mandated by the plan; callers use the free
+    // `pane_area_rect` directly, so this method has no in-tree consumer.
+    #[allow(dead_code)]
     pub fn pane_area(&self, window: Rect) -> Rect {
         pane_area_rect(window)
     }

@@ -1,3 +1,5 @@
+<img src="assets/icon.png" width="96" align="left" alt="miniterm icon" />
+
 # miniterm
 
 A fast, GPU-rendered terminal multiplexer for Windows, written in Rust. One

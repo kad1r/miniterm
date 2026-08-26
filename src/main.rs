@@ -14,11 +14,14 @@ use text::metrics::{measure, CellMetrics};
 use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
-use winit::window::{CursorIcon, WindowBuilder};
+use winit::window::{CursorIcon, Icon, WindowBuilder};
 
 /// Fallback font, bundled so the app always has a valid monospace face even if
 /// the user's configured terminal font cannot be resolved.
 const BUNDLED_FONT: &[u8] = include_bytes!("../assets/font/consola.ttf");
+
+/// App icon as raw 256x256 RGBA, embedded for the window/taskbar icon.
+const ICON_RGBA: &[u8] = include_bytes!("../assets/icon.rgba");
 
 #[derive(Debug, Clone)]
 enum UserEvent {
@@ -29,8 +32,10 @@ fn main() {
     let event_loop: EventLoop<UserEvent> = EventLoopBuilder::<UserEvent>::with_user_event()
         .build()
         .unwrap();
+    let icon = Icon::from_rgba(ICON_RGBA.to_vec(), 256, 256).ok();
     let window = WindowBuilder::new()
         .with_title("miniterm")
+        .with_window_icon(icon)
         .build(&event_loop)
         .unwrap();
     let mut renderer = Renderer::new(&window);

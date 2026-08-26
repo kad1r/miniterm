@@ -48,7 +48,7 @@ partial or absent file is always safe.
 
 ```toml
 [font]
-family = "Cascadia Code"   # optional; auto-detected from Windows Terminal / console if omitted
+family = "Cascadia Code"   # optional; defaults to "JetBrains Mono", falling back to Windows Terminal / console / bundled Consolas if unavailable
 size = 18.0
 
 [colors]
@@ -162,7 +162,7 @@ yüzden kısmi veya olmayan bir dosya her zaman güvenlidir.
 
 ```toml
 [font]
-family = "Cascadia Code"   # isteğe bağlı; yoksa Windows Terminal / konsoldan otomatik algılanır
+family = "Cascadia Code"   # isteğe bağlı; varsayılan "JetBrains Mono", yoksa Windows Terminal / konsol / gömülü Consolas'a düşer
 size = 18.0
 
 [colors]

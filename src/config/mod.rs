@@ -32,7 +32,7 @@ pub struct FontConfig {
 
 impl Default for FontConfig {
     fn default() -> Self {
-        FontConfig { family: None, size: 18.0 }
+        FontConfig { family: Some("JetBrains Mono".to_string()), size: 18.0 }
     }
 }
 
@@ -58,7 +58,7 @@ struct RawFont {
     size: f32,
 }
 impl Default for RawFont {
-    fn default() -> Self { RawFont { family: None, size: 18.0 } }
+    fn default() -> Self { RawFont { family: Some("JetBrains Mono".to_string()), size: 18.0 } }
 }
 
 #[derive(Deserialize, Default)]
@@ -199,7 +199,7 @@ mod tests {
     fn font_size_default_when_font_section_omitted() {
         let c = parse_str("[colors]\ncursor = \"#ff8800\"\n");
         assert_eq!(c.font.size, 18.0);
-        assert_eq!(c.font.family, None);
+        assert_eq!(c.font.family.as_deref(), Some("JetBrains Mono"));
     }
 
     #[test]

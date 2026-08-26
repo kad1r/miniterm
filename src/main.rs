@@ -107,7 +107,7 @@ fn main() {
                             w: size.width as f32,
                             h: size.height as f32,
                         };
-                        app.relayout(root_rect);
+                        app.active_tab_mut().relayout(root_rect);
                         window.request_redraw();
                     }
 
@@ -136,7 +136,7 @@ fn main() {
                                             let _ = pp.send_event(UserEvent::PtyOutput);
                                         })
                                     };
-                                    app.split_focused(Dir::Horizontal, root_rect, spawn_one);
+                                    app.active_tab_mut().split_focused(Dir::Horizontal, root_rect, spawn_one);
                                     true
                                 }
                                 // Ctrl+Shift+S → split stacked (Vertical)
@@ -150,26 +150,26 @@ fn main() {
                                             let _ = pp.send_event(UserEvent::PtyOutput);
                                         })
                                     };
-                                    app.split_focused(Dir::Vertical, root_rect, spawn_one);
+                                    app.active_tab_mut().split_focused(Dir::Vertical, root_rect, spawn_one);
                                     true
                                 }
                                 // Ctrl+Shift+W → close focused pane
                                 Key::Character(s)
                                     if s.as_str().eq_ignore_ascii_case("w") =>
                                 {
-                                    app.close_focused(root_rect);
+                                    app.active_tab_mut().close_focused(root_rect);
                                     true
                                 }
                                 // Ctrl+Shift+Tab → cycle focus
                                 Key::Named(NamedKey::Tab) => {
-                                    app.focus_next();
+                                    app.active_tab_mut().focus_next();
                                     true
                                 }
                                 // Ctrl+Shift+O → cycle focus (alternate)
                                 Key::Character(s)
                                     if s.as_str().eq_ignore_ascii_case("o") =>
                                 {
-                                    app.focus_next();
+                                    app.active_tab_mut().focus_next();
                                     true
                                 }
                                 _ => false,
@@ -193,14 +193,16 @@ fn main() {
                         };
 
                         if let Some(b) = bytes {
-                            if let Some(session) = app.sessions.get_mut(app.focus) {
+                            let tab = app.active_tab_mut();
+                            if let Some(session) = tab.sessions.get_mut(tab.focus) {
                                 session.write(b);
                             }
                             window.request_redraw();
                         } else if let Some(text) = &event.text {
                             let s = text.as_str();
                             if !s.is_empty() {
-                                if let Some(session) = app.sessions.get_mut(app.focus) {
+                                let tab = app.active_tab_mut();
+                                if let Some(session) = tab.sessions.get_mut(tab.focus) {
                                     session.write(s.as_bytes());
                                 }
                                 window.request_redraw();
@@ -212,13 +214,13 @@ fn main() {
                     WindowEvent::RedrawRequested => {
                         // Clear every live session's redraw_pending gate before
                         // snapshotting so the next output chunk can queue a new wakeup.
-                        for (_, s) in app.sessions.iter() {
+                        for (_, s) in app.active_tab().sessions.iter() {
                             s.redraw_pending.store(false, std::sync::atomic::Ordering::SeqCst);
                         }
 
                         // Build frame quads across all panes.
                         // queue() shared borrow ends before draw_quads's &mut self borrow.
-                        let (bg, glyphs) = app.build_frame(renderer.queue(), &mut atlas);
+                        let (bg, glyphs) = app.active_tab_mut().build_frame(renderer.queue(), &mut atlas);
                         renderer.draw_quads(&bg, &glyphs, &atlas);
                     }
 
@@ -228,17 +230,17 @@ fn main() {
                         let (sw, sh) = renderer.surface_size();
                         let root_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
                         if let Some(hit) = &drag {
-                            app.apply_drag(hit, cursor_pos, root_rect);
+                            app.active_tab_mut().apply_drag(hit, cursor_pos, root_rect);
                             // Debounce ConPTY resize to ~16ms during a live drag.
                             if last_resize.elapsed().as_millis() >= 16 {
-                                app.relayout(root_rect);
+                                app.active_tab_mut().relayout(root_rect);
                                 last_resize = std::time::Instant::now();
                             }
                             window.request_redraw();
                         } else {
                             // Set the resize cursor when hovering a divider.
                             let hovering = crate::layout::hit::hit_test(
-                                &app.tree, root_rect, app.gutter, cursor_pos, 3.0,
+                                &app.active_tab().tree, root_rect, app.active_tab().gutter, cursor_pos, 3.0,
                             );
                             let icon = match hovering.as_ref().map(|h| h.dir) {
                                 Some(crate::layout::tree::Dir::Horizontal) => CursorIcon::EwResize,
@@ -259,11 +261,11 @@ fn main() {
                                 let root_rect =
                                     Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
                                 drag = crate::layout::hit::hit_test(
-                                    &app.tree, root_rect, app.gutter, cursor_pos, 3.0,
+                                    &app.active_tab().tree, root_rect, app.active_tab().gutter, cursor_pos, 3.0,
                                 );
                                 if drag.is_none() {
-                                    if let Some(id) = app.pane_at_point(cursor_pos) {
-                                        app.focus = id;
+                                    if let Some(id) = app.active_tab().pane_at_point(cursor_pos) {
+                                        app.active_tab_mut().focus = id;
                                         window.request_redraw();
                                     }
                                 }
@@ -273,7 +275,7 @@ fn main() {
                                     let (sw, sh) = renderer.surface_size();
                                     let root_rect =
                                         Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
-                                    app.relayout(root_rect);
+                                    app.active_tab_mut().relayout(root_rect);
                                     window.request_redraw();
                                 }
                                 drag = None;

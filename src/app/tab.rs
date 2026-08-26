@@ -33,7 +33,7 @@ pub fn snapshot_cells(session: &Session) -> (Vec<Vec<CellView>>, (usize, usize))
     (out, (cursor_line, cursor_col))
 }
 
-pub struct App {
+pub struct Tab {
     pub sessions: SlotMap<PaneId, Session>,
     pub tree: LayoutTree,
     pub focus: PaneId,
@@ -69,30 +69,21 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
     }
 }
 
-impl App {
+impl Tab {
     pub fn new(
         root_rect: Rect,
         metrics: CellMetrics,
+        gutter: f32,
         mut spawn: impl FnMut(u16, u16) -> Session,
-    ) -> App {
+    ) -> Tab {
         let (rows, cols) = Self::rows_cols_for_rect(root_rect, &metrics);
         let mut sessions: SlotMap<PaneId, Session> = SlotMap::with_key();
         let first = sessions.insert(spawn(rows, cols));
         let tree = LayoutTree::new(first);
-        let gutter = 4.0;
         let rects = tree.compute_rects(root_rect, gutter);
         let mut colors = std::collections::HashMap::new();
         colors.insert(first, pane_color(0));
-        App {
-            sessions,
-            tree,
-            focus: first,
-            metrics,
-            rects,
-            gutter,
-            colors,
-            color_seed: 1,
-        }
+        Tab { sessions, tree, focus: first, metrics, rects, gutter, colors, color_seed: 1 }
     }
 
     pub fn rows_cols_for_rect(rect: Rect, m: &CellMetrics) -> (u16, u16) {
@@ -228,19 +219,18 @@ impl App {
         }
     }
 
-    pub fn close_focused(&mut self, root_rect: Rect) {
-        if self.sessions.len() <= 1 {
-            return; // never close the last pane
-        }
+    pub fn close_focused(&mut self, root_rect: Rect) -> bool {
         let closing = self.focus;
         if self.tree.close(closing) {
             self.sessions.remove(closing); // drops Session => PTY + reader thread end
             self.colors.remove(&closing);
-            // Focus the first remaining leaf.
             if let Some(next) = self.tree.pane_ids().first().copied() {
                 self.focus = next;
             }
             self.relayout(root_rect);
+            true
+        } else {
+            false
         }
     }
 
@@ -305,14 +295,14 @@ mod tests {
     #[test]
     fn rows_cols_floor_and_clamp() {
         let m = CellMetrics { cell_w: 10.0, cell_h: 20.0, ascent: 15.0 };
-        let (rows, cols) = App::rows_cols_for_rect(
+        let (rows, cols) = Tab::rows_cols_for_rect(
             Rect { x: 0.0, y: 0.0, w: 105.0, h: 42.0 },
             &m,
         );
         assert_eq!(cols, 10); // floor(105/10)
         assert_eq!(rows, 2);  // floor(42/20)
         // Tiny rect clamps to at least 1x1.
-        let (r2, c2) = App::rows_cols_for_rect(
+        let (r2, c2) = Tab::rows_cols_for_rect(
             Rect { x: 0.0, y: 0.0, w: 3.0, h: 3.0 },
             &m,
         );

@@ -71,7 +71,7 @@ fn main() {
     };
     let mut app = App::new(pane_rect, metrics, spawn);
     app.set_root_rect(pane_rect);
-    app.active_tab_mut().relayout(pane_rect);
+    app.active_ws_mut().relayout(pane_rect);
 
     // Track modifier state (updated by ModifiersChanged events).
     let mut mods = ModifiersState::empty();
@@ -113,7 +113,7 @@ fn main() {
                         };
                         let pane_rect = app::pane_area_rect(window_rect);
                         app.set_root_rect(pane_rect);
-                        app.active_tab_mut().relayout(pane_rect);
+                        app.active_ws_mut().relayout(pane_rect);
                         window.request_redraw();
                     }
 
@@ -159,7 +159,7 @@ fn main() {
                                             let _ = pp.send_event(UserEvent::PtyOutput);
                                         })
                                     };
-                                    app.active_tab_mut().split_focused(Dir::Horizontal, root_rect, spawn_one);
+                                    app.active_ws_mut().split_focused(Dir::Horizontal, root_rect, spawn_one);
                                     true
                                 }
                                 // Ctrl+Shift+S → split stacked (Vertical)
@@ -173,26 +173,26 @@ fn main() {
                                             let _ = pp.send_event(UserEvent::PtyOutput);
                                         })
                                     };
-                                    app.active_tab_mut().split_focused(Dir::Vertical, root_rect, spawn_one);
+                                    app.active_ws_mut().split_focused(Dir::Vertical, root_rect, spawn_one);
                                     true
                                 }
                                 // Ctrl+Shift+W → close focused pane
                                 Key::Character(s)
                                     if s.as_str().eq_ignore_ascii_case("w") =>
                                 {
-                                    app.active_tab_mut().close_focused(root_rect);
+                                    app.active_ws_mut().close_focused(root_rect);
                                     true
                                 }
                                 // Ctrl+Shift+Tab → cycle focus
                                 Key::Named(NamedKey::Tab) => {
-                                    app.active_tab_mut().focus_next();
+                                    app.active_ws_mut().focus_next();
                                     true
                                 }
                                 // Ctrl+Shift+O → cycle focus (alternate)
                                 Key::Character(s)
                                     if s.as_str().eq_ignore_ascii_case("o") =>
                                 {
-                                    app.active_tab_mut().focus_next();
+                                    app.active_ws_mut().focus_next();
                                     true
                                 }
                                 // Ctrl+Shift+N → new workspace
@@ -207,20 +207,6 @@ fn main() {
                                         })
                                     };
                                     app.new_workspace(spawn_one);
-                                    true
-                                }
-                                // Ctrl+Shift+T → new tab
-                                Key::Character(s)
-                                    if s.as_str().eq_ignore_ascii_case("t") =>
-                                {
-                                    let p = proxy.clone();
-                                    let spawn_one = move |rows: u16, cols: u16| -> Session {
-                                        let pp = p.clone();
-                                        Session::spawn(rows, cols, "cmd.exe", move || {
-                                            let _ = pp.send_event(UserEvent::PtyOutput);
-                                        })
-                                    };
-                                    app.new_tab(spawn_one);
                                     true
                                 }
                                 // Ctrl+Shift+PageDown → next workspace
@@ -242,19 +228,6 @@ fn main() {
                             }
                         }
 
-                        // Ctrl-only (no Shift): tab switching
-                        if mods.control_key() && !mods.shift_key() {
-                            let handled = match &event.logical_key {
-                                Key::Named(NamedKey::PageDown) => { app.next_tab(); true }
-                                Key::Named(NamedKey::PageUp) => { app.prev_tab(); true }
-                                _ => false,
-                            };
-                            if handled {
-                                window.request_redraw();
-                                return;
-                            }
-                        }
-
                         // Map special keys first, then fall through to text.
                         let bytes: Option<&[u8]> = match &event.logical_key {
                             // Ctrl-C: send ETX regardless of the text field.
@@ -267,7 +240,7 @@ fn main() {
                         };
 
                         if let Some(b) = bytes {
-                            let tab = app.active_tab_mut();
+                            let tab = app.active_ws_mut();
                             if let Some(session) = tab.sessions.get_mut(tab.focus) {
                                 session.write(b);
                             }
@@ -275,7 +248,7 @@ fn main() {
                         } else if let Some(text) = &event.text {
                             let s = text.as_str();
                             if !s.is_empty() {
-                                let tab = app.active_tab_mut();
+                                let tab = app.active_ws_mut();
                                 if let Some(session) = tab.sessions.get_mut(tab.focus) {
                                     session.write(s.as_bytes());
                                 }
@@ -288,7 +261,7 @@ fn main() {
                     WindowEvent::RedrawRequested => {
                         // Clear every live session's redraw_pending gate before
                         // snapshotting so the next output chunk can queue a new wakeup.
-                        for (_, s) in app.active_tab().sessions.iter() {
+                        for (_, s) in app.active_ws().sessions.iter() {
                             s.redraw_pending.store(false, std::sync::atomic::Ordering::SeqCst);
                         }
 
@@ -307,17 +280,17 @@ fn main() {
                         let window_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
                         let root_rect = app::pane_area_rect(window_rect);
                         if let Some(hit) = &drag {
-                            app.active_tab_mut().apply_drag(hit, cursor_pos, root_rect);
+                            app.active_ws_mut().apply_drag(hit, cursor_pos, root_rect);
                             // Debounce ConPTY resize to ~16ms during a live drag.
                             if last_resize.elapsed().as_millis() >= 16 {
-                                app.active_tab_mut().relayout(root_rect);
+                                app.active_ws_mut().relayout(root_rect);
                                 last_resize = std::time::Instant::now();
                             }
                             window.request_redraw();
                         } else {
                             // Set the resize cursor when hovering a divider.
                             let hovering = crate::layout::hit::hit_test(
-                                &app.active_tab().tree, root_rect, app.active_tab().gutter, cursor_pos, 3.0,
+                                &app.active_ws().tree, root_rect, app.active_ws().gutter, cursor_pos, 3.0,
                             );
                             let icon = match hovering.as_ref().map(|h| h.dir) {
                                 Some(crate::layout::tree::Dir::Horizontal) => CursorIcon::EwResize,
@@ -338,8 +311,7 @@ fn main() {
                                 let window_rect =
                                     Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
                                 let ws_count = app.workspaces.len();
-                                let tab_count = app.active_ws().tabs.len();
-                                match crate::app::chrome_hit(window_rect, ws_count, tab_count, cursor_pos) {
+                                match crate::app::chrome_hit(window_rect, ws_count, cursor_pos) {
                                     crate::app::ChromeHit::Workspace(i) => {
                                         let now = std::time::Instant::now();
                                         let is_dbl = last_click.map_or(false, |(t, p)| {
@@ -368,29 +340,14 @@ fn main() {
                                         app.new_workspace(spawn_one);
                                         window.request_redraw();
                                     }
-                                    crate::app::ChromeHit::Tab(i) => {
-                                        app.switch_tab(i);
-                                        window.request_redraw();
-                                    }
-                                    crate::app::ChromeHit::NewTab => {
-                                        let p = proxy.clone();
-                                        let spawn_one = move |rows: u16, cols: u16| -> Session {
-                                            let pp = p.clone();
-                                            Session::spawn(rows, cols, "cmd.exe", move || {
-                                                let _ = pp.send_event(UserEvent::PtyOutput);
-                                            })
-                                        };
-                                        app.new_tab(spawn_one);
-                                        window.request_redraw();
-                                    }
                                     crate::app::ChromeHit::PaneArea => {
                                         let root_rect = app::pane_area_rect(window_rect);
                                         drag = crate::layout::hit::hit_test(
-                                            &app.active_tab().tree, root_rect, app.active_tab().gutter, cursor_pos, 3.0,
+                                            &app.active_ws().tree, root_rect, app.active_ws().gutter, cursor_pos, 3.0,
                                         );
                                         if drag.is_none() {
-                                            if let Some(id) = app.active_tab().pane_at_point(cursor_pos) {
-                                                app.active_tab_mut().focus = id;
+                                            if let Some(id) = app.active_ws().pane_at_point(cursor_pos) {
+                                                app.active_ws_mut().focus = id;
                                                 window.request_redraw();
                                             }
                                         }
@@ -403,7 +360,7 @@ fn main() {
                                     let window_rect =
                                         Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
                                     let root_rect = app::pane_area_rect(window_rect);
-                                    app.active_tab_mut().relayout(root_rect);
+                                    app.active_ws_mut().relayout(root_rect);
                                     window.request_redraw();
                                 }
                                 drag = None;
@@ -416,9 +373,8 @@ fn main() {
                         let (sw, sh) = renderer.surface_size();
                         let window_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
                         let ws_count = app.workspaces.len();
-                        let tab_count = app.active_ws().tabs.len();
                         if let crate::app::ChromeHit::Workspace(i) =
-                            crate::app::chrome_hit(window_rect, ws_count, tab_count, cursor_pos)
+                            crate::app::chrome_hit(window_rect, ws_count, cursor_pos)
                         {
                             app.delete_workspace(i);
                             window.request_redraw();

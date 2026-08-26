@@ -9,8 +9,20 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Resolve font bytes for the terminal. Returns the bytes plus a human label of
-/// what was chosen (for logging). Falls back to `bundled` on any failure.
-pub fn resolve_font(bundled: &[u8]) -> (Vec<u8>, String) {
+/// what was chosen (for logging). When `preferred` is Some(non-empty), that face
+/// is tried first; otherwise (or on failure) falls back to auto-detect, then the
+/// bundled Consolas.
+pub fn resolve_font(bundled: &[u8], preferred: Option<&str>) -> (Vec<u8>, String) {
+    if let Some(face) = preferred {
+        let face = face.trim();
+        if !face.is_empty() {
+            if let Some(path) = face_to_path(face) {
+                if let Ok(bytes) = fs::read(&path) {
+                    return (bytes, format!("{face} ({}) [config]", path.display()));
+                }
+            }
+        }
+    }
     if let Some(face) = detect_face() {
         if let Some(path) = face_to_path(&face) {
             if let Ok(bytes) = fs::read(&path) {

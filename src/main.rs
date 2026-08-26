@@ -39,7 +39,7 @@ fn main() {
 
     // Resolve the user's configured terminal font (Windows Terminal / console),
     // falling back to the bundled Consolas.
-    let (font_bytes, font_label) = text::font_source::resolve_font(BUNDLED_FONT);
+    let (font_bytes, font_label) = text::font_source::resolve_font(BUNDLED_FONT, None);
     eprintln!("[miniterm] font: {font_label}");
 
     // Build the GpuAtlas once (stored alongside renderer).

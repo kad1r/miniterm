@@ -12,6 +12,7 @@ pub struct Renderer {
     atlas_layout: wgpu::BindGroupLayout,
     instance_buf: wgpu::Buffer,
     instance_capacity: usize,
+    clear_color: wgpu::Color,
 }
 
 impl Renderer {
@@ -225,6 +226,7 @@ impl Renderer {
             atlas_layout,
             instance_buf,
             instance_capacity: instance_buf_initial_capacity,
+            clear_color: wgpu::Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 },
         }
     }
 
@@ -251,6 +253,17 @@ impl Renderer {
 
     pub fn device(&self) -> &wgpu::Device {
         &self.device
+    }
+
+    /// Set the background clear color used by both render passes.
+    #[allow(dead_code)] // consumed in Task 5 (main.rs wiring)
+    pub fn set_clear_color(&mut self, rgb: [f32; 3]) {
+        self.clear_color = wgpu::Color {
+            r: rgb[0] as f64,
+            g: rgb[1] as f64,
+            b: rgb[2] as f64,
+            a: 1.0,
+        };
     }
 
     pub fn draw_quads(
@@ -285,7 +298,7 @@ impl Renderer {
                         view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 }),
+                            load: wgpu::LoadOp::Clear(self.clear_color),
                             store: wgpu::StoreOp::Store,
                         },
                     })],
@@ -341,7 +354,7 @@ impl Renderer {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 }),
+                        load: wgpu::LoadOp::Clear(self.clear_color),
                         store: wgpu::StoreOp::Store,
                     },
                 })],

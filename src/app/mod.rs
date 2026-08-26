@@ -38,7 +38,7 @@ pub enum ChromeHit {
     PaneArea,
 }
 
-pub fn chrome_hit(window: Rect, ws_count: usize, tab_count: usize, p: (f32, f32)) -> ChromeHit {
+pub fn chrome_hit(_window: Rect, ws_count: usize, tab_count: usize, p: (f32, f32)) -> ChromeHit {
     if p.0 < SIDEBAR_W {
         // Sidebar: which row?
         if p.1 >= PAD {

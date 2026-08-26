@@ -265,15 +265,52 @@ fn main() {
                         match state {
                             ElementState::Pressed => {
                                 let (sw, sh) = renderer.surface_size();
-                                let root_rect =
+                                let window_rect =
                                     Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
-                                drag = crate::layout::hit::hit_test(
-                                    &app.active_tab().tree, root_rect, app.active_tab().gutter, cursor_pos, 3.0,
-                                );
-                                if drag.is_none() {
-                                    if let Some(id) = app.active_tab().pane_at_point(cursor_pos) {
-                                        app.active_tab_mut().focus = id;
+                                let ws_count = app.workspaces.len();
+                                let tab_count = app.active_ws().tabs.len();
+                                match crate::app::chrome_hit(window_rect, ws_count, tab_count, cursor_pos) {
+                                    crate::app::ChromeHit::Workspace(i) => {
+                                        app.switch_workspace(i);
                                         window.request_redraw();
+                                    }
+                                    crate::app::ChromeHit::NewWorkspace => {
+                                        let p = proxy.clone();
+                                        let spawn_one = move |rows: u16, cols: u16| -> Session {
+                                            let pp = p.clone();
+                                            Session::spawn(rows, cols, "cmd.exe", move || {
+                                                let _ = pp.send_event(UserEvent::PtyOutput);
+                                            })
+                                        };
+                                        app.new_workspace(spawn_one);
+                                        window.request_redraw();
+                                    }
+                                    crate::app::ChromeHit::Tab(i) => {
+                                        app.switch_tab(i);
+                                        window.request_redraw();
+                                    }
+                                    crate::app::ChromeHit::NewTab => {
+                                        let p = proxy.clone();
+                                        let spawn_one = move |rows: u16, cols: u16| -> Session {
+                                            let pp = p.clone();
+                                            Session::spawn(rows, cols, "cmd.exe", move || {
+                                                let _ = pp.send_event(UserEvent::PtyOutput);
+                                            })
+                                        };
+                                        app.new_tab(spawn_one);
+                                        window.request_redraw();
+                                    }
+                                    crate::app::ChromeHit::PaneArea => {
+                                        let root_rect = window_rect;
+                                        drag = crate::layout::hit::hit_test(
+                                            &app.active_tab().tree, root_rect, app.active_tab().gutter, cursor_pos, 3.0,
+                                        );
+                                        if drag.is_none() {
+                                            if let Some(id) = app.active_tab().pane_at_point(cursor_pos) {
+                                                app.active_tab_mut().focus = id;
+                                                window.request_redraw();
+                                            }
+                                        }
                                     }
                                 }
                             }

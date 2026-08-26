@@ -143,8 +143,9 @@ fn main() {
                         // Check for Ctrl+Shift chord keybindings first.
                         if mods.control_key() && mods.shift_key() {
                             let (sw, sh) = renderer.surface_size();
-                            let root_rect =
+                            let window_rect =
                                 Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                            let root_rect = app::pane_area_rect(window_rect);
 
                             let handled = match &event.logical_key {
                                 // Ctrl+Shift+D → split side-by-side (Horizontal)
@@ -303,7 +304,8 @@ fn main() {
                     WindowEvent::CursorMoved { position, .. } => {
                         cursor_pos = (position.x as f32, position.y as f32);
                         let (sw, sh) = renderer.surface_size();
-                        let root_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                        let window_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                        let root_rect = app::pane_area_rect(window_rect);
                         if let Some(hit) = &drag {
                             app.active_tab_mut().apply_drag(hit, cursor_pos, root_rect);
                             // Debounce ConPTY resize to ~16ms during a live drag.
@@ -382,7 +384,7 @@ fn main() {
                                         window.request_redraw();
                                     }
                                     crate::app::ChromeHit::PaneArea => {
-                                        let root_rect = window_rect;
+                                        let root_rect = app::pane_area_rect(window_rect);
                                         drag = crate::layout::hit::hit_test(
                                             &app.active_tab().tree, root_rect, app.active_tab().gutter, cursor_pos, 3.0,
                                         );
@@ -398,8 +400,9 @@ fn main() {
                             ElementState::Released => {
                                 if drag.is_some() {
                                     let (sw, sh) = renderer.surface_size();
-                                    let root_rect =
+                                    let window_rect =
                                         Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                                    let root_rect = app::pane_area_rect(window_rect);
                                     app.active_tab_mut().relayout(root_rect);
                                     window.request_redraw();
                                 }

@@ -18,6 +18,8 @@ pub struct App {
     pub metrics: CellMetrics,
     pub gutter: f32,
     root_rect: Rect,
+    pub editing: Option<usize>,
+    pub edit_buf: String,
 }
 
 impl App {
@@ -29,7 +31,7 @@ impl App {
         let gutter = 4.0;
         let tab = Tab::new(root_rect, metrics, gutter, spawn);
         let ws = Workspace { name: "1".to_string(), tabs: vec![tab], active_tab: 0 };
-        App { workspaces: vec![ws], active: 0, metrics, gutter, root_rect }
+        App { workspaces: vec![ws], active: 0, metrics, gutter, root_rect, editing: None, edit_buf: String::new() }
     }
 
     pub fn set_root_rect(&mut self, r: Rect) { self.root_rect = r; }
@@ -99,6 +101,44 @@ impl App {
         }
     }
 
+    pub fn begin_rename(&mut self, ws: usize) {
+        if ws < self.workspaces.len() {
+            self.edit_buf = self.workspaces[ws].name.clone();
+            self.editing = Some(ws);
+        }
+    }
+    pub fn rename_push(&mut self, ch: char) {
+        if self.editing.is_some() && !ch.is_control() {
+            self.edit_buf.push(ch);
+        }
+    }
+    pub fn rename_backspace(&mut self) {
+        if self.editing.is_some() { self.edit_buf.pop(); }
+    }
+    pub fn rename_commit(&mut self) {
+        if let Some(ws) = self.editing.take() {
+            let name = self.edit_buf.trim().to_string();
+            if !name.is_empty() {
+                self.workspaces[ws].name = name;
+            }
+        }
+        self.edit_buf.clear();
+    }
+    pub fn rename_cancel(&mut self) {
+        self.editing = None;
+        self.edit_buf.clear();
+    }
+    pub fn delete_workspace(&mut self, ws: usize) {
+        if self.workspaces.len() <= 1 || ws >= self.workspaces.len() { return; }
+        self.workspaces.remove(ws);
+        if self.active >= self.workspaces.len() {
+            self.active = self.workspaces.len() - 1;
+        }
+        self.editing = None;
+        self.edit_buf.clear();
+        self.relayout_active();
+    }
+
     fn relayout_active(&mut self) {
         let r = self.root_rect;
         self.active_tab_mut().relayout(r);
@@ -147,6 +187,10 @@ impl App {
         for s in &ws_labels {
             chars.extend(s.chars());
         }
+        if self.editing.is_some() {
+            chars.extend(self.edit_buf.chars());
+            chars.push('_');
+        }
         chars.push('+');
         for i in 0..tab_count {
             chars.extend(format!("{}", i + 1).chars());
@@ -167,13 +211,20 @@ impl App {
         let lookup = |c: char| uv_map.get(&c).copied().unwrap_or(dg);
 
         // 4. Sidebar workspace rows.
+        let editing_idx = self.editing;
+        let edit_buf_snapshot = self.edit_buf.clone();
         for (i, name) in ws_labels.iter().enumerate() {
             let r = sidebar_row_rect(i);
             if i == active_ws {
                 bg.push(solid(r, HILITE));
             }
             let ty = r.y + (r.h - metrics.cell_h) * 0.5;
-            glyphs.extend(build_text(name, &metrics, [r.x + PAD, ty], LABEL, &lookup));
+            let shown = if editing_idx == Some(i) {
+                format!("{}_", edit_buf_snapshot)
+            } else {
+                name.clone()
+            };
+            glyphs.extend(build_text(&shown, &metrics, [r.x + PAD, ty], LABEL, &lookup));
         }
         // "+ new workspace" row.
         let plus_r = sidebar_row_rect(ws_labels.len());
@@ -270,5 +321,43 @@ mod tests {
         let mut app = test_app();
         app.switch_tab(99); // out of range -> no-op
         assert_eq!(app.active_ws().active_tab, 0);
+    }
+
+    #[test]
+    fn rename_commit_updates_name() {
+        let mut app = test_app();
+        app.begin_rename(0);
+        app.rename_backspace(); // clear seeded "1"
+        for c in "work".chars() { app.rename_push(c); }
+        app.rename_commit();
+        assert_eq!(app.workspaces[0].name, "work");
+        assert!(app.editing.is_none());
+    }
+
+    #[test]
+    fn rename_cancel_keeps_old_name() {
+        let mut app = test_app();
+        let old = app.workspaces[0].name.clone();
+        app.begin_rename(0);
+        app.rename_push('x');
+        app.rename_cancel();
+        assert_eq!(app.workspaces[0].name, old);
+        assert!(app.editing.is_none());
+    }
+
+    #[test]
+    fn delete_workspace_refuses_last() {
+        let mut app = test_app();
+        app.delete_workspace(0);
+        assert_eq!(app.workspaces.len(), 1);
+    }
+
+    #[test]
+    fn delete_workspace_removes_and_fixes_active() {
+        let mut app = test_app();
+        app.new_workspace(spawn_stub); // active=1, len=2
+        app.delete_workspace(1);
+        assert_eq!(app.workspaces.len(), 1);
+        assert_eq!(app.active, 0);
     }
 }

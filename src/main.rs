@@ -80,6 +80,7 @@ fn main() {
     let mut cursor_pos = (0.0f32, 0.0f32);
     let mut drag: Option<crate::layout::hit::SplitHit> = None;
     let mut last_resize = std::time::Instant::now();
+    let mut last_click: Option<(std::time::Instant, (f32, f32))> = None;
 
     // Request an initial draw so the window isn't blank at startup.
     window.request_redraw();
@@ -121,6 +122,22 @@ fn main() {
                         // Only act on key-press (and key-repeat), not key-release.
                         if event.state == ElementState::Released {
                             return;
+                        }
+
+                        // Edit-mode: capture all input into rename buffer.
+                        if app.editing.is_some() {
+                            match &event.logical_key {
+                                Key::Named(NamedKey::Enter) => { app.rename_commit(); window.request_redraw(); return; }
+                                Key::Named(NamedKey::Escape) => { app.rename_cancel(); window.request_redraw(); return; }
+                                Key::Named(NamedKey::Backspace) => { app.rename_backspace(); window.request_redraw(); return; }
+                                _ => {
+                                    if let Some(text) = &event.text {
+                                        for ch in text.chars() { app.rename_push(ch); }
+                                        window.request_redraw();
+                                    }
+                                    return;
+                                }
+                            }
                         }
 
                         // Check for Ctrl+Shift chord keybindings first.
@@ -322,8 +339,21 @@ fn main() {
                                 let tab_count = app.active_ws().tabs.len();
                                 match crate::app::chrome_hit(window_rect, ws_count, tab_count, cursor_pos) {
                                     crate::app::ChromeHit::Workspace(i) => {
-                                        app.switch_workspace(i);
-                                        window.request_redraw();
+                                        let now = std::time::Instant::now();
+                                        let is_dbl = last_click.map_or(false, |(t, p)| {
+                                            t.elapsed().as_millis() < 400
+                                                && (p.0 - cursor_pos.0).abs() < 5.0
+                                                && (p.1 - cursor_pos.1).abs() < 5.0
+                                        });
+                                        if is_dbl {
+                                            last_click = None;
+                                            app.begin_rename(i);
+                                            window.request_redraw();
+                                        } else {
+                                            last_click = Some((now, cursor_pos));
+                                            app.switch_workspace(i);
+                                            window.request_redraw();
+                                        }
                                     }
                                     crate::app::ChromeHit::NewWorkspace => {
                                         let p = proxy.clone();
@@ -375,6 +405,20 @@ fn main() {
                                 }
                                 drag = None;
                             }
+                        }
+                    }
+
+                    // ── Right-click: delete workspace ────────────────────
+                    WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Right, .. } => {
+                        let (sw, sh) = renderer.surface_size();
+                        let window_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                        let ws_count = app.workspaces.len();
+                        let tab_count = app.active_ws().tabs.len();
+                        if let crate::app::ChromeHit::Workspace(i) =
+                            crate::app::chrome_hit(window_rect, ws_count, tab_count, cursor_pos)
+                        {
+                            app.delete_workspace(i);
+                            window.request_redraw();
                         }
                     }
 

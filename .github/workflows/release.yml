@@ -1,0 +1,46 @@
+name: Release
+
+# Build a standalone Windows binary and attach it to a GitHub Release
+# whenever a version tag (e.g. v0.1.0) is pushed.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        # rust-toolchain.toml pins stable-x86_64-pc-windows-gnu; rustup honors it.
+        run: rustup show
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Stage artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/release/miniterm.exe "dist/miniterm-${GITHUB_REF_NAME}-windows-x64.exe"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
+          generate_release_notes: true

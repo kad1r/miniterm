@@ -60,9 +60,24 @@ cursor     = "#d8d8d8"
 If the file is absent, unreadable, or fails to parse, miniterm logs a single
 line to stderr and continues with defaults.
 
-## Building & Running
+## Install / Run
 
-Requires a Rust toolchain (Windows, `stable-x86_64-pc-windows-gnu`).
+**Download (no build):** grab the latest `miniterm-*-windows-x64.exe` from the
+[Releases](https://github.com/kad1r/miniterm/releases) page and run it. The
+binary is fully standalone — the font is embedded, no install or extra files
+needed.
+
+**From source, permanent install:** with a Rust toolchain (Windows,
+`stable-x86_64-pc-windows-gnu`):
+
+```bash
+cargo install --path .
+```
+
+This builds the release binary into `~/.cargo/bin`, which is already on your
+PATH — then just run `miniterm` from anywhere.
+
+**Run without installing:**
 
 ```bash
 cargo run --release
@@ -159,9 +174,23 @@ cursor     = "#d8d8d8"
 Dosya yoksa, okunamıyorsa veya ayrıştırılamıyorsa miniterm stderr'e tek satır
 log basar ve varsayılanlarla devam eder.
 
-### Derleme & Çalıştırma
+### Kurulum / Çalıştırma
 
-Rust toolchain gerektirir (Windows, `stable-x86_64-pc-windows-gnu`).
+**İndir (derleme yok):** [Releases](https://github.com/kad1r/miniterm/releases)
+sayfasından en son `miniterm-*-windows-x64.exe` dosyasını indir ve çalıştır.
+Binary tamamen standalone — font gömülü, kurulum veya ek dosya gerekmez.
+
+**Kaynaktan, kalıcı kurulum:** Rust toolchain ile (Windows,
+`stable-x86_64-pc-windows-gnu`):
+
+```bash
+cargo install --path .
+```
+
+Release binary'yi zaten PATH'te olan `~/.cargo/bin`'e derler — sonra her yerden
+`miniterm` yazıp çalıştırırsın.
+
+**Kurmadan çalıştır:**
 
 ```bash
 cargo run --release

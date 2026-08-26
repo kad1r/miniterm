@@ -10,6 +10,10 @@ use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::index::{Column, Line, Point};
 use slotmap::SlotMap;
 
+/// Inner padding (px) inset on all sides of a pane's content, so colored
+/// pane borders don't touch glyphs.
+const PANE_PAD: f32 = 8.0;
+
 /// Snapshot one Term grid into CellView rows + cursor (line, col).
 pub fn snapshot_cells(
     session: &Session,
@@ -92,8 +96,8 @@ impl Workspace {
     }
 
     pub fn rows_cols_for_rect(rect: Rect, m: &CellMetrics) -> (u16, u16) {
-        let cols = (rect.w / m.cell_w).floor().max(1.0) as u16;
-        let rows = (rect.h / m.cell_h).floor().max(1.0) as u16;
+        let cols = ((rect.w - 2.0 * PANE_PAD) / m.cell_w).floor().max(1.0) as u16;
+        let rows = ((rect.h - 2.0 * PANE_PAD) / m.cell_h).floor().max(1.0) as u16;
         (rows, cols)
     }
 
@@ -144,7 +148,7 @@ impl Workspace {
             let (mut bg, glyphs) = build_instances(
                 &cells,
                 &metrics,
-                [rect.x, rect.y],
+                [rect.x + PANE_PAD, rect.y + PANE_PAD],
                 &|ch| uv_map.get(&ch).copied().unwrap_or(default_glyph),
             );
 
@@ -154,8 +158,8 @@ impl Workspace {
                 && !cells.is_empty()
                 && cur_col < cells[0].len()
             {
-                let cx = rect.x + cur_col as f32 * metrics.cell_w;
-                let cy = rect.y + cur_line as f32 * metrics.cell_h;
+                let cx = rect.x + PANE_PAD + cur_col as f32 * metrics.cell_w;
+                let cy = rect.y + PANE_PAD + cur_line as f32 * metrics.cell_h;
                 bg.push(QuadInstance {
                     pos: [cx, cy],
                     size: [metrics.cell_w, metrics.cell_h],
@@ -550,8 +554,8 @@ mod tests {
             Rect { x: 0.0, y: 0.0, w: 105.0, h: 42.0 },
             &m,
         );
-        assert_eq!(cols, 10); // floor(105/10)
-        assert_eq!(rows, 2);  // floor(42/20)
+        assert_eq!(cols, 8); // floor((105-16)/10)
+        assert_eq!(rows, 1);  // floor((42-16)/20)
         let (r2, c2) = Workspace::rows_cols_for_rect(
             Rect { x: 0.0, y: 0.0, w: 3.0, h: 3.0 },
             &m,

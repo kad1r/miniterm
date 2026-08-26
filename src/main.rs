@@ -47,6 +47,10 @@ fn main() {
     // Load user config once (theme + font); any failure falls back to defaults.
     let config = config::load();
 
+    // Resolve the shell to spawn: PowerShell if available, else cmd.exe.
+    let shell = terminal::default_shell();
+    eprintln!("[miniterm] shell: {shell}");
+
     // Apply the background clear color immediately.
     renderer.set_clear_color(config.theme.background);
 
@@ -55,7 +59,7 @@ fn main() {
         text::font_source::resolve_font(BUNDLED_FONT, config.font.family.as_deref());
     eprintln!("[miniterm] font: {font_label}");
 
-    let font_px = config.font.size;
+    let mut font_px = config.font.size;
 
     // Build the GpuAtlas once (stored alongside renderer).
     let mut atlas = GpuAtlas::new(
@@ -79,9 +83,10 @@ fn main() {
 
     let spawn = {
         let p = proxy.clone();
+        let sh = shell.clone();
         move |rows: u16, cols: u16| -> Session {
             let pp = p.clone();
-            Session::spawn(rows, cols, "cmd.exe", move || {
+            Session::spawn(rows, cols, &sh, move || {
                 let _ = pp.send_event(UserEvent::PtyOutput);
             })
         }
@@ -157,6 +162,35 @@ fn main() {
                             }
                         }
 
+                        // Font zoom: Ctrl+= / Ctrl++ enlarge, Ctrl+- / Ctrl+_
+                        // shrink, Ctrl+0 reset to the configured size. Rebuilds
+                        // the glyph atlas + cell metrics and relayouts every pane.
+                        if mods.control_key() {
+                            let new_px = match &event.logical_key {
+                                Key::Character(s) => match s.as_str() {
+                                    "=" | "+" => Some((font_px + 1.0).min(72.0)),
+                                    "-" | "_" => Some((font_px - 1.0).max(6.0)),
+                                    "0" => Some(config.font.size),
+                                    _ => None,
+                                },
+                                _ => None,
+                            };
+                            if let Some(px) = new_px {
+                                if px != font_px {
+                                    font_px = px;
+                                    atlas = GpuAtlas::new(
+                                        renderer.device(),
+                                        renderer.atlas_bind_group_layout(),
+                                        font_bytes.clone(),
+                                        font_px,
+                                    );
+                                    app.set_metrics(measure(&font_bytes, font_px));
+                                }
+                                window.request_redraw();
+                                return;
+                            }
+                        }
+
                         // Check for Ctrl+Shift chord keybindings first.
                         if mods.control_key() && mods.shift_key() {
                             let (sw, sh) = renderer.surface_size();
@@ -170,9 +204,10 @@ fn main() {
                                     if s.as_str().eq_ignore_ascii_case("d") =>
                                 {
                                     let p = proxy.clone();
+                                    let sh = shell.clone();
                                     let spawn_one = move |rows: u16, cols: u16| -> Session {
                                         let pp = p.clone();
-                                        Session::spawn(rows, cols, "cmd.exe", move || {
+                                        Session::spawn(rows, cols, &sh, move || {
                                             let _ = pp.send_event(UserEvent::PtyOutput);
                                         })
                                     };
@@ -184,9 +219,10 @@ fn main() {
                                     if s.as_str().eq_ignore_ascii_case("s") =>
                                 {
                                     let p = proxy.clone();
+                                    let sh = shell.clone();
                                     let spawn_one = move |rows: u16, cols: u16| -> Session {
                                         let pp = p.clone();
-                                        Session::spawn(rows, cols, "cmd.exe", move || {
+                                        Session::spawn(rows, cols, &sh, move || {
                                             let _ = pp.send_event(UserEvent::PtyOutput);
                                         })
                                     };
@@ -217,9 +253,10 @@ fn main() {
                                     if s.as_str().eq_ignore_ascii_case("n") =>
                                 {
                                     let p = proxy.clone();
+                                    let sh = shell.clone();
                                     let spawn_one = move |rows: u16, cols: u16| -> Session {
                                         let pp = p.clone();
-                                        Session::spawn(rows, cols, "cmd.exe", move || {
+                                        Session::spawn(rows, cols, &sh, move || {
                                             let _ = pp.send_event(UserEvent::PtyOutput);
                                         })
                                     };
@@ -348,9 +385,10 @@ fn main() {
                                     }
                                     crate::app::ChromeHit::NewWorkspace => {
                                         let p = proxy.clone();
+                                        let sh = shell.clone();
                                         let spawn_one = move |rows: u16, cols: u16| -> Session {
                                             let pp = p.clone();
-                                            Session::spawn(rows, cols, "cmd.exe", move || {
+                                            Session::spawn(rows, cols, &sh, move || {
                                                 let _ = pp.send_event(UserEvent::PtyOutput);
                                             })
                                         };

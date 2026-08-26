@@ -331,6 +331,17 @@ impl App {
 
     pub fn set_root_rect(&mut self, r: Rect) { self.root_rect = r; }
 
+    /// Apply new cell metrics (after a font-size change) to every workspace and
+    /// relayout so each pane's PTY is resized to the new grid dimensions.
+    pub fn set_metrics(&mut self, m: CellMetrics) {
+        self.metrics = m;
+        let r = self.root_rect;
+        for ws in &mut self.workspaces {
+            ws.metrics = m;
+            ws.relayout(r);
+        }
+    }
+
     pub fn active_ws(&self) -> &Workspace { &self.workspaces[self.active] }
     pub fn active_ws_mut(&mut self) -> &mut Workspace { &mut self.workspaces[self.active] }
 

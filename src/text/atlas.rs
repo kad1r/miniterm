@@ -25,6 +25,17 @@ impl ShelfPacker {
         ShelfPacker { width, cursor_x: 0, cursor_y: 0, shelf_h: 0 }
     }
 
+    /// True if inserting a `w`x`h` glyph would spill past `atlas_size` in height.
+    pub fn would_overflow(&self, w: u32, h: u32, atlas_size: u32) -> bool {
+        // Mirror the wrap logic in `insert`: a too-wide glyph starts a new shelf.
+        let shelf_top = if self.cursor_x + w > self.width {
+            self.cursor_y + self.shelf_h
+        } else {
+            self.cursor_y
+        };
+        shelf_top + h > atlas_size
+    }
+
     pub fn insert(&mut self, w: u32, h: u32) -> GlyphRect {
         if self.cursor_x + w > self.width {
             self.cursor_y += self.shelf_h;
@@ -52,5 +63,16 @@ mod tests {
         assert_eq!(a, GlyphRect { x: 0, y: 0, w: 8, h: 10 });
         assert_eq!(b, GlyphRect { x: 8, y: 0, w: 8, h: 10 });
         assert_eq!(c, GlyphRect { x: 0, y: 10, w: 8, h: 10 });
+    }
+
+    #[test]
+    fn would_overflow_reports_vertical_spill() {
+        let mut p = ShelfPacker::new(20);
+        // Fill the first shelf (height 10) so the next glyph wraps to y=10.
+        p.insert(20, 10);
+        // A 10-tall glyph on the new shelf ends at y=20: exactly fits an atlas
+        // of height 20, but overflows one of height 19.
+        assert!(!p.would_overflow(8, 10, 20));
+        assert!(p.would_overflow(8, 10, 19));
     }
 }

@@ -94,16 +94,34 @@ impl GpuAtlas {
         .format(Format::Alpha)
         .render(&mut scaler, glyph_id);
 
+        // Some glyphs (zero-width joiners, combining marks, whitespace) rasterize
+        // to a Some(image) with a 0-sized placement and empty data. Writing a
+        // 1x1 extent with 0 bytes of data panics in wgpu, so treat any empty
+        // placement as a blank 1x1 cell.
         let (w, h, left, top, data) = match image {
-            Some(img) => (
-                img.placement.width.max(1),
-                img.placement.height.max(1),
+            Some(img) if img.placement.width > 0 && img.placement.height > 0 => (
+                img.placement.width,
+                img.placement.height,
                 img.placement.left,
                 img.placement.top,
                 img.data,
             ),
-            None => (1, 1, 0, 0, vec![0u8]),
+            _ => (1, 1, 0, 0, vec![0u8]),
         };
+
+        // Guard against the shelf packer overflowing the atlas height: writing
+        // past the texture bounds would also panic in wgpu. Once full, new
+        // glyphs render blank rather than crashing the app.
+        if self.packer.would_overflow(w, h, ATLAS_SIZE) {
+            let info = GlyphInfo {
+                uv_min: [0.0, 0.0],
+                uv_max: [0.0, 0.0],
+                px_size: [0.0, 0.0],
+                offset: [0.0, 0.0],
+            };
+            self.uvs.insert(key, info);
+            return info;
+        }
         let rect: GlyphRect = self.packer.insert(w, h);
         queue.write_texture(
             wgpu::ImageCopyTexture {

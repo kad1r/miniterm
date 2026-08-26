@@ -2,8 +2,11 @@
 // (mouse routing + keyboard chords). TODO: remove this allow once those
 // tasks land and every method has a live caller.
 #![allow(dead_code)]
-use crate::app::Tab;
+use crate::app::{pane_area_rect, sidebar_row_rect, tab_chip_rect, PAD, SIDEBAR_W, TAB_BAR_H, Tab};
 use crate::layout::tree::Rect;
+use crate::render::atlas_gpu::GpuAtlas;
+use crate::render::grid_draw::{GlyphInfo, QuadInstance};
+use crate::render::text_draw::build_text;
 use crate::terminal::session::Session;
 use crate::text::metrics::CellMetrics;
 
@@ -103,6 +106,103 @@ impl App {
     fn relayout_active(&mut self) {
         let r = self.root_rect;
         self.active_tab_mut().relayout(r);
+    }
+
+    pub fn build_frame(
+        &mut self,
+        queue: &wgpu::Queue,
+        atlas: &mut GpuAtlas,
+        window: Rect,
+    ) -> (Vec<QuadInstance>, Vec<QuadInstance>) {
+        const SIDEBAR_BG: [f32; 4] = [0.10, 0.10, 0.12, 1.0];
+        const HILITE: [f32; 4] = [0.20, 0.22, 0.28, 1.0];
+        const CHIP_BG: [f32; 4] = [0.13, 0.13, 0.16, 1.0];
+        const LABEL: [f32; 3] = [0.85, 0.85, 0.85];
+
+        // 1. Active tab's pane frame (borrows atlas mutably, returns owned Vecs).
+        let (mut bg, mut glyphs) = self.active_tab_mut().build_frame(queue, atlas);
+
+        let solid = |r: Rect, color: [f32; 4]| QuadInstance {
+            pos: [r.x, r.y],
+            size: [r.w, r.h],
+            uv_min: [0.0, 0.0],
+            uv_max: [0.0, 0.0],
+            color,
+        };
+
+        // 2. Sidebar panel background (full height).
+        bg.push(solid(Rect { x: 0.0, y: 0.0, w: SIDEBAR_W, h: window.h }, SIDEBAR_BG));
+
+        // 3. Tab bar background (right of sidebar).
+        bg.push(solid(
+            Rect { x: SIDEBAR_W, y: 0.0, w: (window.w - SIDEBAR_W).max(0.0), h: TAB_BAR_H },
+            SIDEBAR_BG,
+        ));
+
+        // Collect label strings and indices before borrowing atlas.
+        let ws_labels: Vec<String> = self.workspaces.iter().map(|w| w.name.clone()).collect();
+        let active_ws = self.active;
+        let tab_count = self.active_ws().tabs.len();
+        let active_tab_idx = self.active_ws().active_tab;
+        let metrics = self.metrics;
+
+        // Resolve UV map for all label characters via the atlas (fresh borrow).
+        let mut chars: Vec<char> = Vec::new();
+        for s in &ws_labels {
+            chars.extend(s.chars());
+        }
+        chars.push('+');
+        for i in 0..tab_count {
+            chars.extend(format!("{}", i + 1).chars());
+        }
+        let mut uv_map: std::collections::HashMap<char, GlyphInfo> =
+            std::collections::HashMap::new();
+        for c in chars {
+            if c != ' ' && !uv_map.contains_key(&c) {
+                uv_map.insert(c, atlas.uv_for(queue, c));
+            }
+        }
+        let dg = GlyphInfo {
+            uv_min: [0.0, 0.0],
+            uv_max: [0.0, 0.0],
+            px_size: [0.0, 0.0],
+            offset: [0.0, 0.0],
+        };
+        let lookup = |c: char| uv_map.get(&c).copied().unwrap_or(dg);
+
+        // 4. Sidebar workspace rows.
+        for (i, name) in ws_labels.iter().enumerate() {
+            let r = sidebar_row_rect(i);
+            if i == active_ws {
+                bg.push(solid(r, HILITE));
+            }
+            let ty = r.y + (r.h - metrics.cell_h) * 0.5;
+            glyphs.extend(build_text(name, &metrics, [r.x + PAD, ty], LABEL, &lookup));
+        }
+        // "+ new workspace" row.
+        let plus_r = sidebar_row_rect(ws_labels.len());
+        let pty = plus_r.y + (plus_r.h - metrics.cell_h) * 0.5;
+        glyphs.extend(build_text("+", &metrics, [plus_r.x + PAD, pty], LABEL, &lookup));
+
+        // 5. Tab bar chips for the active workspace.
+        for i in 0..tab_count {
+            let r = tab_chip_rect(i);
+            bg.push(solid(r, if i == active_tab_idx { HILITE } else { CHIP_BG }));
+            let ty = r.y + (r.h - metrics.cell_h) * 0.5;
+            let title = format!("{}", i + 1);
+            glyphs.extend(build_text(&title, &metrics, [r.x + PAD, ty], LABEL, &lookup));
+        }
+        // "+ new tab" chip.
+        let plus_chip = tab_chip_rect(tab_count);
+        bg.push(solid(plus_chip, CHIP_BG));
+        let cty = plus_chip.y + (plus_chip.h - metrics.cell_h) * 0.5;
+        glyphs.extend(build_text("+", &metrics, [plus_chip.x + PAD, cty], LABEL, &lookup));
+
+        (bg, glyphs)
+    }
+
+    pub fn pane_area(&self, window: Rect) -> Rect {
+        pane_area_rect(window)
     }
 }
 

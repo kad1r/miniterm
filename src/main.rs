@@ -53,7 +53,8 @@ fn main() {
 
     // Build root rect from current surface size.
     let (sw, sh) = renderer.surface_size();
-    let root_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+    let window_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+    let pane_rect = app::pane_area_rect(window_rect);
 
     // Keep a proxy clone alive outside App so we can build spawn_one closures
     // inside the keyboard handler without moving our only proxy into App::new.
@@ -68,8 +69,9 @@ fn main() {
             })
         }
     };
-    let mut app = App::new(root_rect, metrics, spawn);
-    app.set_root_rect(root_rect);
+    let mut app = App::new(pane_rect, metrics, spawn);
+    app.set_root_rect(pane_rect);
+    app.active_tab_mut().relayout(pane_rect);
 
     // Track modifier state (updated by ModifiersChanged events).
     let mut mods = ModifiersState::empty();
@@ -102,14 +104,15 @@ fn main() {
                     // ── Resize ──────────────────────────────────────────────
                     WindowEvent::Resized(size) => {
                         renderer.resize(size);
-                        let root_rect = Rect {
+                        let window_rect = Rect {
                             x: 0.0,
                             y: 0.0,
                             w: size.width as f32,
                             h: size.height as f32,
                         };
-                        app.set_root_rect(root_rect);
-                        app.active_tab_mut().relayout(root_rect);
+                        let pane_rect = app::pane_area_rect(window_rect);
+                        app.set_root_rect(pane_rect);
+                        app.active_tab_mut().relayout(pane_rect);
                         window.request_redraw();
                     }
 
@@ -220,9 +223,11 @@ fn main() {
                             s.redraw_pending.store(false, std::sync::atomic::Ordering::SeqCst);
                         }
 
-                        // Build frame quads across all panes.
-                        // queue() shared borrow ends before draw_quads's &mut self borrow.
-                        let (bg, glyphs) = app.active_tab_mut().build_frame(renderer.queue(), &mut atlas);
+                        // Build frame quads: chrome + active tab's pane content.
+                        // Pass full window_rect so build_frame can size the sidebar correctly.
+                        let (sw, sh) = renderer.surface_size();
+                        let window_rect = Rect { x: 0.0, y: 0.0, w: sw as f32, h: sh as f32 };
+                        let (bg, glyphs) = app.build_frame(renderer.queue(), &mut atlas, window_rect);
                         renderer.draw_quads(&bg, &glyphs, &atlas);
                     }
 

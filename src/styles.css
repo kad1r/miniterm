@@ -1,0 +1,24 @@
+:root {
+  --bg: #0f1114;
+  --bg-raised: #16191d;
+  --border: #24282e;
+  --text: #d6dae0;
+  --text-dim: #7d858f;
+  --accent: #3d7dff;
+  --ok: #3fb950;
+  --err: #f0574b;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  overflow: hidden;
+}

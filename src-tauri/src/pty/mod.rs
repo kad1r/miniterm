@@ -1,1 +1,407 @@
 pub mod ring;
+
+use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, MasterPty, PtySize};
+use ring::{RingBuffer, RING_CAPACITY};
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::{Duration, Instant};
+
+pub type SessionId = u64;
+
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpawnOpts {
+    pub cwd: String,
+    pub program: String,
+    pub args: Vec<String>,
+    pub initial_command: Option<String>,
+    pub cols: u16,
+    pub rows: u16,
+}
+
+#[derive(Debug)]
+pub enum PtyError {
+    NotFound(SessionId),
+    Spawn(String),
+    Io(String),
+}
+
+impl std::fmt::Display for PtyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PtyError::NotFound(id) => write!(f, "session {id} not found"),
+            PtyError::Spawn(m) => write!(f, "spawn failed: {m}"),
+            PtyError::Io(m) => write!(f, "io error: {m}"),
+        }
+    }
+}
+
+type ExitHandler = Arc<dyn Fn(SessionId, Option<i32>) + Send + Sync>;
+
+struct Session {
+    master: Box<dyn MasterPty + Send>,
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
+    /// Held so the exit-watcher thread (which Arc-clones it) keeps the child
+    /// alive; never accessed directly via the Session after spawn.
+    #[allow(dead_code)]
+    child: Arc<Mutex<Box<dyn Child + Send + Sync>>>,
+    /// Separate killer handle so `kill()` never needs to acquire the child
+    /// mutex — which the exit-watcher thread holds while blocking in `wait()`.
+    killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
+    buffer: Arc<Mutex<RingBuffer>>,
+    /// Used by the initial-command thread now; Task 6 will also use it for
+    /// the output batcher.  Keep the field even if nothing reads it yet.
+    #[allow(dead_code)]
+    saw_output: Arc<(Mutex<bool>, Condvar)>,
+    alive: Arc<AtomicBool>,
+}
+
+pub struct SessionManager {
+    next_id: AtomicU64,
+    sessions: Mutex<HashMap<SessionId, Session>>,
+    on_exit: Mutex<Option<ExitHandler>>,
+}
+
+impl Default for SessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SessionManager {
+    pub fn new() -> Self {
+        Self {
+            next_id: AtomicU64::new(1),
+            sessions: Mutex::new(HashMap::new()),
+            on_exit: Mutex::new(None),
+        }
+    }
+
+    pub fn set_exit_handler(&self, f: impl Fn(SessionId, Option<i32>) + Send + Sync + 'static) {
+        *self.on_exit.lock().unwrap() = Some(Arc::new(f));
+    }
+
+    pub fn spawn(&self, opts: SpawnOpts) -> Result<SessionId, PtyError> {
+        let pair = native_pty_system()
+            .openpty(PtySize {
+                rows: opts.rows,
+                cols: opts.cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| PtyError::Spawn(e.to_string()))?;
+
+        let mut cmd = CommandBuilder::new(&opts.program);
+        for a in &opts.args {
+            cmd.arg(a);
+        }
+        cmd.cwd(&opts.cwd);
+
+        let child = pair
+            .slave
+            .spawn_command(cmd)
+            .map_err(|e| PtyError::Spawn(e.to_string()))?;
+        drop(pair.slave);
+
+        // Clone the killer BEFORE wrapping child in Arc<Mutex> so we have a
+        // separate handle that does not need the child mutex to call kill().
+        let killer = child.clone_killer();
+
+        let mut reader = pair
+            .master
+            .try_clone_reader()
+            .map_err(|e| PtyError::Io(e.to_string()))?;
+        let writer = pair
+            .master
+            .take_writer()
+            .map_err(|e| PtyError::Io(e.to_string()))?;
+
+        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
+        let buffer = Arc::new(Mutex::new(RingBuffer::with_capacity(RING_CAPACITY)));
+        let writer = Arc::new(Mutex::new(writer));
+        let killer = Mutex::new(killer);
+        let child = Arc::new(Mutex::new(child));
+        let saw_output = Arc::new((Mutex::new(false), Condvar::new()));
+        let alive = Arc::new(AtomicBool::new(true));
+
+        // Okuma thread'i: baytları ring buffer'a yazar.
+        // Task 6 buraya toplu IPC gönderimini ekler.
+        //
+        // Windows ConPTY sends ESC[6n (cursor position request) during init.
+        // A real terminal must respond with ESC[<row>;<col>R or cmd.exe stalls.
+        // We respond immediately with ESC[1;1R (top-left) so initialisation
+        // completes and the shell becomes interactive.
+        {
+            let buffer = Arc::clone(&buffer);
+            let saw_output = Arc::clone(&saw_output);
+            let alive = Arc::clone(&alive);
+            let writer_for_cpr = Arc::clone(&writer);
+            std::thread::spawn(move || {
+                let mut chunk = [0u8; 65536];
+                loop {
+                    match reader.read(&mut chunk) {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => {
+                            let slice = &chunk[..n];
+                            // Respond to ESC[6n (cursor position request) so
+                            // ConPTY / cmd.exe initialisation does not stall.
+                            if slice.windows(4).any(|w| w == b"\x1b[6n") {
+                                let _ = writer_for_cpr
+                                    .lock()
+                                    .unwrap()
+                                    .write_all(b"\x1b[1;1R");
+                            }
+                            buffer.lock().unwrap().push(slice);
+                            let (lock, cv) = &*saw_output;
+                            let mut seen = lock.lock().unwrap();
+                            if !*seen {
+                                *seen = true;
+                                cv.notify_all();
+                            }
+                        }
+                    }
+                }
+                alive.store(false, Ordering::SeqCst);
+            });
+        }
+
+        // İlk komut: shell'in ilk çıktısını (prompt) bekle, sonra STDIN'e yaz.
+        // Argüman olarak (-Command / -c) verilseydi, kullanıcı AI aracından
+        // çıktığı anda shell de kapanırdı.
+        if let Some(command) = opts.initial_command.clone() {
+            let writer = Arc::clone(&writer);
+            let saw_output = Arc::clone(&saw_output);
+            std::thread::spawn(move || {
+                let (lock, cv) = &*saw_output;
+                let seen = lock.lock().unwrap();
+                let _ = cv.wait_timeout_while(seen, Duration::from_secs(1), |s| !*s);
+                let mut w = writer.lock().unwrap();
+                let _ = w.write_all(format!("{command}\r").as_bytes());
+                let _ = w.flush();
+            });
+        }
+
+        // Çıkış gözlemcisi.
+        {
+            let child = Arc::clone(&child);
+            let handler = self.on_exit.lock().unwrap().clone();
+            std::thread::spawn(move || {
+                let status = child.lock().unwrap().wait().ok();
+                let code = status.map(|s| s.exit_code() as i32);
+                if let Some(h) = handler {
+                    h(id, code);
+                }
+            });
+        }
+
+        self.sessions.lock().unwrap().insert(
+            id,
+            Session { master: pair.master, writer, child, killer, buffer, saw_output, alive },
+        );
+
+        Ok(id)
+    }
+
+    pub fn write(&self, id: SessionId, data: &[u8]) -> Result<(), PtyError> {
+        let sessions = self.sessions.lock().unwrap();
+        let s = sessions.get(&id).ok_or(PtyError::NotFound(id))?;
+        let mut w = s.writer.lock().unwrap();
+        w.write_all(data).map_err(|e| PtyError::Io(e.to_string()))?;
+        w.flush().map_err(|e| PtyError::Io(e.to_string()))
+    }
+
+    pub fn resize(&self, id: SessionId, cols: u16, rows: u16) -> Result<(), PtyError> {
+        let sessions = self.sessions.lock().unwrap();
+        let s = sessions.get(&id).ok_or(PtyError::NotFound(id))?;
+        s.master
+            .resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+            .map_err(|e| PtyError::Io(e.to_string()))
+    }
+
+    pub fn kill(&self, id: SessionId) -> Result<(), PtyError> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let s = sessions.remove(&id).ok_or(PtyError::NotFound(id))?;
+        // Use the pre-cloned killer so we never need to lock `child` here.
+        // The exit-watcher thread holds child.lock() while blocked in wait(),
+        // so locking child here would deadlock.
+        let _ = s.killer.lock().unwrap().kill();
+        Ok(())
+    }
+
+    pub fn snapshot(&self, id: SessionId) -> Result<Vec<u8>, PtyError> {
+        let sessions = self.sessions.lock().unwrap();
+        let s = sessions.get(&id).ok_or(PtyError::NotFound(id))?;
+        let data = s.buffer.lock().unwrap().snapshot();
+        Ok(data)
+    }
+
+    /// Nazik kapanma denemesi, ardından `kill`. Uygulama kapanışında çağrılır.
+    pub fn shutdown_all(&self) {
+        let ids: Vec<SessionId> = self.sessions.lock().unwrap().keys().copied().collect();
+        for id in &ids {
+            let _ = self.write(*id, b"exit\r");
+        }
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < deadline {
+            let all_done = {
+                let sessions = self.sessions.lock().unwrap();
+                ids.iter().all(|id| {
+                    sessions.get(id).map(|s| !s.alive.load(Ordering::SeqCst)).unwrap_or(true)
+                })
+            };
+            if all_done {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+
+        for id in ids {
+            let _ = self.kill(id);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+
+    fn interactive_shell() -> (String, Vec<String>) {
+        if cfg!(windows) {
+            (r"C:\Windows\System32\cmd.exe".to_string(), vec![])
+        } else {
+            ("/bin/sh".to_string(), vec!["-i".to_string()])
+        }
+    }
+
+    fn temp_cwd() -> String {
+        std::env::temp_dir().to_string_lossy().to_string()
+    }
+
+    fn wait_for(mgr: &SessionManager, id: u64, needle: &str, timeout: Duration) -> String {
+        let start = Instant::now();
+        loop {
+            let text = String::from_utf8_lossy(&mgr.snapshot(id).unwrap()).to_string();
+            if text.contains(needle) {
+                return text;
+            }
+            if start.elapsed() > timeout {
+                panic!("timed out waiting for {needle:?}; buffer was:\n{text}");
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
+
+    #[test]
+    fn spawns_a_shell_and_buffers_its_output() {
+        let mgr = SessionManager::new();
+        let (program, args) = interactive_shell();
+        let id = mgr
+            .spawn(SpawnOpts {
+                cwd: temp_cwd(),
+                program,
+                args,
+                initial_command: None,
+                cols: 80,
+                rows: 24,
+            })
+            .expect("spawn failed");
+
+        mgr.write(id, b"echo hello_from_write\r").unwrap();
+        wait_for(&mgr, id, "hello_from_write", Duration::from_secs(10));
+        mgr.kill(id).unwrap();
+    }
+
+    #[test]
+    fn runs_the_initial_command_through_stdin_and_keeps_the_shell_alive() {
+        let mgr = SessionManager::new();
+        let (program, args) = interactive_shell();
+        let id = mgr
+            .spawn(SpawnOpts {
+                cwd: temp_cwd(),
+                program,
+                args,
+                initial_command: Some("echo marker_42".to_string()),
+                cols: 80,
+                rows: 24,
+            })
+            .expect("spawn failed");
+
+        wait_for(&mgr, id, "marker_42", Duration::from_secs(10));
+
+        // Asıl mesele: ilk komut bittikten sonra shell hâlâ komut alabiliyor olmalı.
+        mgr.write(id, b"echo still_alive\r").unwrap();
+        wait_for(&mgr, id, "still_alive", Duration::from_secs(10));
+        mgr.kill(id).unwrap();
+    }
+
+    #[test]
+    fn reports_exit_with_a_status_code() {
+        let mgr = SessionManager::new();
+        let seen: Arc<Mutex<Vec<(u64, Option<i32>)>>> = Arc::new(Mutex::new(Vec::new()));
+        let sink = Arc::clone(&seen);
+        mgr.set_exit_handler(move |id, code| sink.lock().unwrap().push((id, code)));
+
+        let (program, args) = interactive_shell();
+        let id = mgr
+            .spawn(SpawnOpts {
+                cwd: temp_cwd(),
+                program,
+                args,
+                initial_command: Some("exit 3".to_string()),
+                cols: 80,
+                rows: 24,
+            })
+            .unwrap();
+
+        let start = Instant::now();
+        loop {
+            if seen.lock().unwrap().iter().any(|(sid, _)| *sid == id) {
+                break;
+            }
+            assert!(start.elapsed() < Duration::from_secs(10), "no exit event arrived");
+            std::thread::sleep(Duration::from_millis(25));
+        }
+
+        let events = seen.lock().unwrap().clone();
+        let (_, code) = events.iter().find(|(sid, _)| *sid == id).unwrap();
+        assert_eq!(*code, Some(3));
+    }
+
+    #[test]
+    fn unknown_session_ids_are_errors_not_panics() {
+        let mgr = SessionManager::new();
+        assert!(mgr.write(9999, b"x").is_err());
+        assert!(mgr.resize(9999, 10, 10).is_err());
+        assert!(mgr.kill(9999).is_err());
+        assert!(mgr.snapshot(9999).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resize_reaches_the_child_process() {
+        let mgr = SessionManager::new();
+        let id = mgr
+            .spawn(SpawnOpts {
+                cwd: temp_cwd(),
+                program: "/bin/sh".into(),
+                args: vec!["-i".into()],
+                initial_command: None,
+                cols: 80,
+                rows: 24,
+            })
+            .unwrap();
+
+        mgr.resize(id, 132, 43).unwrap();
+        std::thread::sleep(Duration::from_millis(200));
+        mgr.write(id, b"stty size\r").unwrap();
+        wait_for(&mgr, id, "43 132", Duration::from_secs(10));
+        mgr.kill(id).unwrap();
+    }
+}

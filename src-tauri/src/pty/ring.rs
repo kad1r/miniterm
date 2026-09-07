@@ -12,7 +12,10 @@ pub struct RingBuffer {
 
 impl RingBuffer {
     pub fn with_capacity(cap: usize) -> Self {
-        Self { cap, buf: VecDeque::with_capacity(cap.min(8192)) }
+        Self {
+            cap,
+            buf: VecDeque::with_capacity(cap.min(8192)),
+        }
     }
 
     pub fn push(&mut self, data: &[u8]) {
@@ -74,7 +77,11 @@ mod tests {
         r.push(b"eeee\n");
         // "aaaa\n" atılmalı; kalan tam satırlarla başlamalı
         let snap = r.snapshot();
-        assert!(snap.starts_with(b"bbbb\n"), "snapshot: {:?}", String::from_utf8_lossy(&snap));
+        assert!(
+            snap.starts_with(b"bbbb\n"),
+            "snapshot: {:?}",
+            String::from_utf8_lossy(&snap)
+        );
         assert!(snap.ends_with(b"eeee\n"));
     }
 

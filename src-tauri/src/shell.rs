@@ -22,7 +22,8 @@ pub struct ShellInfo {
 /// barındıran bir pencere uygulamasıdır. Alt süreç olarak başlatılırsa kendi
 /// penceresini açar ve miniterm'in grid'inde hiç görünmez.
 pub fn windows_candidates() -> Vec<ShellCandidate> {
-    let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".into());
+    let program_files =
+        std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".into());
     let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
 
     vec![
@@ -80,9 +81,19 @@ pub fn unix_candidates(shell_env: Option<&str>, etc_shells: &str) -> Vec<ShellCa
         .into_iter()
         .map(|program| {
             let leaked: &'static str = Box::leak(
-                program.rsplit('/').next().unwrap_or("shell").to_string().into_boxed_str(),
+                program
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("shell")
+                    .to_string()
+                    .into_boxed_str(),
             );
-            ShellCandidate { id: leaked, name: leaked, program, args: vec!["-i".into()] }
+            ShellCandidate {
+                id: leaked,
+                name: leaked,
+                program,
+                args: vec!["-i".into()],
+            }
         })
         .collect()
 }
@@ -132,7 +143,11 @@ mod tests {
     #[test]
     fn windows_candidates_never_include_windows_terminal() {
         for c in windows_candidates() {
-            assert!(!c.program.to_lowercase().contains("wt.exe"), "wt.exe leaked in as {}", c.id);
+            assert!(
+                !c.program.to_lowercase().contains("wt.exe"),
+                "wt.exe leaked in as {}",
+                c.id
+            );
             assert_ne!(c.id, "wt");
         }
     }
@@ -140,8 +155,18 @@ mod tests {
     #[test]
     fn resolve_drops_candidates_that_do_not_exist() {
         let cands = vec![
-            ShellCandidate { id: "a", name: "A", program: "a.exe".into(), args: vec![] },
-            ShellCandidate { id: "b", name: "B", program: "b.exe".into(), args: vec![] },
+            ShellCandidate {
+                id: "a",
+                name: "A",
+                program: "a.exe".into(),
+                args: vec![],
+            },
+            ShellCandidate {
+                id: "b",
+                name: "B",
+                program: "b.exe".into(),
+                args: vec![],
+            },
         ];
         let found = resolve(cands, &|p| p == "b.exe");
         assert_eq!(found.len(), 1);

@@ -63,7 +63,9 @@ pub enum LoadStatus {
     Fresh,
     Loaded,
     #[serde(rename_all = "camelCase")]
-    Recovered { backup: String },
+    Recovered {
+        backup: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -108,14 +110,15 @@ pub fn load(dir: &Path, default_shell_id: String) -> LoadResult {
     };
 
     match serde_json::from_str::<Config>(&raw) {
-        Ok(config) if config.version == CONFIG_VERSION => {
-            LoadResult { config, status: LoadStatus::Loaded }
-        }
+        Ok(config) if config.version == CONFIG_VERSION => LoadResult {
+            config,
+            status: LoadStatus::Loaded,
+        },
         _ => {
             let backup: PathBuf = dir.join(format!("{FILE_NAME}.bak"));
             let _ = fs::remove_file(&backup);
             match fs::rename(&path, &backup) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => {
                     let _ = fs::copy(&path, &backup);
                     let _ = fs::remove_file(&path);
@@ -156,7 +159,8 @@ mod tests {
     use std::fs;
 
     fn tmp(name: &str) -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("miniterm-test-{}-{}", name, uuid::Uuid::new_v4()));
+        let d =
+            std::env::temp_dir().join(format!("miniterm-test-{}-{}", name, uuid::Uuid::new_v4()));
         fs::create_dir_all(&d).unwrap();
         d
     }
@@ -182,10 +186,15 @@ mod tests {
         let mut c = default_config("bash".into());
         c.recent_dirs.push("/tmp/x".into());
         c.tree.push(Node::Workspace {
-            id: "w1".into(), name: "api".into(), path: "/tmp/x".into(),
-            ai_tool_id: Some("t1".into()), shell_id: None,
-            rows: 2, cols: 2,
-            row_sizes: vec![0.5, 0.5], col_sizes: vec![0.5, 0.5],
+            id: "w1".into(),
+            name: "api".into(),
+            path: "/tmp/x".into(),
+            ai_tool_id: Some("t1".into()),
+            shell_id: None,
+            rows: 2,
+            cols: 2,
+            row_sizes: vec![0.5, 0.5],
+            col_sizes: vec![0.5, 0.5],
         });
         save(&d, &c).unwrap();
 
@@ -201,7 +210,10 @@ mod tests {
         let d = tmp("camel");
         let mut c = default_config("bash".into());
         c.tree.push(Node::Folder {
-            id: "f1".into(), name: "grp".into(), expanded: true, children: vec![],
+            id: "f1".into(),
+            name: "grp".into(),
+            expanded: true,
+            children: vec![],
         });
         save(&d, &c).unwrap();
         let raw = fs::read_to_string(d.join("config.json")).unwrap();
@@ -235,7 +247,8 @@ mod tests {
     fn save_leaves_no_temp_file_behind() {
         let d = tmp("atomic");
         save(&d, &default_config("bash".into())).unwrap();
-        let names: Vec<_> = fs::read_dir(&d).unwrap()
+        let names: Vec<_> = fs::read_dir(&d)
+            .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
             .collect();
         assert_eq!(names, vec!["config.json".to_string()]);

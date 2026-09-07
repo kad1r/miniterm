@@ -1,5 +1,7 @@
+pub mod config;
 pub mod pty;
 
+#[cfg(not(test))]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())

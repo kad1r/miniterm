@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use uuid::Uuid;
 
 pub const CONFIG_VERSION: u32 = 1;
 const FILE_NAME: &str = "config.json";
@@ -112,7 +113,14 @@ pub fn load(dir: &Path, default_shell_id: String) -> LoadResult {
         }
         _ => {
             let backup: PathBuf = dir.join(format!("{FILE_NAME}.bak"));
-            let _ = fs::rename(&path, &backup);
+            let _ = fs::remove_file(&backup);
+            match fs::rename(&path, &backup) {
+                Ok(_) => {},
+                Err(_) => {
+                    let _ = fs::copy(&path, &backup);
+                    let _ = fs::remove_file(&path);
+                }
+            }
             LoadResult {
                 config: default_config(default_shell_id),
                 status: LoadStatus::Recovered {
@@ -129,7 +137,7 @@ pub fn save(dir: &Path, config: &Config) -> std::io::Result<()> {
     use std::io::Write;
 
     fs::create_dir_all(dir)?;
-    let tmp = dir.join(format!(".{FILE_NAME}.tmp"));
+    let tmp = dir.join(format!(".{FILE_NAME}.{}.tmp", Uuid::new_v4()));
     let json = serde_json::to_string_pretty(config)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 

@@ -1,4 +1,6 @@
 pub const FLUSH_INTERVAL_MS: u64 = 8;
+/// Lower bound, not a cap: the collector tests this only after appending a
+/// whole PTY read (up to 64 KB), so a single flush can carry ~96 KB.
 pub const FLUSH_BYTES: usize = 32_768;
 
 /// Biriken baytların IPC'ye gönderilip gönderilmeyeceği.

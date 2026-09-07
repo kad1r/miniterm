@@ -64,8 +64,7 @@ struct Session {
     /// mutex — which the exit-watcher thread holds while blocking in `wait()`.
     killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     buffer: Arc<Mutex<RingBuffer>>,
-    /// Used by the initial-command thread now; Task 6 will also use it for
-    /// the output batcher.  Keep the field even if nothing reads it yet.
+    /// Used by the initial-command thread only.
     #[allow(dead_code)]
     saw_output: Arc<(Mutex<bool>, Condvar)>,
     alive: Arc<AtomicBool>,
@@ -156,7 +155,10 @@ impl SessionManager {
         let alive = Arc::new(AtomicBool::new(true));
 
         let sink: Arc<Mutex<Option<OutputSink>>> = Arc::new(Mutex::new(None));
-        let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+        // sync_channel caps the in-flight queue at 64 chunks (~4 MB ceiling).
+        // An unbounded channel would defeat the 256 KB per-session ring buffer
+        // guarantee when the sink stalls.
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(64);
 
         // Reader thread: drains PTY output into the ring buffer.
         // Task 6 adds batched IPC emission here.
@@ -177,7 +179,11 @@ impl SessionManager {
             let alive = Arc::clone(&alive);
             #[cfg(test)]
             let writer_for_cpr = Arc::clone(&writer);
-            let tx = tx.clone();
+            // Move tx into the reader thread directly — the sole Sender.  Its
+            // drop when this thread exits disconnects the channel, which is one
+            // shutdown signal for the collector.  Do not clone it anywhere else;
+            // moving rather than cloning makes an accidental extra Sender a
+            // compile error.
             std::thread::spawn(move || {
                 let mut chunk = [0u8; 65536];
                 loop {
@@ -198,7 +204,12 @@ impl SessionManager {
                                 }
                             }
                             lock_recover(buffer.lock()).push(slice);
-                            let _ = tx.send(chunk[..n].to_vec());
+                            // try_send, not send: a blocking send here would
+                            // stall the PTY drain loop, reintroducing the Task 5
+                            // freeze class.  Dropping is safe — the ring buffer
+                            // already has these bytes and the frontend can
+                            // re-snapshot.
+                            let _ = tx.try_send(chunk[..n].to_vec());
                             let (lock, cv) = &*saw_output;
                             let mut seen = lock_recover(lock.lock());
                             if !*seen {
@@ -214,17 +225,29 @@ impl SessionManager {
 
         // Collector thread: batches chunks from the reader and flushes to the
         // sink when the byte threshold or time interval is reached.
-        // The thread exits when the reader thread drops its tx end (on EOF/error).
+        // The thread exits when the reader thread drops its tx end (on EOF/error),
+        // or — since EOF is unreliable on Windows ConPTY — when alive goes false.
         {
             let sink = Arc::clone(&sink);
+            let alive = Arc::clone(&alive);
             std::thread::spawn(move || {
                 let mut pending: Vec<u8> = Vec::with_capacity(batch::FLUSH_BYTES);
                 let mut first_at: Option<Instant> = None;
 
                 loop {
-                    let waited = first_at.map(|t| t.elapsed().as_millis() as u64).unwrap_or(0);
-                    let remaining = batch::FLUSH_INTERVAL_MS.saturating_sub(waited);
-                    let timeout = Duration::from_millis(remaining.max(1));
+                    // When there are no pending bytes, use a longer idle timeout
+                    // so we wake rarely (just often enough to notice the child has
+                    // exited via the alive check below).  When bytes are pending,
+                    // use the normal 8 ms flush window.
+                    let timeout = match first_at {
+                        None => Duration::from_millis(250),
+                        Some(t) => {
+                            let waited = t.elapsed().as_millis() as u64;
+                            Duration::from_millis(
+                                batch::FLUSH_INTERVAL_MS.saturating_sub(waited).max(1),
+                            )
+                        }
+                    };
 
                     match rx.recv_timeout(timeout) {
                         Ok(bytes) => {
@@ -233,7 +256,27 @@ impl SessionManager {
                             }
                             pending.extend_from_slice(&bytes);
                         }
-                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                            // A timeout means the channel was empty for the whole
+                            // window, so no bytes are in flight.  If the child is
+                            // gone, flush any remaining bytes and stop.  We cannot
+                            // rely solely on the Disconnected arm because EOF on
+                            // the reader is not guaranteed on Windows (grandchild
+                            // holding the console keeps the pipe open — see the
+                            // exit-watcher comment above).
+                            if !alive.load(Ordering::SeqCst) {
+                                if !pending.is_empty() {
+                                    let maybe_sink = {
+                                        let guard = lock_recover(sink.lock());
+                                        guard.clone()
+                                    };
+                                    if let Some(s) = maybe_sink {
+                                        s(&pending);
+                                    }
+                                }
+                                break;
+                            }
+                        }
                         Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
                     }
 
@@ -368,17 +411,41 @@ impl SessionManager {
         Ok(data)
     }
 
+    /// Start streaming batched output to `sink`.
+    ///
+    /// Bytes buffered before this call are *not* replayed; call `snapshot` first
+    /// to backfill, or everything between `spawn` and `attach` is lost from the
+    /// stream (it remains in the ring buffer).
     pub fn attach(&self, id: SessionId, sink: OutputSink) -> Result<(), PtyError> {
-        let sessions = lock_recover(self.sessions.lock());
-        let s = sessions.get(&id).ok_or(PtyError::NotFound(id))?;
-        *lock_recover(s.sink.lock()) = Some(sink);
+        // Clone the per-session Arc under the map lock, then release the map
+        // guard before swapping the sink.  This follows the same pattern as
+        // write/resize/snapshot (Fix 1 from Task 5): the old OutputSink's
+        // destructor — and anything it captured — must not run while the global
+        // sessions lock is held.
+        let slot = {
+            let sessions = lock_recover(self.sessions.lock());
+            Arc::clone(&sessions.get(&id).ok_or(PtyError::NotFound(id))?.sink)
+        };
+        let previous = lock_recover(slot.lock()).replace(sink);
+        drop(previous); // user destructor runs outside both locks
         Ok(())
     }
 
+    /// Stop streaming to the sink.
+    ///
+    /// Not a synchronization barrier: a flush already in flight holds a cloned
+    /// `OutputSink` Arc, so the sink may be invoked once after this returns,
+    /// carrying only pre-detach bytes.  Bytes produced after this returns are
+    /// never streamed.
     pub fn detach(&self, id: SessionId) -> Result<(), PtyError> {
-        let sessions = lock_recover(self.sessions.lock());
-        let s = sessions.get(&id).ok_or(PtyError::NotFound(id))?;
-        *lock_recover(s.sink.lock()) = None;
+        // Same lock discipline as attach: clone the Arc, release the map guard,
+        // then swap so the old sink's destructor runs outside both locks.
+        let slot = {
+            let sessions = lock_recover(self.sessions.lock());
+            Arc::clone(&sessions.get(&id).ok_or(PtyError::NotFound(id))?.sink)
+        };
+        let previous = lock_recover(slot.lock()).take();
+        drop(previous); // user destructor runs outside both locks
         Ok(())
     }
 
@@ -609,6 +676,22 @@ mod tests {
             .unwrap();
         mgr.write(id, b"echo before_detach\r").unwrap();
         wait_for(&mgr, id, "before_detach", Duration::from_secs(10));
+
+        // Prove the sink is actually streaming before we assert it stops;
+        // otherwise a no-op attach would make the assertion below pass vacuously.
+        // The sink lags the ring buffer by up to one 8 ms flush window, so poll
+        // rather than asserting immediately.
+        let start = Instant::now();
+        loop {
+            if String::from_utf8_lossy(&got.lock().unwrap()).contains("before_detach") {
+                break;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(10),
+                "sink never streamed while attached"
+            );
+            std::thread::sleep(Duration::from_millis(25));
+        }
 
         mgr.detach(id).unwrap();
         got.lock().unwrap().clear();

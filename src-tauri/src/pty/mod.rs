@@ -1,4 +1,5 @@
 pub mod ring;
+pub mod batch;
 
 use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use ring::{RingBuffer, RING_CAPACITY};
@@ -39,6 +40,8 @@ impl std::fmt::Display for PtyError {
     }
 }
 
+pub type OutputSink = Arc<dyn Fn(&[u8]) + Send + Sync>;
+
 type ExitHandler = Arc<dyn Fn(SessionId, Option<i32>) + Send + Sync>;
 
 /// Recover from a poisoned mutex rather than propagating the panic.
@@ -66,6 +69,7 @@ struct Session {
     #[allow(dead_code)]
     saw_output: Arc<(Mutex<bool>, Condvar)>,
     alive: Arc<AtomicBool>,
+    sink: Arc<Mutex<Option<OutputSink>>>,
 }
 
 pub struct SessionManager {
@@ -151,6 +155,9 @@ impl SessionManager {
         let saw_output = Arc::new((Mutex::new(false), Condvar::new()));
         let alive = Arc::new(AtomicBool::new(true));
 
+        let sink: Arc<Mutex<Option<OutputSink>>> = Arc::new(Mutex::new(None));
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+
         // Reader thread: drains PTY output into the ring buffer.
         // Task 6 adds batched IPC emission here.
         //
@@ -170,6 +177,7 @@ impl SessionManager {
             let alive = Arc::clone(&alive);
             #[cfg(test)]
             let writer_for_cpr = Arc::clone(&writer);
+            let tx = tx.clone();
             std::thread::spawn(move || {
                 let mut chunk = [0u8; 65536];
                 loop {
@@ -190,6 +198,7 @@ impl SessionManager {
                                 }
                             }
                             lock_recover(buffer.lock()).push(slice);
+                            let _ = tx.send(chunk[..n].to_vec());
                             let (lock, cv) = &*saw_output;
                             let mut seen = lock_recover(lock.lock());
                             if !*seen {
@@ -200,6 +209,51 @@ impl SessionManager {
                     }
                 }
                 alive.store(false, Ordering::SeqCst);
+            });
+        }
+
+        // Collector thread: batches chunks from the reader and flushes to the
+        // sink when the byte threshold or time interval is reached.
+        // The thread exits when the reader thread drops its tx end (on EOF/error).
+        {
+            let sink = Arc::clone(&sink);
+            std::thread::spawn(move || {
+                let mut pending: Vec<u8> = Vec::with_capacity(batch::FLUSH_BYTES);
+                let mut first_at: Option<Instant> = None;
+
+                loop {
+                    let waited = first_at.map(|t| t.elapsed().as_millis() as u64).unwrap_or(0);
+                    let remaining = batch::FLUSH_INTERVAL_MS.saturating_sub(waited);
+                    let timeout = Duration::from_millis(remaining.max(1));
+
+                    match rx.recv_timeout(timeout) {
+                        Ok(bytes) => {
+                            if pending.is_empty() {
+                                first_at = Some(Instant::now());
+                            }
+                            pending.extend_from_slice(&bytes);
+                        }
+                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                    }
+
+                    let waited = first_at.map(|t| t.elapsed().as_millis() as u64).unwrap_or(0);
+                    if batch::should_flush(pending.len(), waited) {
+                        // Take the guard, clone the Option, drop the guard, then
+                        // invoke the sink outside the lock.  This prevents a
+                        // self-deadlock if the sink calls detach(), and avoids
+                        // holding the lock while executing user code.
+                        let maybe_sink = {
+                            let guard = lock_recover(sink.lock());
+                            guard.clone()
+                        };
+                        if let Some(s) = maybe_sink {
+                            s(&pending);
+                        }
+                        pending.clear();
+                        first_at = None;
+                    }
+                }
             });
         }
 
@@ -252,6 +306,7 @@ impl SessionManager {
                 buffer,
                 saw_output,
                 alive,
+                sink,
             },
         );
 
@@ -311,6 +366,20 @@ impl SessionManager {
         };
         let data = lock_recover(buffer.lock()).snapshot();
         Ok(data)
+    }
+
+    pub fn attach(&self, id: SessionId, sink: OutputSink) -> Result<(), PtyError> {
+        let sessions = lock_recover(self.sessions.lock());
+        let s = sessions.get(&id).ok_or(PtyError::NotFound(id))?;
+        *lock_recover(s.sink.lock()) = Some(sink);
+        Ok(())
+    }
+
+    pub fn detach(&self, id: SessionId) -> Result<(), PtyError> {
+        let sessions = lock_recover(self.sessions.lock());
+        let s = sessions.get(&id).ok_or(PtyError::NotFound(id))?;
+        *lock_recover(s.sink.lock()) = None;
+        Ok(())
     }
 
     /// Graceful shutdown attempt, then kill. Called at application exit.
@@ -482,6 +551,74 @@ mod tests {
         std::thread::sleep(Duration::from_millis(200));
         mgr.write(id, b"stty size\r").unwrap();
         wait_for(&mgr, id, "43 132", Duration::from_secs(10));
+        mgr.kill(id).unwrap();
+    }
+
+    #[test]
+    fn attached_sessions_stream_bytes_to_the_sink() {
+        let mgr = SessionManager::new();
+        let (program, args) = interactive_shell();
+        let id = mgr
+            .spawn(SpawnOpts {
+                cwd: temp_cwd(),
+                program,
+                args,
+                initial_command: None,
+                cols: 80,
+                rows: 24,
+            })
+            .unwrap();
+
+        let got: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+        let sink = Arc::clone(&got);
+        mgr.attach(id, Arc::new(move |b: &[u8]| sink.lock().unwrap().extend_from_slice(b)))
+            .unwrap();
+
+        mgr.write(id, b"echo streamed_ok\r").unwrap();
+
+        let start = Instant::now();
+        loop {
+            let text = String::from_utf8_lossy(&got.lock().unwrap()).to_string();
+            if text.contains("streamed_ok") {
+                break;
+            }
+            assert!(start.elapsed() < Duration::from_secs(10), "sink never saw the output");
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        mgr.kill(id).unwrap();
+    }
+
+    #[test]
+    fn detached_sessions_keep_buffering_but_stop_streaming() {
+        let mgr = SessionManager::new();
+        let (program, args) = interactive_shell();
+        let id = mgr
+            .spawn(SpawnOpts {
+                cwd: temp_cwd(),
+                program,
+                args,
+                initial_command: None,
+                cols: 80,
+                rows: 24,
+            })
+            .unwrap();
+
+        let got: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+        let sink = Arc::clone(&got);
+        mgr.attach(id, Arc::new(move |b: &[u8]| sink.lock().unwrap().extend_from_slice(b)))
+            .unwrap();
+        mgr.write(id, b"echo before_detach\r").unwrap();
+        wait_for(&mgr, id, "before_detach", Duration::from_secs(10));
+
+        mgr.detach(id).unwrap();
+        got.lock().unwrap().clear();
+
+        mgr.write(id, b"echo after_detach\r").unwrap();
+        wait_for(&mgr, id, "after_detach", Duration::from_secs(10));
+
+        // Ring buffer doldu ama sink hiçbir şey görmedi.
+        let streamed = String::from_utf8_lossy(&got.lock().unwrap()).to_string();
+        assert!(!streamed.contains("after_detach"), "sink got: {streamed}");
         mgr.kill(id).unwrap();
     }
 }

@@ -1,5 +1,6 @@
 pub mod config;
 pub mod pty;
+pub mod shell;
 
 #[cfg(not(test))]
 pub fn run() {

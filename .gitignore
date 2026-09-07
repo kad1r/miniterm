@@ -1,0 +1,20 @@
+# Node
+node_modules/
+dist/
+.vite/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Machine-local build config (absolute paths, GNU toolchain workaround)
+.cargo/config.toml
+
+# Superpowers working state
+.superpowers/
+.omc/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

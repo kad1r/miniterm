@@ -82,11 +82,7 @@ pub fn unix_candidates(shell_env: Option<&str>, etc_shells: &str) -> Vec<ShellCa
         .map(|program| {
             // Derive the id/name from the last path component — no allocation
             // is leaked because ShellCandidate now owns String fields.
-            let short = program
-                .rsplit('/')
-                .next()
-                .unwrap_or("shell")
-                .to_string();
+            let short = program.rsplit('/').next().unwrap_or("shell").to_string();
             ShellCandidate {
                 id: short.clone(),
                 name: short,
@@ -119,21 +115,23 @@ pub fn resolve(candidates: Vec<ShellCandidate>, exists: &dyn Fn(&str) -> bool) -
 pub fn detect() -> Vec<ShellInfo> {
     use std::sync::OnceLock;
     static CACHE: OnceLock<Vec<ShellInfo>> = OnceLock::new();
-    CACHE.get_or_init(|| {
-        let exists = |p: &str| std::path::Path::new(p).exists();
+    CACHE
+        .get_or_init(|| {
+            let exists = |p: &str| std::path::Path::new(p).exists();
 
-        #[cfg(windows)]
-        {
-            resolve(windows_candidates(), &exists)
-        }
+            #[cfg(windows)]
+            {
+                resolve(windows_candidates(), &exists)
+            }
 
-        #[cfg(not(windows))]
-        {
-            let shell_env = std::env::var("SHELL").ok();
-            let etc = std::fs::read_to_string("/etc/shells").unwrap_or_default();
-            resolve(unix_candidates(shell_env.as_deref(), &etc), &exists)
-        }
-    }).clone()
+            #[cfg(not(windows))]
+            {
+                let shell_env = std::env::var("SHELL").ok();
+                let etc = std::fs::read_to_string("/etc/shells").unwrap_or_default();
+                resolve(unix_candidates(shell_env.as_deref(), &etc), &exists)
+            }
+        })
+        .clone()
 }
 
 #[cfg(test)]

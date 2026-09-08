@@ -480,7 +480,8 @@ mod tests {
     fn mismatched_sizes_are_regenerated() {
         let mut c = default_config("bash".into());
         // rows=2, cols=3 but sizes vectors are wrong length
-        c.tree.push(ws(2, 3, vec![1.0], vec![0.25, 0.25, 0.25, 0.25]));
+        c.tree
+            .push(ws(2, 3, vec![1.0], vec![0.25, 0.25, 0.25, 0.25]));
         let (out, changed) = clamp_config(c);
         assert!(changed);
         if let Node::Workspace {

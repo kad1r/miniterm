@@ -6,6 +6,7 @@
   import type { Node } from "../store/types"
   import TreeItem from "./TreeItem.svelte"
   import ContextMenu from "./ContextMenu.svelte"
+  import { closeSubtree, statusOf } from "../store/sessions.svelte"
 
   let { onnew }: { onnew: () => void } = $props()
 
@@ -27,8 +28,9 @@
     commit((c) => ({ ...c, tree: rename(c.tree, node.id, name) }))
   }
 
-  function deleteNode(node: Node) {
+  async function deleteNode(node: Node) {
     if (!confirm(deletePrompt(node))) return
+    await closeSubtree(node)
     commit((c) => ({ ...c, tree: remove(c.tree, node.id).tree }))
     if (app.activeWorkspaceId && !findNode(app.config.tree, app.activeWorkspaceId)) {
       app.activeWorkspaceId = null
@@ -120,6 +122,7 @@
         ondragover={dragOver}
         ondrop={drop}
         ondragend={dragEnd}
+        statusFor={statusOf}
       />
     {/each}
     {#if app.config.tree.length === 0}
@@ -146,7 +149,7 @@
     onclose={() => (menu = null)}
     items={[
       { label: "Yeniden adlandır", action: () => renameNode(target) },
-      { label: "Sil", action: () => deleteNode(target), danger: true },
+      { label: "Sil", action: () => void deleteNode(target), danger: true },
     ]}
   />
 {/if}

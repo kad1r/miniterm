@@ -1,22 +1,30 @@
 <script lang="ts">
-  import { onMount } from "svelte"
-  import { app, bootstrap, dismissToast } from "./store/app.svelte"
-  import Sidebar from "./lib/Sidebar.svelte"
-  import TerminalGrid from "./lib/TerminalGrid.svelte"
-  import Wizard from "./lib/Wizard.svelte"
-  import Settings from "./lib/Settings.svelte"
+  import { onMount, untrack } from "svelte"
+  import { app, bootstrap, commit, dismissToast } from "./store/app.svelte"
   import { findNode, updateWorkspace } from "./store/tree"
-  import { commit } from "./store/app.svelte"
+  import { activate, listenExits, restart, sessions } from "./store/sessions.svelte"
+  import Sidebar from "./lib/Sidebar.svelte"
+  import Settings from "./lib/Settings.svelte"
+  import Wizard from "./lib/Wizard.svelte"
+  import TerminalGrid from "./lib/TerminalGrid.svelte"
 
   let wizardOpen = $state(false)
 
-  onMount(bootstrap)
-
-  const activeWorkspace = $derived.by(() => {
-    if (!app.activeWorkspaceId) return null
-    const node = findNode(app.config.tree, app.activeWorkspaceId)
-    return node && node.kind === "workspace" ? node : null
+  onMount(async () => {
+    await bootstrap()
+    await listenExits()
   })
+
+  // Seçili workspace değişince oturumları hazırla.
+  $effect(() => {
+    const id = app.activeWorkspaceId
+    if (id) untrack(() => void activate(id))
+  })
+
+  function workspaceById(id: string) {
+    const node = findNode(app.config.tree, id)
+    return node && node.kind === "workspace" ? node : null
+  }
 </script>
 
 <div class="shell">
@@ -27,18 +35,26 @@
     <main>
       {#if app.view === "settings"}
         <Settings />
-      {:else if activeWorkspace}
-        {@const ws = activeWorkspace}
-        <TerminalGrid
-          workspace={ws}
-          sessionIds={Array(ws.rows * ws.cols).fill(null)}
-          exitCodes={Array(ws.rows * ws.cols).fill(undefined)}
-          onrestart={() => {}}
-          onsizes={(patch) =>
-            commit((c) => ({ ...c, tree: updateWorkspace(c.tree, ws.id, patch) }))}
-        />
-      {:else}
+      {:else if app.activeWorkspaceId === null}
         <div class="placeholder">Bir workspace seç ya da yeni bir tane oluştur.</div>
+      {:else}
+        {#each sessions.live as wsId (wsId)}
+          {@const ws = workspaceById(wsId)}
+          {#if ws}
+            {@const active = wsId === app.activeWorkspaceId}
+            {@const slot = sessions.byWorkspace[wsId]}
+            <div class="layer" class:hidden={!active}>
+              <TerminalGrid
+                workspace={ws}
+                sessionIds={active ? (slot?.ids ?? []) : []}
+                exitCodes={active ? (slot?.exits ?? []) : []}
+                onrestart={(i) => void restart(wsId, i)}
+                onsizes={(patch) =>
+                  commit((c) => ({ ...c, tree: updateWorkspace(c.tree, wsId, patch) }))}
+              />
+            </div>
+          {/if}
+        {/each}
       {/if}
     </main>
     {#if wizardOpen}
@@ -63,7 +79,16 @@
   main {
     flex: 1;
     min-width: 0;
+    position: relative;
     background: var(--bg);
+  }
+  .layer {
+    position: absolute;
+    inset: 0;
+  }
+  .layer.hidden {
+    visibility: hidden;
+    pointer-events: none;
   }
   .boot,
   .placeholder {

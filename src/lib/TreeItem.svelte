@@ -4,7 +4,7 @@
   import Self from "./TreeItem.svelte"
 
   let { node, depth, activeId, dragId, dropHint, onselect, ontoggle, oncontext,
-        ondragstart, ondragover, ondrop, ondragend }: {
+        ondragstart, ondragover, ondrop, ondragend, statusFor }: {
     node: Node
     depth: number
     activeId: string | null
@@ -17,11 +17,13 @@
     ondragover: (node: Node, offsetY: number, height: number) => void
     ondrop: () => void
     ondragend: () => void
+    statusFor: (nodeId: string) => "off" | "running" | "dead"
   } = $props()
 
   const isFolder = $derived(node.kind === "folder")
   const terminals = $derived(node.kind === "workspace" ? node.rows * node.cols : 0)
   const hint = $derived(dropHint?.nodeId === node.id ? dropHint : null)
+  const status = $derived(node.kind === "workspace" ? statusFor(node.id) : "off")
 </script>
 
 <div
@@ -76,6 +78,9 @@
   </span>
   <span class="name">{node.name}</span>
   {#if !isFolder}
+    <span class="dot {status}" title={status}></span>
+  {/if}
+  {#if !isFolder}
     <span class="badge">{terminals}</span>
   {/if}
 </div>
@@ -84,7 +89,7 @@
   {#each node.children as child (child.id)}
     <Self node={child} depth={depth + 1} {activeId} {dragId} {dropHint}
           {onselect} {ontoggle} {oncontext}
-          {ondragstart} {ondragover} {ondrop} {ondragend} />
+          {ondragstart} {ondragover} {ondrop} {ondragend} {statusFor} />
   {/each}
 {/if}
 
@@ -120,6 +125,18 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+  }
+  .dot.running {
+    background: var(--ok);
+  }
+  .dot.dead {
+    background: var(--err);
   }
   .badge {
     color: var(--text-dim);

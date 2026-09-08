@@ -57,11 +57,11 @@
     fit()
 
     term.onData((data) => {
-      if (attached !== null) {
-        void writeSession(attached, encoder.encode(data))
-      } else if (exitCode !== undefined && (data === "\r" || data === "\n")) {
-        onrestart?.()
+      if (exitCode !== undefined) {
+        if (data === "\r" || data === "\n") onrestart?.()
+        return
       }
+      if (attached !== null) void writeSession(attached, encoder.encode(data))
     })
 
     const ro = new ResizeObserver(() => fit())

@@ -24,6 +24,26 @@ describe("zoneFor", () => {
     expect(zoneFor(-40, 26, true)).toBe("before")
     expect(zoneFor(999, 26, true)).toBe("after")
   })
+
+  it("detects boundary at top edge (6.5 with height 26)", () => {
+    // 26 * 0.25 = 6.5, so y < 6.5 → "before", y >= 6.5 → middle zone
+    expect(zoneFor(6, 26, true)).toBe("before")
+    expect(zoneFor(7, 26, true)).toBe("into")
+  })
+
+  it("detects boundary at bottom edge (19.5 with height 26)", () => {
+    // 26 * 0.75 = 19.5, so y <= 19.5 → middle zone, y > 19.5 → "after"
+    expect(zoneFor(19, 26, true)).toBe("into")
+    expect(zoneFor(20, 26, true)).toBe("after")
+  })
+
+  it("detects boundary behavior for workspace at middle (middle → after for non-folder)", () => {
+    // Workspace (isFolder=false) in middle zone should return "after"
+    expect(zoneFor(6, 26, false)).toBe("before")
+    expect(zoneFor(7, 26, false)).toBe("after")
+    expect(zoneFor(19, 26, false)).toBe("after")
+    expect(zoneFor(20, 26, false)).toBe("after")
+  })
 })
 
 describe("targetFor", () => {

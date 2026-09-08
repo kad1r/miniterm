@@ -100,6 +100,7 @@
     class="tree"
     role="tree"
     aria-label="Workspaces"
+    tabindex="0"
     ondragover={(e) => e.preventDefault()}
     ondrop={dropToRoot}
   >

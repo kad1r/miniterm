@@ -1,6 +1,7 @@
 <script lang="ts">
   import { app, commit, notify } from "../store/app.svelte"
-  import { findNode, insert, remove, rename, setExpanded } from "../store/tree"
+  import { canDrop, findNode, insert, move, remove, rename, setExpanded } from "../store/tree"
+  import { zoneFor, targetFor, type DropZone } from "../store/dnd"
   import { deletePrompt, newFolder } from "../store/sidebar"
   import type { Node } from "../store/types"
   import TreeItem from "./TreeItem.svelte"
@@ -45,6 +46,45 @@
     const node = findNode(app.config.tree, app.activeWorkspaceId)
     if (node) renameNode(node)
   }
+
+  let dragId = $state<string | null>(null)
+  let dropHint = $state<{ nodeId: string; zone: DropZone; ok: boolean } | null>(null)
+
+  function dragStart(node: Node) {
+    dragId = node.id
+    dropHint = null
+  }
+
+  function dragOver(node: Node, offsetY: number, height: number) {
+    if (!dragId) return
+    const zone = zoneFor(offsetY, height, node.kind === "folder")
+    const ok = node.id !== dragId && canDrop(app.config.tree, dragId, targetFor(zone, node.id))
+    dropHint = { nodeId: node.id, zone, ok }
+  }
+
+  function drop() {
+    const hint = dropHint
+    const id = dragId
+    dragEnd()
+    if (!id || !hint) return
+    if (!hint.ok) {
+      notify("Buraya taşınamaz", "error")
+      return
+    }
+    commit((c) => ({ ...c, tree: move(c.tree, id, targetFor(hint.zone, hint.nodeId)) }))
+  }
+
+  function dragEnd() {
+    dragId = null
+    dropHint = null
+  }
+
+  function dropToRoot() {
+    const id = dragId
+    dragEnd()
+    if (!id) return
+    commit((c) => ({ ...c, tree: move(c.tree, id, { type: "rootEnd" }) }))
+  }
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -56,15 +96,27 @@
     <button class="icon" title="Yeni workspace" onclick={onnew}>+</button>
   </header>
 
-  <div class="tree" role="tree" aria-label="Workspaces">
+  <div
+    class="tree"
+    role="tree"
+    aria-label="Workspaces"
+    ondragover={(e) => e.preventDefault()}
+    ondrop={dropToRoot}
+  >
     {#each app.config.tree as node (node.id)}
       <TreeItem
         {node}
         depth={1}
         activeId={app.activeWorkspaceId}
+        {dragId}
+        {dropHint}
         onselect={select}
         ontoggle={toggle}
         oncontext={(n, x, y) => (menu = { node: n, x, y })}
+        ondragstart={dragStart}
+        ondragover={dragOver}
+        ondrop={drop}
+        ondragend={dragEnd}
       />
     {/each}
     {#if app.config.tree.length === 0}

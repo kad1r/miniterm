@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { app, bootstrap, dismissToast, notify } from "./store/app.svelte"
+  import { app, bootstrap, dismissToast } from "./store/app.svelte"
   import Sidebar from "./lib/Sidebar.svelte"
   import TerminalGrid from "./lib/TerminalGrid.svelte"
+  import Wizard from "./lib/Wizard.svelte"
   import { findNode, updateWorkspace } from "./store/tree"
   import { commit } from "./store/app.svelte"
+
+  let wizardOpen = $state(false)
 
   onMount(bootstrap)
 
@@ -19,7 +22,7 @@
   {#if !app.ready}
     <div class="boot">Yükleniyor…</div>
   {:else}
-    <Sidebar onnew={() => notify("Sihirbaz henüz bağlanmadı")} />
+    <Sidebar onnew={() => (wizardOpen = true)} />
     <main>
       {#if app.view === "settings"}
         <div class="placeholder">Ayarlar</div>
@@ -37,6 +40,9 @@
         <div class="placeholder">Bir workspace seç ya da yeni bir tane oluştur.</div>
       {/if}
     </main>
+    {#if wizardOpen}
+      <Wizard onclose={() => (wizardOpen = false)} />
+    {/if}
   {/if}
 
   {#if app.toast}

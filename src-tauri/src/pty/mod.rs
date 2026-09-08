@@ -1,5 +1,5 @@
-pub mod ring;
 pub mod batch;
+pub mod ring;
 
 use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use ring::{RingBuffer, RING_CAPACITY};
@@ -69,6 +69,10 @@ struct Session {
     saw_output: Arc<(Mutex<bool>, Condvar)>,
     alive: Arc<AtomicBool>,
     sink: Arc<Mutex<Option<OutputSink>>>,
+    /// Latched true by the first `attach()`. Until then the reader thread answers
+    /// the shell's cursor-position requests itself — see the DSR note on the
+    /// reader thread.
+    attached_ever: Arc<AtomicBool>,
 }
 
 pub struct SessionManager {
@@ -153,6 +157,7 @@ impl SessionManager {
         let master = Arc::new(Mutex::new(pair.master));
         let saw_output = Arc::new((Mutex::new(false), Condvar::new()));
         let alive = Arc::new(AtomicBool::new(true));
+        let attached_ever = Arc::new(AtomicBool::new(false));
 
         let sink: Arc<Mutex<Option<OutputSink>>> = Arc::new(Mutex::new(None));
         // sync_channel caps the in-flight queue at 64 chunks (~4 MB ceiling).
@@ -164,21 +169,30 @@ impl SessionManager {
         // Task 6 adds batched IPC emission here.
         //
         // ESC[6n (cursor position request) handling:
-        //   In production, xterm.js answers DSR queries itself via its own
-        //   onData → IPC → write path. Injecting a hardcoded ESC[1;1R from
-        //   here (a) lies about the cursor position, (b) races xterm.js so
-        //   the shell gets two replies, and (c) blocks the drain loop on the
-        //   writer lock — completing the deadlock cycle described in the
-        //   design doc. The responder below is therefore compiled only into
-        //   test builds where no xterm.js instance is present to answer.
-        //   If a real pre-attach stall ever appears, the right fix is a
-        //   one-shot responder that fires only until a pane has mounted.
+        //   PowerShell issues this query the instant it starts and then blocks
+        //   completely until it is answered — no prompt, no echo, no reaction
+        //   to typed input. Once a pane has attached, xterm.js answers these
+        //   itself via its onData → IPC → write path, so we must not reply as
+        //   well or the shell would receive two answers.
+        //
+        //   But before the first attach there is no xterm.js to answer, and
+        //   attaching the first pane of a grid takes hundreds of ms (mounting
+        //   every xterm instance and its WebGL context). The query lands in
+        //   the ring buffer unanswered, the shell never starts, and replaying
+        //   the buffer at attach time does not help: xterm generates a reply
+        //   but the pane drops it because it is not yet marked attached.
+        //
+        //   So: answer only while `attached_ever` is false. That flag latches
+        //   on the first attach() and never clears, which makes this a
+        //   one-shot bootstrap responder rather than a permanent one. Replying
+        //   ESC[1;1R is honest here — the shell has emitted nothing yet, so
+        //   the cursor really is at the origin.
         {
             let buffer = Arc::clone(&buffer);
             let saw_output = Arc::clone(&saw_output);
             let alive = Arc::clone(&alive);
-            #[cfg(test)]
             let writer_for_cpr = Arc::clone(&writer);
+            let attached_ever_for_cpr = Arc::clone(&attached_ever);
             // Move tx into the reader thread directly — the sole Sender.  Its
             // drop when this thread exits disconnects the channel, which is one
             // shutdown signal for the collector.  Do not clone it anywhere else;
@@ -191,16 +205,15 @@ impl SessionManager {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
                             let slice = &chunk[..n];
-                            // Respond to ESC[6n (cursor position request) so
-                            // ConPTY / cmd.exe initialisation does not stall
-                            // during tests (where xterm.js is not present to
-                            // answer). Use try_lock so this path never blocks
-                            // the drain loop — if the lock is contended the
-                            // reply is skipped rather than deadlocking.
-                            #[cfg(test)]
-                            if slice.windows(4).any(|w| w == b"\x1b[6n") {
+                            // try_lock, never lock: a contended writer must not
+                            // stall the drain loop. Losing the race is safe —
+                            // the shell repeats the query until answered.
+                            if !attached_ever_for_cpr.load(Ordering::SeqCst)
+                                && slice.windows(4).any(|w| w == b"\x1b[6n")
+                            {
                                 if let Ok(mut w) = writer_for_cpr.try_lock() {
                                     let _ = w.write_all(b"\x1b[1;1R");
+                                    let _ = w.flush();
                                 }
                             }
                             lock_recover(buffer.lock()).push(slice);
@@ -280,7 +293,9 @@ impl SessionManager {
                         Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
                     }
 
-                    let waited = first_at.map(|t| t.elapsed().as_millis() as u64).unwrap_or(0);
+                    let waited = first_at
+                        .map(|t| t.elapsed().as_millis() as u64)
+                        .unwrap_or(0);
                     if batch::should_flush(pending.len(), waited) {
                         // Take the guard, clone the Option, drop the guard, then
                         // invoke the sink outside the lock.  This prevents a
@@ -350,6 +365,7 @@ impl SessionManager {
                 saw_output,
                 alive,
                 sink,
+                attached_ever,
             },
         );
 
@@ -424,7 +440,13 @@ impl SessionManager {
         // sessions lock is held.
         let slot = {
             let sessions = lock_recover(self.sessions.lock());
-            Arc::clone(&sessions.get(&id).ok_or(PtyError::NotFound(id))?.sink)
+            let s = sessions.get(&id).ok_or(PtyError::NotFound(id))?;
+            // Latch before the sink is installed: from here on xterm.js owns
+            // the DSR reply, so the bootstrap responder must stand down. A
+            // later detach() does not clear it — xterm.js has already answered
+            // the startup query, and a second reply would confuse the shell.
+            s.attached_ever.store(true, Ordering::SeqCst);
+            Arc::clone(&s.sink)
         };
         let previous = lock_recover(slot.lock()).replace(sink);
         drop(previous); // user destructor runs outside both locks
@@ -486,6 +508,26 @@ mod tests {
         std::env::temp_dir().to_string_lossy().to_string()
     }
 
+    /// A sink that stands in for an attached xterm.js: it records what it
+    /// receives *and* answers cursor-position requests. The reply matters —
+    /// `attach()` retires the bootstrap responder precisely because the
+    /// frontend takes over that duty, so a sink that only records would leave
+    /// the shell blocked and the test measuring nothing.
+    ///
+    /// Holds a Weak, not an Arc: the manager owns the sink, so an Arc here
+    /// would be a cycle and the manager would never drop.
+    fn terminal_sink(mgr: &Arc<SessionManager>, id: u64, got: Arc<Mutex<Vec<u8>>>) -> OutputSink {
+        let weak = Arc::downgrade(mgr);
+        Arc::new(move |bytes: &[u8]| {
+            got.lock().unwrap().extend_from_slice(bytes);
+            if bytes.windows(4).any(|w| w == b"\x1b[6n") {
+                if let Some(mgr) = weak.upgrade() {
+                    let _ = mgr.write(id, b"\x1b[1;1R");
+                }
+            }
+        })
+    }
+
     fn wait_for(mgr: &SessionManager, id: u64, needle: &str, timeout: Duration) -> String {
         let start = Instant::now();
         loop {
@@ -540,6 +582,47 @@ mod tests {
         // Asıl mesele: ilk komut bittikten sonra shell hâlâ komut alabiliyor olmalı.
         mgr.write(id, b"echo still_alive\r").unwrap();
         wait_for(&mgr, id, "still_alive", Duration::from_secs(10));
+        mgr.kill(id).unwrap();
+    }
+
+    /// Regression: a shell that opens with a cursor-position request (ESC[6n)
+    /// blocks until something answers it. In production the answer can only
+    /// come from an attached xterm.js, but the first pane of a grid attaches
+    /// several hundred ms after spawn — so the shell was still blocked when
+    /// its initial command was typed, and the pane stayed blank forever.
+    ///
+    /// Deliberately never attaches: that is the state the bug lives in. Uses
+    /// PowerShell rather than the `interactive_shell()` helper because cmd.exe
+    /// does not issue the query, which is why the other tests never caught it.
+    #[test]
+    #[cfg(windows)]
+    fn answers_cursor_position_requests_before_any_pane_attaches() {
+        let mgr = SessionManager::new();
+        let id = mgr
+            .spawn(SpawnOpts {
+                cwd: temp_cwd(),
+                program: "powershell.exe".to_string(),
+                args: vec!["-NoLogo".to_string()],
+                initial_command: Some("echo marker_dsr".to_string()),
+                cols: 80,
+                rows: 24,
+            })
+            .expect("spawn failed");
+
+        // The shell echoes what was typed, so one occurrence proves nothing —
+        // the command actually RAN only if the marker appears twice.
+        let start = Instant::now();
+        loop {
+            let text = String::from_utf8_lossy(&mgr.snapshot(id).unwrap()).to_string();
+            if text.matches("marker_dsr").count() > 1 {
+                break;
+            }
+            assert!(
+                start.elapsed() <= Duration::from_secs(15),
+                "shell never ran its initial command — still blocked on ESC[6n; buffer was:\n{text}"
+            );
+            std::thread::sleep(Duration::from_millis(25));
+        }
         mgr.kill(id).unwrap();
     }
 
@@ -612,7 +695,7 @@ mod tests {
 
     #[test]
     fn attached_sessions_stream_bytes_to_the_sink() {
-        let mgr = SessionManager::new();
+        let mgr = Arc::new(SessionManager::new());
         let (program, args) = interactive_shell();
         let id = mgr
             .spawn(SpawnOpts {
@@ -626,8 +709,7 @@ mod tests {
             .unwrap();
 
         let got: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
-        let sink = Arc::clone(&got);
-        mgr.attach(id, Arc::new(move |b: &[u8]| sink.lock().unwrap().extend_from_slice(b)))
+        mgr.attach(id, terminal_sink(&mgr, id, Arc::clone(&got)))
             .unwrap();
 
         mgr.write(id, b"echo streamed_ok\r").unwrap();
@@ -638,7 +720,10 @@ mod tests {
             if text.contains("streamed_ok") {
                 break;
             }
-            assert!(start.elapsed() < Duration::from_secs(10), "sink never saw the output");
+            assert!(
+                start.elapsed() < Duration::from_secs(10),
+                "sink never saw the output"
+            );
             std::thread::sleep(Duration::from_millis(25));
         }
         mgr.kill(id).unwrap();
@@ -646,7 +731,7 @@ mod tests {
 
     #[test]
     fn detached_sessions_keep_buffering_but_stop_streaming() {
-        let mgr = SessionManager::new();
+        let mgr = Arc::new(SessionManager::new());
         let (program, args) = interactive_shell();
         let id = mgr
             .spawn(SpawnOpts {
@@ -660,8 +745,7 @@ mod tests {
             .unwrap();
 
         let got: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
-        let sink = Arc::clone(&got);
-        mgr.attach(id, Arc::new(move |b: &[u8]| sink.lock().unwrap().extend_from_slice(b)))
+        mgr.attach(id, terminal_sink(&mgr, id, Arc::clone(&got)))
             .unwrap();
         mgr.write(id, b"echo before_detach\r").unwrap();
         wait_for(&mgr, id, "before_detach", Duration::from_secs(10));

@@ -68,20 +68,36 @@
   /**
    * Keyboard nudge for focusable dividers (a11y: arrow keys move the divider
    * by a fixed step so keyboard users can resize without a mouse).
+   *
+   * Pattern mirrors the drag path: each keydown accumulates into liveCols/liveRows
+   * and calls only fit() (cheap DOM reflow). onsizes() + syncSize() fire exactly
+   * once on keyup — identical to endDrag(). A 150 ms safety-net debounce ensures
+   * the gesture still commits if keyup is lost (e.g. focus moves while key is held).
    */
   const KEYBOARD_STEP_PX = 20
+  let keyNudgeTimer: ReturnType<typeof setTimeout> | undefined
 
-  function nudgeDivider(axis: "row" | "col", index: number, direction: -1 | 1) {
+  function applyNudge(axis: "row" | "col", index: number, direction: -1 | 1) {
     if (!container) return
     const box = container.getBoundingClientRect()
     const total = axis === "col" ? box.width : box.height
     const base = axis === "col" ? [...colSizes] : [...rowSizes]
     const next = resizeFractions(base, index, direction * KEYBOARD_STEP_PX, total, MIN_CELL_PX)
-    if (axis === "col") {
-      onsizes({ colSizes: next })
-    } else {
-      onsizes({ rowSizes: next })
-    }
+    if (axis === "col") liveCols = next
+    else liveRows = next
+    for (const pane of panes) pane?.fit()
+    // Safety net: commit if keyup is never received (focus lost mid-gesture).
+    clearTimeout(keyNudgeTimer)
+    keyNudgeTimer = setTimeout(() => commitKeyNudge(), 150)
+  }
+
+  function commitKeyNudge() {
+    clearTimeout(keyNudgeTimer)
+    keyNudgeTimer = undefined
+    if (liveCols) onsizes({ colSizes: liveCols })
+    if (liveRows) onsizes({ rowSizes: liveRows })
+    liveCols = null
+    liveRows = null
     queueMicrotask(() => {
       for (const pane of panes) {
         pane?.fit()
@@ -91,13 +107,21 @@
   }
 
   function onColDividerKeydown(index: number, e: KeyboardEvent) {
-    if (e.key === "ArrowLeft") { e.preventDefault(); nudgeDivider("col", index, -1) }
-    else if (e.key === "ArrowRight") { e.preventDefault(); nudgeDivider("col", index, 1) }
+    if (e.key === "ArrowLeft") { e.preventDefault(); applyNudge("col", index, -1) }
+    else if (e.key === "ArrowRight") { e.preventDefault(); applyNudge("col", index, 1) }
+  }
+
+  function onColDividerKeyup(_index: number, e: KeyboardEvent) {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") commitKeyNudge()
   }
 
   function onRowDividerKeydown(index: number, e: KeyboardEvent) {
-    if (e.key === "ArrowUp") { e.preventDefault(); nudgeDivider("row", index, -1) }
-    else if (e.key === "ArrowDown") { e.preventDefault(); nudgeDivider("row", index, 1) }
+    if (e.key === "ArrowUp") { e.preventDefault(); applyNudge("row", index, -1) }
+    else if (e.key === "ArrowDown") { e.preventDefault(); applyNudge("row", index, 1) }
+  }
+
+  function onRowDividerKeyup(_index: number, e: KeyboardEvent) {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") commitKeyNudge()
   }
 
   // Pencere yeniden boyutlanınca 100 ms sonra bir kez eşitle.
@@ -148,6 +172,7 @@
       onpointerup={endDrag}
       onpointercancel={endDrag}
       onkeydown={(e) => onColDividerKeydown(i, e)}
+      onkeyup={(e) => onColDividerKeyup(i, e)}
     ></div>
   {/each}
 
@@ -167,6 +192,7 @@
       onpointerup={endDrag}
       onpointercancel={endDrag}
       onkeydown={(e) => onRowDividerKeydown(i, e)}
+      onkeyup={(e) => onRowDividerKeyup(i, e)}
     ></div>
   {/each}
 </div>

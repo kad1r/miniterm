@@ -4,6 +4,7 @@
   import Sidebar from "./lib/Sidebar.svelte"
   import TerminalGrid from "./lib/TerminalGrid.svelte"
   import Wizard from "./lib/Wizard.svelte"
+  import Settings from "./lib/Settings.svelte"
   import { findNode, updateWorkspace } from "./store/tree"
   import { commit } from "./store/app.svelte"
 
@@ -25,7 +26,7 @@
     <Sidebar onnew={() => (wizardOpen = true)} />
     <main>
       {#if app.view === "settings"}
-        <div class="placeholder">Ayarlar</div>
+        <Settings />
       {:else if activeWorkspace}
         {@const ws = activeWorkspace}
         <TerminalGrid

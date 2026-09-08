@@ -2,25 +2,17 @@
   import { onMount } from "svelte"
   import { app, bootstrap, dismissToast, notify } from "./store/app.svelte"
   import Sidebar from "./lib/Sidebar.svelte"
-  import TerminalPane from "./lib/TerminalPane.svelte"
-  import { spawnSession } from "./ipc"
+  import TerminalGrid from "./lib/TerminalGrid.svelte"
+  import { findNode, updateWorkspace } from "./store/tree"
+  import { commit } from "./store/app.svelte"
 
   onMount(bootstrap)
 
-  let previewId = $state<number | null>(null)
-
-  async function preview() {
-    const shell = app.shells[0]
-    if (!shell) return
-    previewId = await spawnSession({
-      cwd: ".",
-      program: shell.program,
-      args: shell.args,
-      initialCommand: null,
-      cols: 80,
-      rows: 24,
-    })
-  }
+  const activeWorkspace = $derived.by(() => {
+    if (!app.activeWorkspaceId) return null
+    const node = findNode(app.config.tree, app.activeWorkspaceId)
+    return node && node.kind === "workspace" ? node : null
+  })
 </script>
 
 <div class="shell">
@@ -31,12 +23,16 @@
     <main>
       {#if app.view === "settings"}
         <div class="placeholder">Ayarlar</div>
-      {:else if app.activeWorkspaceId}
-        {#if previewId === null}
-          <div class="placeholder"><button onclick={preview}>Terminal başlat</button></div>
-        {:else}
-          <TerminalPane sessionId={previewId} />
-        {/if}
+      {:else if activeWorkspace}
+        {@const ws = activeWorkspace}
+        <TerminalGrid
+          workspace={ws}
+          sessionIds={Array(ws.rows * ws.cols).fill(null)}
+          exitCodes={Array(ws.rows * ws.cols).fill(undefined)}
+          onrestart={() => {}}
+          onsizes={(patch) =>
+            commit((c) => ({ ...c, tree: updateWorkspace(c.tree, ws.id, patch) }))}
+        />
       {:else}
         <div class="placeholder">Bir workspace seç ya da yeni bir tane oluştur.</div>
       {/if}

@@ -50,7 +50,9 @@
     term.loadAddon(fitAddon)
     term.open(host)
     try {
-      term.loadAddon(new WebglAddon())
+      const webgl = new WebglAddon()
+      webgl.onContextLoss(() => webgl.dispose())
+      term.loadAddon(webgl)
     } catch {
       // WebGL yoksa xterm canvas/DOM renderer'a düşer; hata değil.
     }

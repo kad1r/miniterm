@@ -19,6 +19,7 @@ export const app = $state({
   activeWorkspaceId: null as string | null,
   view: "workspace" as "workspace" | "settings",
   ready: false,
+  loadFailed: false,
   toast: null as { text: string; tone: "info" | "error" } | null,
 });
 
@@ -38,8 +39,11 @@ export function dismissToast() {
   app.toast = null;
 }
 
-/** Config'i değiştirir ve debounce'lu diske yazmayı kuyruğa alır. */
+/** Config'i değiştirir ve debounce'lu diske yazmayı kuyruğa alır.
+ *  Başlatma sırasında hata oluştuysa hiçbir şey yazmaz — boş config'i diske
+ *  basmaktansa sessizce reddetmek tercih edilir. */
 export function commit(mutate: (config: Config) => Config) {
+  if (app.loadFailed) return;
   app.config = mutate(app.config);
   saver.schedule(app.config);
 }
@@ -57,7 +61,11 @@ export async function bootstrap() {
     }
   } catch (e) {
     // app.config stays emptyConfig — the rest of the UI is safe against it.
-    notify(`Başlatma hatası: ${e}`, "error");
+    // loadFailed flag prevents commit() from overwriting the real config.json
+    // with an empty tree during this session.
+    app.loadFailed = true;
+    saver.cancel();
+    notify(`Başlatma hatası: ${e} — bu oturumda değişiklikler kaydedilmeyecek.`, "error");
   } finally {
     app.ready = true;
     window.addEventListener("beforeunload", () => void saver.flush());

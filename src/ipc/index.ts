@@ -79,7 +79,8 @@ export async function detachSession(id: number): Promise<void> {
 }
 
 export async function getBuffer(id: number): Promise<Uint8Array> {
-  return toBytes(await invoke<number[]>("get_buffer", { id }));
+  const buf = await invoke<ArrayBuffer>("get_buffer", { id });
+  return new Uint8Array(buf);
 }
 
 export function onSessionExit(

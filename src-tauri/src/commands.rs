@@ -75,8 +75,9 @@ pub fn detach_session(state: State<'_, AppState>, id: u64) -> Result<(), String>
 }
 
 #[tauri::command]
-pub fn get_buffer(state: State<'_, AppState>, id: u64) -> Result<Vec<u8>, String> {
-    state.sessions.snapshot(id).map_err(map_err)
+pub fn get_buffer(state: State<'_, AppState>, id: u64) -> Result<tauri::ipc::Response, String> {
+    let bytes = state.sessions.snapshot(id).map_err(map_err)?;
+    Ok(tauri::ipc::Response::new(bytes))
 }
 
 pub fn config_dir(app: &AppHandle) -> PathBuf {

@@ -3,6 +3,7 @@ import { findNode } from "./tree"
 import { touch } from "./lru"
 import { killSession, onSessionExit, spawnSession } from "../ipc"
 import type { Node, ShellInfo, Workspace } from "./types"
+import { paneStatus } from "./status"
 
 export const LIVE_LIMIT = 3
 
@@ -58,13 +59,14 @@ export async function activate(workspaceId: string): Promise<void> {
   const ws = workspaceById(workspaceId)
   if (!ws) return
 
-  const moved = touch(sessions.live, workspaceId, LIVE_LIMIT)
-  sessions.live = moved.list
-  // Tahliye edilenlerin süreçleri yaşar; sadece xterm örnekleri kaldırılır.
-
   const count = ws.rows * ws.cols
   const existing = sessions.byWorkspace[workspaceId]
-  if (existing && existing.ids.length === count) return
+  if (existing && existing.ids.length === count) {
+    // Already fully spawned — just update LRU order.
+    const moved = touch(sessions.live, workspaceId, LIVE_LIMIT)
+    sessions.live = moved.list
+    return
+  }
 
   const shell = shellFor(ws)
   if (!shell) {
@@ -72,7 +74,16 @@ export async function activate(workspaceId: string): Promise<void> {
     return
   }
 
+  // Move into the LRU only after confirming we have a shell to spawn.
+  // A workspace with no shell must not consume one of the three LRU slots.
+  const moved = touch(sessions.live, workspaceId, LIVE_LIMIT)
+  sessions.live = moved.list
+  // Tahliye edilenlerin süreçleri yaşar; sadece xterm örnekleri kaldırılır.
+
   // Yerleşim değiştiyse fazla panelleri kapat, eksikleri aç.
+  // NOTE: This branch is currently unreachable — layout (rows/cols) is fixed at workspace
+  // creation and never mutated. It is kept as the natural seam for a future layout-editing
+  // feature; carry exits forward so surviving dead panes keep their status dots.
   const ids: (number | null)[] = existing ? existing.ids.slice(0, count) : []
   if (existing) {
     for (const extra of existing.ids.slice(count)) {
@@ -84,15 +95,27 @@ export async function activate(workspaceId: string): Promise<void> {
   }
   sessions.byWorkspace[workspaceId] = {
     ids: [...ids, ...Array(count - ids.length).fill(null)],
-    exits: Array(count).fill(undefined),
+    exits: [
+      ...(existing?.exits.slice(0, count) ?? []),
+      ...Array(count - ids.length).fill(undefined),
+    ],
   }
 
+  // Capture the slot reference before the first await. If the slot is replaced
+  // (e.g. the workspace is deleted mid-spawn), compare by reference and clean up
+  // the just-spawned session rather than orphaning it.
+  const mine = sessions.byWorkspace[workspaceId]
   for (let i = ids.length; i < count; i++) {
     const id = await spawnOne(ws, i, shell)
-    const slot = sessions.byWorkspace[workspaceId]
-    if (!slot) return
-    slot.ids[i] = id
-    if (id === null) slot.exits[i] = null
+    if (sessions.byWorkspace[workspaceId] !== mine) {
+      if (id !== null) {
+        owner.delete(id)
+        void killSession(id).catch(() => {})
+      }
+      return
+    }
+    mine.ids[i] = id
+    if (id === null) mine.exits[i] = null
   }
 }
 
@@ -122,23 +145,22 @@ export async function closeSubtree(node: Node): Promise<void> {
     for (const child of node.children) await closeSubtree(child)
     return
   }
+  // Remove from LRU before the slot check: a workspace deleted before it ever
+  // spawned (no slot) would otherwise remain in live and cap the app at two grids.
+  sessions.live = sessions.live.filter((x) => x !== node.id)
   const slot = sessions.byWorkspace[node.id]
   if (!slot) return
   for (const id of slot.ids) {
     if (id !== null) {
       owner.delete(id)
-      await killSession(id)
+      await killSession(id).catch(() => {})
     }
   }
   delete sessions.byWorkspace[node.id]
-  sessions.live = sessions.live.filter((x) => x !== node.id)
 }
 
 export function statusOf(workspaceId: string): PaneStatus {
-  const slot = sessions.byWorkspace[workspaceId]
-  if (!slot) return "off"
-  if (slot.exits.some((e) => e !== undefined)) return "dead"
-  return slot.ids.some((id) => id !== null) ? "running" : "off"
+  return paneStatus(sessions.byWorkspace[workspaceId])
 }
 
 export async function listenExits(): Promise<void> {
@@ -148,6 +170,10 @@ export async function listenExits(): Promise<void> {
     owner.delete(id)
     const slot = sessions.byWorkspace[where.workspaceId]
     if (!slot) return
+    // Deliberately does NOT null slot.ids[index] here. Only kill() removes the Rust map
+    // entry (src-tauri/src/pty/mod.rs:394), so a nulled id would make closeSubtree skip it
+    // and leak the session plus its 256 KB ring buffer. TerminalPane guards keystrokes on
+    // exitCode, not on the id — see TerminalPane.svelte onData handler.
     slot.exits[where.index] = code
   })
 }

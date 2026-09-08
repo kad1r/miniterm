@@ -69,7 +69,7 @@
 
     return () => {
       ro.disconnect()
-      if (attached !== null) void detachSession(attached)
+      if (attached !== null) void detachSession(attached).catch(() => {})
       term?.dispose()
       term = null
       fitAddon = null
@@ -82,7 +82,7 @@
     const id = sessionId
     if (!term) return
     if (attached !== null && attached !== id) {
-      void detachSession(attached)
+      void detachSession(attached).catch(() => {})
       attached = null
     }
     if (id === null || attached === id) return
@@ -97,9 +97,16 @@
       const histDecoder = new TextDecoder()
       const streamDecoder = new TextDecoder()
       if (history.length > 0) term.write(histDecoder.decode(history))
+      // Re-emit the exit notice after history rehydration so it is not lost on workspace
+      // switch. The notice lives only in the client-side xterm buffer (not in the Rust ring
+      // buffer), so it must be written again each time the pane is reattached while dead.
+      if (exitCode !== undefined) {
+        noticeShown = true
+        term.write(exitNotice(exitCode ?? null))
+      }
       await attachSession(id, (bytes) => term?.write(streamDecoder.decode(bytes, { stream: true })))
       if (cancelled) {
-        void detachSession(id)
+        void detachSession(id).catch(() => {})
         return
       }
       attached = id

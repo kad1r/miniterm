@@ -11,8 +11,9 @@
   let wizardOpen = $state(false)
 
   onMount(async () => {
+    const exits = listenExits()
     await bootstrap()
-    await listenExits()
+    await exits
   })
 
   // Seçili workspace değişince oturumları hazırla.
@@ -38,7 +39,7 @@
       {:else if app.activeWorkspaceId === null}
         <div class="placeholder">Bir workspace seç ya da yeni bir tane oluştur.</div>
       {:else}
-        {#each sessions.live as wsId (wsId)}
+        {#each [...sessions.live].sort() as wsId (wsId)}
           {@const ws = workspaceById(wsId)}
           {#if ws}
             {@const active = wsId === app.activeWorkspaceId}

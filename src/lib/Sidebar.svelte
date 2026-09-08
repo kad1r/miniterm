@@ -43,6 +43,8 @@
 
   function onKeydown(e: KeyboardEvent) {
     if (e.key !== "F2" || !app.activeWorkspaceId) return
+    // Ignore if focus is inside a terminal pane — xterm must handle F2 itself.
+    if ((e.target as Element | null)?.closest(".pane")) return
     const node = findNode(app.config.tree, app.activeWorkspaceId)
     if (node) renameNode(node)
   }

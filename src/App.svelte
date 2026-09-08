@@ -2,8 +2,25 @@
   import { onMount } from "svelte"
   import { app, bootstrap, dismissToast, notify } from "./store/app.svelte"
   import Sidebar from "./lib/Sidebar.svelte"
+  import TerminalPane from "./lib/TerminalPane.svelte"
+  import { spawnSession } from "./ipc"
 
   onMount(bootstrap)
+
+  let previewId = $state<number | null>(null)
+
+  async function preview() {
+    const shell = app.shells[0]
+    if (!shell) return
+    previewId = await spawnSession({
+      cwd: ".",
+      program: shell.program,
+      args: shell.args,
+      initialCommand: null,
+      cols: 80,
+      rows: 24,
+    })
+  }
 </script>
 
 <div class="shell">
@@ -15,7 +32,11 @@
       {#if app.view === "settings"}
         <div class="placeholder">Ayarlar</div>
       {:else if app.activeWorkspaceId}
-        <div class="placeholder">Workspace: {app.activeWorkspaceId}</div>
+        {#if previewId === null}
+          <div class="placeholder"><button onclick={preview}>Terminal başlat</button></div>
+        {:else}
+          <TerminalPane sessionId={previewId} />
+        {/if}
       {:else}
         <div class="placeholder">Bir workspace seç ya da yeni bir tane oluştur.</div>
       {/if}

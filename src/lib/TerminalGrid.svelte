@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte"
   import type { Workspace } from "../store/types"
   import { cells, dividerCount, templateWithDividers } from "../store/grid"
   import { MIN_CELL_PX, resizeFractions } from "../store/layout"
@@ -112,7 +113,13 @@
   }
 
   function onColDividerKeyup(_index: number, e: KeyboardEvent) {
-    if (e.key === "ArrowLeft" || e.key === "ArrowRight") commitKeyNudge()
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      // Cancel the 150 ms safety-net so the timer cannot also fire: one gesture
+      // must produce exactly one syncSize() call (performance contract).
+      clearTimeout(keyNudgeTimer)
+      keyNudgeTimer = undefined
+      commitKeyNudge()
+    }
   }
 
   function onRowDividerKeydown(index: number, e: KeyboardEvent) {
@@ -121,7 +128,11 @@
   }
 
   function onRowDividerKeyup(_index: number, e: KeyboardEvent) {
-    if (e.key === "ArrowUp" || e.key === "ArrowDown") commitKeyNudge()
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      clearTimeout(keyNudgeTimer)
+      keyNudgeTimer = undefined
+      commitKeyNudge()
+    }
   }
 
   // Pencere yeniden boyutlanınca 100 ms sonra bir kez eşitle.
@@ -135,6 +146,15 @@
       }
     }, 100)
   }
+
+  onMount(() => {
+    return () => {
+      // Clear both timers so a mid-gesture unmount (workspace delete or LRU eviction)
+      // does not fire against disposed panes.
+      clearTimeout(keyNudgeTimer)
+      clearTimeout(resizeTimer)
+    }
+  })
 </script>
 
 <svelte:window onresize={onWindowResize} />

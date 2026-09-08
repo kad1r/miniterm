@@ -19,6 +19,14 @@ pub fn should_flush(pending_len: usize, waited_ms: u64) -> bool {
 mod tests {
     use super::*;
 
+    // Global Constraint lock: FLUSH_INTERVAL_MS is the output-batching window.
+    // Raising it increases latency; lowering it raises IPC frequency and CPU.
+    // Any change must be deliberate — update this assertion with it.
+    #[test]
+    fn flush_interval_ms_is_8() {
+        assert_eq!(FLUSH_INTERVAL_MS, 8);
+    }
+
     #[test]
     fn does_not_flush_an_empty_buffer() {
         assert!(!should_flush(0, 0));

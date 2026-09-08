@@ -1,8 +1,8 @@
 use serde::Serialize;
 
 pub struct ShellCandidate {
-    pub id: &'static str,
-    pub name: &'static str,
+    pub id: String,
+    pub name: String,
     pub program: String,
     pub args: Vec<String>,
 }
@@ -28,32 +28,32 @@ pub fn windows_candidates() -> Vec<ShellCandidate> {
 
     vec![
         ShellCandidate {
-            id: "pwsh",
-            name: "PowerShell 7",
+            id: "pwsh".into(),
+            name: "PowerShell 7".into(),
             program: format!(r"{program_files}\PowerShell\7\pwsh.exe"),
             args: vec!["-NoLogo".into()],
         },
         ShellCandidate {
-            id: "powershell",
-            name: "Windows PowerShell",
+            id: "powershell".into(),
+            name: "Windows PowerShell".into(),
             program: format!(r"{system_root}\System32\WindowsPowerShell\v1.0\powershell.exe"),
             args: vec!["-NoLogo".into()],
         },
         ShellCandidate {
-            id: "cmd",
-            name: "Command Prompt",
+            id: "cmd".into(),
+            name: "Command Prompt".into(),
             program: format!(r"{system_root}\System32\cmd.exe"),
             args: vec![],
         },
         ShellCandidate {
-            id: "gitbash",
-            name: "Git Bash",
+            id: "gitbash".into(),
+            name: "Git Bash".into(),
             program: format!(r"{program_files}\Git\bin\bash.exe"),
             args: vec!["-i".into()],
         },
         ShellCandidate {
-            id: "wsl",
-            name: "WSL",
+            id: "wsl".into(),
+            name: "WSL".into(),
             program: format!(r"{system_root}\System32\wsl.exe"),
             args: vec![],
         },
@@ -80,17 +80,16 @@ pub fn unix_candidates(shell_env: Option<&str>, etc_shells: &str) -> Vec<ShellCa
     programs
         .into_iter()
         .map(|program| {
-            let leaked: &'static str = Box::leak(
-                program
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or("shell")
-                    .to_string()
-                    .into_boxed_str(),
-            );
+            // Derive the id/name from the last path component — no allocation
+            // is leaked because ShellCandidate now owns String fields.
+            let short = program
+                .rsplit('/')
+                .next()
+                .unwrap_or("shell")
+                .to_string();
             ShellCandidate {
-                id: leaked,
-                name: leaked,
+                id: short.clone(),
+                name: short,
                 program,
                 args: vec!["-i".into()],
             }
@@ -111,20 +110,30 @@ pub fn resolve(candidates: Vec<ShellCandidate>, exists: &dyn Fn(&str) -> bool) -
         .collect()
 }
 
+/// Return the list of available shells, probing the filesystem exactly once.
+///
+/// The result is cached in a process-wide `OnceLock` so that the init path
+/// (Rust commands::load_config) and the TypeScript bootstrap path
+/// (ipc.detectShells) never duplicate the filesystem probing.
+/// wt.exe is never included — see windows_candidates().
 pub fn detect() -> Vec<ShellInfo> {
-    let exists = |p: &str| std::path::Path::new(p).exists();
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<Vec<ShellInfo>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let exists = |p: &str| std::path::Path::new(p).exists();
 
-    #[cfg(windows)]
-    {
-        resolve(windows_candidates(), &exists)
-    }
+        #[cfg(windows)]
+        {
+            resolve(windows_candidates(), &exists)
+        }
 
-    #[cfg(not(windows))]
-    {
-        let shell_env = std::env::var("SHELL").ok();
-        let etc = std::fs::read_to_string("/etc/shells").unwrap_or_default();
-        resolve(unix_candidates(shell_env.as_deref(), &etc), &exists)
-    }
+        #[cfg(not(windows))]
+        {
+            let shell_env = std::env::var("SHELL").ok();
+            let etc = std::fs::read_to_string("/etc/shells").unwrap_or_default();
+            resolve(unix_candidates(shell_env.as_deref(), &etc), &exists)
+        }
+    }).clone()
 }
 
 #[cfg(test)]
@@ -133,10 +142,10 @@ mod tests {
 
     #[test]
     fn windows_order_prefers_pwsh_then_powershell_then_cmd() {
-        let ids: Vec<_> = windows_candidates().iter().map(|c| c.id).collect();
-        let pwsh = ids.iter().position(|i| *i == "pwsh").unwrap();
-        let ps5 = ids.iter().position(|i| *i == "powershell").unwrap();
-        let cmd = ids.iter().position(|i| *i == "cmd").unwrap();
+        let ids: Vec<_> = windows_candidates().into_iter().map(|c| c.id).collect();
+        let pwsh = ids.iter().position(|i| i == "pwsh").unwrap();
+        let ps5 = ids.iter().position(|i| i == "powershell").unwrap();
+        let cmd = ids.iter().position(|i| i == "cmd").unwrap();
         assert!(pwsh < ps5 && ps5 < cmd);
     }
 
@@ -156,14 +165,14 @@ mod tests {
     fn resolve_drops_candidates_that_do_not_exist() {
         let cands = vec![
             ShellCandidate {
-                id: "a",
-                name: "A",
+                id: "a".into(),
+                name: "A".into(),
                 program: "a.exe".into(),
                 args: vec![],
             },
             ShellCandidate {
-                id: "b",
-                name: "B",
+                id: "b".into(),
+                name: "B".into(),
                 program: "b.exe".into(),
                 args: vec![],
             },

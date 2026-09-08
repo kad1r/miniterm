@@ -449,30 +449,19 @@ impl SessionManager {
         Ok(())
     }
 
-    /// Graceful shutdown attempt, then kill. Called at application exit.
+    /// Kill all sessions and reap them. Called at application exit.
+    ///
+    /// The previous implementation wrote `exit\r` and waited up to 2 s for
+    /// each session to terminate.  That handshake is never effective for AI
+    /// CLI TUIs (Claude Code, Gemini CLI) — they do not interpret `exit\r` as
+    /// a shell command.  As a result the full 2-second deadline was hit on
+    /// every single close for the app's primary use-case.
+    ///
+    /// The ring buffer is deliberately not persisted across restarts (spec §4),
+    /// so there is nothing to flush.  Killing child processes on exit is
+    /// exactly what a terminal emulator is expected to do.
     pub fn shutdown_all(&self) {
         let ids: Vec<SessionId> = lock_recover(self.sessions.lock()).keys().copied().collect();
-        for id in &ids {
-            let _ = self.write(*id, b"exit\r");
-        }
-
-        let deadline = Instant::now() + Duration::from_secs(2);
-        while Instant::now() < deadline {
-            let all_done = {
-                let sessions = lock_recover(self.sessions.lock());
-                ids.iter().all(|id| {
-                    sessions
-                        .get(id)
-                        .map(|s| !s.alive.load(Ordering::SeqCst))
-                        .unwrap_or(true)
-                })
-            };
-            if all_done {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(50));
-        }
-
         for id in ids {
             let _ = self.kill(id);
         }

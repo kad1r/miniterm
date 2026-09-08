@@ -2,6 +2,16 @@ import type { Folder, Node, Workspace } from "./types";
 
 export const MAX_DEPTH = 5;
 
+/** Return the last path segment, trimming any trailing separators.
+ *  Handles both Windows (`\`) and POSIX (`/`) paths.
+ *  Promoted from wizard.ts so sidebar and wizard share one implementation. */
+export function basename(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, "");
+  if (trimmed === "") return path === "" ? "" : path;
+  const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
+  return cut === -1 ? trimmed : trimmed.slice(cut + 1);
+}
+
 export type DropTarget =
   | { type: "into"; folderId: string }
   | { type: "before"; siblingId: string }

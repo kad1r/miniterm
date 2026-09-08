@@ -1,11 +1,9 @@
 import { app, notify } from "./app.svelte"
 import { findNode } from "./tree"
-import { touch } from "./lru"
+import { touch, LIVE_LIMIT } from "./lru"
 import { killSession, onSessionExit, spawnSession } from "../ipc"
 import type { Node, ShellInfo, Workspace } from "./types"
 import { paneStatus } from "./status"
-
-export const LIVE_LIMIT = 3
 
 export type PaneStatus = "off" | "running" | "dead"
 

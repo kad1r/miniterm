@@ -53,6 +53,14 @@ impl RingBuffer {
 mod tests {
     use super::*;
 
+    // Global Constraint lock: RING_CAPACITY is 256 KB per session. Raising it
+    // increases peak RSS proportionally (one buffer per terminal). Any change
+    // must be deliberate — update this assertion with it.
+    #[test]
+    fn ring_capacity_is_256_kb() {
+        assert_eq!(RING_CAPACITY, 262_144);
+    }
+
     #[test]
     fn keeps_everything_under_capacity() {
         let mut r = RingBuffer::with_capacity(64);

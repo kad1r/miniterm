@@ -30,19 +30,29 @@ describe("flatten", () => {
 })
 
 describe("deletePrompt", () => {
-  it("names a workspace and its terminal count", () => {
-    expect(deletePrompt(ws("a", "API", 2, 3))).toBe(
+  it("reports zero when the workspace was never activated", () => {
+    // liveSessions always returns 0 — workspace was never activated.
+    expect(deletePrompt(ws("a", "API", 2, 3), () => 0)).toBe(
+      '"API" silinecek. Açık terminal yok. Devam?',
+    )
+  })
+
+  it("reports the live session count when the workspace is active", () => {
+    // 2×3 workspace that has all 6 sessions running.
+    expect(deletePrompt(ws("a", "API", 2, 3), () => 6)).toBe(
       '"API" silinecek. 6 terminal kapanacak. Devam?',
     )
   })
 
-  it("counts every terminal under a folder", () => {
+  it("sums live sessions under a folder", () => {
     const f = folder("f", true, [ws("a", "A", 2, 2), ws("b", "B", 1, 3)])
-    expect(deletePrompt(f)).toBe('"f" silinecek. 7 terminal kapanacak. Devam?')
+    // "a" has 4 live, "b" has 3 live.
+    const live = (id: string) => id === "a" ? 4 : 3
+    expect(deletePrompt(f, live)).toBe('"f" silinecek. 7 terminal kapanacak. Devam?')
   })
 
   it("says so when nothing would close", () => {
-    expect(deletePrompt(folder("f", true, []))).toBe(
+    expect(deletePrompt(folder("f", true, []), () => 0)).toBe(
       '"f" silinecek. Açık terminal yok. Devam?',
     )
   })

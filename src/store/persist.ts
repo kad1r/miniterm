@@ -1,3 +1,8 @@
+/** Global Constraint: config-write debounce window in milliseconds.
+ *  Changing this affects how long a rename can be lost if the window closes
+ *  immediately after; the onCloseRequested flush is the primary guard. */
+export const SAVE_DEBOUNCE_MS = 300;
+
 export interface Saver<T> {
   schedule(value: T): void;
   flush(): Promise<void>;

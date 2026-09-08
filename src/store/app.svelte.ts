@@ -1,8 +1,6 @@
 import * as ipc from "../ipc";
-import { createSaver } from "./persist";
+import { createSaver, SAVE_DEBOUNCE_MS } from "./persist";
 import type { Config, ShellInfo } from "./types";
-
-const SAVE_DEBOUNCE_MS = 300;
 
 const emptyConfig: Config = {
   version: 1,
@@ -68,6 +66,11 @@ export async function bootstrap() {
     notify(`Başlatma hatası: ${e} — bu oturumda değişiklikler kaydedilmeyecek.`, "error");
   } finally {
     app.ready = true;
+    // Tauri 2 CloseRequested: await the flush before the window is destroyed.
+    // This is the primary path — it prevents the last change being lost if the
+    // window closes within the 300 ms debounce window.
+    void ipc.onCloseRequested(() => saver.flush());
+    // beforeunload stays as a best-effort fallback (non-Tauri env, dev server).
     window.addEventListener("beforeunload", () => void saver.flush());
   }
 }

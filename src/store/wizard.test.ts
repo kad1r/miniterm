@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { basename, draftFor, emptyDraft, toWorkspace } from "./wizard"
+import { basename, emptyDraft, toWorkspace } from "./wizard"
 import { pushRecent, RECENT_LIMIT } from "./settings"
 
 describe("basename", () => {
@@ -24,18 +24,8 @@ describe("basename", () => {
   })
 })
 
-describe("draftFor", () => {
-  it("names the workspace after the directory", () => {
-    const d = draftFor("/home/kadir/projects/api")
-    expect(d.path).toBe("/home/kadir/projects/api")
-    expect(d.name).toBe("api")
-    expect(d.count).toBe(1)
-    expect(d.layout).toEqual({ rows: 1, cols: 1 })
-    expect(d.aiToolId).toBeNull()
-    expect(d.shellId).toBeNull()
-  })
-
-  it("starts blank when there is no path", () => {
+describe("emptyDraft", () => {
+  it("starts blank", () => {
     expect(emptyDraft().path).toBe("")
     expect(emptyDraft().name).toBe("")
   })
@@ -61,7 +51,7 @@ describe("toWorkspace", () => {
   })
 
   it("gives every workspace a distinct id", () => {
-    const d = draftFor("/x/api")
+    const d = { ...emptyDraft(), path: "/x/api", name: "api" }
     expect(toWorkspace(d).id).not.toBe(toWorkspace(d).id)
   })
 })

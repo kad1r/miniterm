@@ -1,5 +1,6 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Config, LoadResult, ShellInfo } from "../store/types";
 
@@ -87,6 +88,26 @@ export function onSessionExit(
   cb: (e: { id: number; code: number | null }) => void,
 ): Promise<() => void> {
   return listen<{ id: number; code: number | null }>("session-exit", (e) => cb(e.payload));
+}
+
+/**
+ * Register an async handler that runs before the window closes.
+ * Tauri 2's CloseRequested event lets us await async work (e.g. config flush)
+ * before the window is actually destroyed.  The handler must never throw a
+ * rejection that hangs the close — we catch internally and always close.
+ */
+export async function onCloseRequested(handler: () => Promise<void>): Promise<() => void> {
+  const win = getCurrentWebviewWindow();
+  const unlisten = await win.onCloseRequested(async (event) => {
+    event.preventDefault();
+    try {
+      await handler();
+    } catch {
+      // Swallow — a failed save must never prevent the window from closing.
+    }
+    await win.close();
+  });
+  return unlisten;
 }
 
 function toBytes(value: ArrayBuffer | Uint8Array | number[]): Uint8Array {

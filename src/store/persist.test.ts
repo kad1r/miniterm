@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSaver } from "./persist";
+import { createSaver, SAVE_DEBOUNCE_MS } from "./persist";
+
+// Global Constraint lock: SAVE_DEBOUNCE_MS controls the window in which a config
+// change can be lost if the app closes before onCloseRequested fires. Any change
+// must be deliberate — raise this test with it.
+it("SAVE_DEBOUNCE_MS is 300", () => {
+  expect(SAVE_DEBOUNCE_MS).toBe(300)
+})
 
 describe("createSaver", () => {
   beforeEach(() => vi.useFakeTimers());

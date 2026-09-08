@@ -40,8 +40,17 @@ describe("resizeFractions", () => {
     expect(next[1]).toBeCloseTo(0.4, 10);
   });
 
-  it("always sums to one", () => {
-    const next = resizeFractions([0.3, 0.3, 0.4], 1, -50, 800);
+  it("transfers space between the two adjacent tracks and conserves the total", () => {
+    // Divider 1 sits between cells[1] and cells[2]; cells[0] must not move.
+    const before = [0.3, 0.3, 0.4];
+    const next = resizeFractions(before, 1, -50, 800);
+    const deltaFrac = -50 / 800; // −0.0625
+    // cells[1] shrinks and cells[2] grows by the same delta.
+    expect(next[1]).toBeCloseTo(before[1] + deltaFrac, 10);
+    expect(next[2]).toBeCloseTo(before[2] - deltaFrac, 10);
+    // Non-adjacent track is byte-identical.
+    expect(next[0]).toBe(before[0]);
+    // Total is conserved.
     expect(next.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10);
   });
 
@@ -51,9 +60,18 @@ describe("resizeFractions", () => {
     expect(next[0] * 1000).toBeGreaterThanOrEqual(MIN_CELL_PX - 0.001);
   });
 
-  it("leaves other cells untouched", () => {
-    const next = resizeFractions([0.25, 0.25, 0.5], 0, 50, 1000);
-    expect(next[2]).toBeCloseTo(0.5, 10);
+  it("only changes the two tracks adjacent to the dragged divider", () => {
+    // Divider 0 sits between cells[0] and cells[1]; cells[2] must be untouched.
+    const before = [0.25, 0.25, 0.5];
+    const next = resizeFractions(before, 0, 50, 1000);
+    const deltaFrac = 50 / 1000; // 0.05
+    // Adjacent tracks change by the expected delta.
+    expect(next[0]).toBeCloseTo(before[0] + deltaFrac, 10);
+    expect(next[1]).toBeCloseTo(before[1] - deltaFrac, 10);
+    // Non-adjacent track is byte-identical (reference equality on the number).
+    expect(next[2]).toBe(before[2]);
+    // Total is conserved.
+    expect(next.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10);
   });
 
   it("ignores an out-of-range divider index", () => {

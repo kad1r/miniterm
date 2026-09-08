@@ -74,7 +74,7 @@ alarma geçirmemek için buraya not düşülmüştür.
 |---|---|---|---|
 | Boşta RAM (3 workspace / 6 terminal) | < 250 MB | MANUEL — DOĞRULANMADI | 3 workspace, toplam 6 terminal aç → 60 s bekle → Görev Yöneticisi → Ayrıntılar → `miniterm.exe` + tüm WebView2 alt süreçlerinin "Bellek (etkin özel çalışma kümesi)" sütununu topla |
 | Boşta CPU | < %1 | MANUEL — DOĞRULANMADI | Aynı durum → 60 s boyunca Görev Yöneticisi CPU sütununu izle |
-| Yoğun çıktı altında miniterm CPU | < %15 | MANUEL — DOĞRULANMADI | Bir panelde `while ($true) { "y" }` çalıştır → 30 s boyunca `miniterm.exe` + WebView2 süreçlerinin CPU toplamını izle → ölçümü bitirmek için Ctrl+C. Eşik aşılırsa `src-tauri/src/pty/batch.rs` içindeki `FLUSH_INTERVAL_MS` ve `src/term/Terminal.svelte` içindeki xterm `scrollback` değerini düşürmeyi dene |
+| Yoğun çıktı altında miniterm CPU | < %15 | MANUEL — DOĞRULANMADI | Bir panelde `while ($true) { "y" }` çalıştır → 30 s boyunca `miniterm.exe` + WebView2 süreçlerinin CPU toplamını izle → ölçümü bitirmek için Ctrl+C. Eşik aşılırsa `src-tauri/src/pty/batch.rs` içindeki `FLUSH_INTERVAL_MS` ve `src/lib/TerminalPane.svelte` içindeki xterm `scrollback` değerini düşürmeyi dene |
 
 ---
 

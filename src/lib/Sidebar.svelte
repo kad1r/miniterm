@@ -6,7 +6,7 @@
   import type { Node } from "../store/types"
   import TreeItem from "./TreeItem.svelte"
   import ContextMenu from "./ContextMenu.svelte"
-  import { closeSubtree, statusOf } from "../store/sessions.svelte"
+  import { closeSubtree, statusOf, sessions } from "../store/sessions.svelte"
 
   let { onnew }: { onnew: () => void } = $props()
 
@@ -28,8 +28,14 @@
     commit((c) => ({ ...c, tree: rename(c.tree, node.id, name) }))
   }
 
+  function liveCount(id: string): number {
+    const slot = sessions.byWorkspace[id]
+    if (!slot) return 0
+    return slot.ids.filter((x) => x !== null).length
+  }
+
   async function deleteNode(node: Node) {
-    if (!confirm(deletePrompt(node))) return
+    if (!confirm(deletePrompt(node, liveCount))) return
     await closeSubtree(node)
     commit((c) => ({ ...c, tree: remove(c.tree, node.id).tree }))
     if (app.activeWorkspaceId && !findNode(app.config.tree, app.activeWorkspaceId)) {

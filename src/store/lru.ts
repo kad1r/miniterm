@@ -1,3 +1,7 @@
+/** Global Constraint: maximum number of workspaces with live xterm instances.
+ *  Raising this increases RAM usage proportionally (one xterm DOM tree per slot). */
+export const LIVE_LIMIT = 3;
+
 export function touch(
   list: string[],
   id: string,

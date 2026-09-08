@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest"
-import { flatten, deletePrompt, newFolder } from "./sidebar"
+import {
+  flatten,
+  deletePrompt,
+  newFolder,
+  readCollapsed,
+  writeCollapsed,
+  COLLAPSE_KEY,
+} from "./sidebar"
 import type { Folder, Node, Workspace } from "./types"
 
 function ws(id: string, name: string, rows = 1, cols = 1): Workspace {
@@ -67,5 +74,47 @@ describe("newFolder", () => {
     expect(a.expanded).toBe(true)
     expect(a.children).toEqual([])
     expect(a.id).not.toBe(b.id)
+  })
+})
+
+describe("collapse persistence", () => {
+  /** Minimal in-memory stand-in for Storage; the real one is not in the node env. */
+  function fakeStore(seed: Record<string, string> = {}) {
+    const map = new Map(Object.entries(seed))
+    return {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+      read: (k: string) => map.get(k) ?? null,
+    }
+  }
+
+  it("defaults to expanded when nothing was ever stored", () => {
+    expect(readCollapsed(fakeStore())).toBe(false)
+  })
+
+  it("round-trips both states", () => {
+    const store = fakeStore()
+    writeCollapsed(store, true)
+    expect(readCollapsed(store)).toBe(true)
+    writeCollapsed(store, false)
+    expect(readCollapsed(store)).toBe(false)
+  })
+
+  it("treats unparseable values as expanded rather than throwing", () => {
+    // A hand-edited or half-written localStorage entry must not brick the UI.
+    expect(readCollapsed(fakeStore({ [COLLAPSE_KEY]: "garbage" }))).toBe(false)
+  })
+
+  it("survives a storage that throws (private mode, quota exceeded)", () => {
+    const throwing = {
+      getItem: () => {
+        throw new Error("denied")
+      },
+      setItem: () => {
+        throw new Error("quota")
+      },
+    }
+    expect(readCollapsed(throwing)).toBe(false)
+    expect(() => writeCollapsed(throwing, true)).not.toThrow()
   })
 })

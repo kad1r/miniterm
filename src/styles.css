@@ -7,8 +7,11 @@
   --accent: #3d7dff;
   --ok: #3fb950;
   --err: #f0574b;
-  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
-  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Preferred faces first, OS defaults behind them. Nothing is bundled, so a
+     machine without these falls through to the platform UI font rather than
+     downloading anything. */
+  --font-mono: "Roboto Mono", ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  --font-ui: "Google Sans", Inter, Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }

@@ -2,7 +2,7 @@
   import { app, commit, notify } from "../store/app.svelte"
   import { canDrop, findNode, insert, move, remove, rename, setExpanded } from "../store/tree"
   import { zoneFor, targetFor, type DropZone } from "../store/dnd"
-  import { deletePrompt, newFolder } from "../store/sidebar"
+  import { deletePrompt, newFolder, readCollapsed, writeCollapsed } from "../store/sidebar"
   import type { Node } from "../store/types"
   import TreeItem from "./TreeItem.svelte"
   import ContextMenu from "./ContextMenu.svelte"
@@ -11,6 +11,38 @@
   let { onnew }: { onnew: () => void } = $props()
 
   let menu = $state<{ node: Node; x: number; y: number } | null>(null)
+
+  // Read once at construction. localStorage is unavailable in the node test
+  // environment, hence the guard rather than a bare reference.
+  let collapsed = $state(
+    typeof localStorage === "undefined" ? false : readCollapsed(localStorage)
+  )
+
+  // Collapsed rail shows every workspace regardless of folder expansion —
+  // a collapsed folder must not hide its workspaces when the tree is gone.
+  const workspaceRail = $derived(collectWorkspaces(app.config.tree))
+
+  function collectWorkspaces(nodes: Node[]): Node[] {
+    return nodes.flatMap((n) => (n.kind === "folder" ? collectWorkspaces(n.children) : [n]))
+  }
+
+  function toggleCollapsed() {
+    collapsed = !collapsed
+    if (typeof localStorage !== "undefined") writeCollapsed(localStorage, collapsed)
+  }
+
+  /**
+   * The grid must re-measure once the sidebar has finished moving, not on every
+   * animation frame. TerminalGrid already debounces window resize into exactly
+   * one fit() + syncSize(), so firing that event when the transition ends
+   * reuses the existing contract instead of adding a second resize path.
+   *
+   * Guarded on propertyName: the transition also runs on child opacity, and
+   * every one of those would otherwise trigger a PTY resize.
+   */
+  function onTransitionEnd(e: TransitionEvent) {
+    if (e.propertyName === "width") window.dispatchEvent(new Event("resize"))
+  }
 
   function select(node: Node) {
     app.activeWorkspaceId = node.id
@@ -99,13 +131,42 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<aside class="sidebar">
+<aside class="sidebar" class:collapsed ontransitionend={onTransitionEnd}>
   <header>
-    <span class="title">Workspaces</span>
-    <button class="icon" title="Yeni klasör" onclick={addFolder}>🗀</button>
-    <button class="icon" title="Yeni workspace" onclick={onnew}>+</button>
+    <button
+      class="icon"
+      title={collapsed ? "Kenar çubuğunu genişlet" : "Kenar çubuğunu daralt"}
+      aria-label={collapsed ? "Kenar çubuğunu genişlet" : "Kenar çubuğunu daralt"}
+      aria-expanded={!collapsed}
+      onclick={toggleCollapsed}
+    >
+      {collapsed ? "»" : "«"}
+    </button>
+    {#if !collapsed}
+      <span class="title">Workspaces</span>
+      <button class="icon" title="Yeni klasör" onclick={addFolder}>🗀</button>
+      <button class="icon" title="Yeni workspace" onclick={onnew}>+</button>
+    {/if}
   </header>
 
+  {#if collapsed}
+    <!-- Icon rail: workspaces only, flattened. Folders carry no session state,
+         so nesting has nothing to show at this width. -->
+    <div class="rail">
+      {#each workspaceRail as w (w.id)}
+        <button
+          class="rail-item"
+          class:on={w.id === app.activeWorkspaceId}
+          title={w.name}
+          aria-label={w.name}
+          onclick={() => select(w)}
+        >
+          <span class="rail-initial">{w.name.slice(0, 1).toUpperCase()}</span>
+          <span class="dot {statusOf(w.id)}"></span>
+        </button>
+      {/each}
+    </div>
+  {:else}
   <div
     class="tree"
     role="tree"
@@ -135,14 +196,17 @@
       <p class="empty">Henüz workspace yok.<br />Başlamak için + düğmesine bas.</p>
     {/if}
   </div>
+  {/if}
 
   <footer>
     <button
       class="settings"
       class:on={app.view === "settings"}
+      title="Ayarlar"
+      aria-label="Ayarlar"
       onclick={() => (app.view = app.view === "settings" ? "workspace" : "settings")}
     >
-      ⚙ Ayarlar
+      {collapsed ? "⚙" : "⚙ Ayarlar"}
     </button>
   </footer>
 </aside>
@@ -169,6 +233,66 @@
     height: 100%;
     background: var(--bg-raised);
     border-right: 1px solid var(--border);
+    transition: width 160ms ease, min-width 160ms ease;
+  }
+  .sidebar.collapsed {
+    width: 56px;
+    min-width: 56px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar {
+      transition: none;
+    }
+  }
+  .rail {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    overflow-y: auto;
+  }
+  .rail-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text-dim);
+    font: inherit;
+    cursor: pointer;
+  }
+  .rail-item:hover {
+    color: var(--text);
+  }
+  .rail-item.on {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .rail-initial {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .dot {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .dot.running {
+    background: var(--ok);
+  }
+  .dot.dead {
+    background: var(--err);
+  }
+  .dot.off {
+    background: var(--text-dim);
+    opacity: 0.4;
   }
   header {
     display: flex;
@@ -199,6 +323,14 @@
   .icon:hover {
     background: color-mix(in srgb, var(--text) 10%, transparent);
     color: var(--text);
+  }
+  /* With the title and add-buttons gone, centre what remains. */
+  .sidebar.collapsed header {
+    justify-content: center;
+    padding: 0 6px;
+  }
+  .sidebar.collapsed .settings {
+    text-align: center;
   }
   .tree {
     flex: 1;

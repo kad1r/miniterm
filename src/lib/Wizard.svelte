@@ -8,12 +8,13 @@
 
   let { onclose }: { onclose: () => void } = $props()
 
-  let step = $state(1)
   let draft = $state<Draft>(emptyDraft())
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined)
 
   const layouts = $derived(layoutsFor(draft.count))
-  const canNext = $derived(step !== 1 || draft.path.trim().length > 0)
+  // The directory is the only required field; everything else has a usable
+  // default, which is what makes a single screen viable at all.
+  const canCreate = $derived(draft.path.trim().length > 0)
 
   $effect(() => {
     if (dialogEl) {
@@ -42,6 +43,7 @@
   }
 
   function finish() {
+    if (!canCreate) return
     const node = toWorkspace(draft)
     commit((c) => ({
       ...c,
@@ -64,12 +66,11 @@
   <div class="dialog-inner" role="presentation">
     <header>
       <h2>Yeni workspace</h2>
-      <span class="step">{step} / 4</span>
     </header>
 
     <div class="body">
-      {#if step === 1}
-        <p class="q">Hangi dizinde çalışılacak?</p>
+      <section>
+        <p class="q">Dizin</p>
         <div class="row">
           <input class="path" bind:value={draft.path} placeholder="C:\\projects\\api" />
           <button class="ghost" onclick={browse}>Gözat…</button>
@@ -89,14 +90,28 @@
         {#if app.config.recentDirs.length > 0}
           <p class="label">Son kullanılanlar</p>
           <div class="list">
-            {#each app.config.recentDirs.slice(0, 8) as p (p)}
+            {#each app.config.recentDirs.slice(0, 5) as p (p)}
               <button class="recent" onclick={() => choosePath(p)}>{p}</button>
             {/each}
           </div>
         {/if}
+      </section>
 
-      {:else if step === 2}
-        <p class="q">Hangi AI aracı çalıştırılsın?</p>
+      <section>
+        <p class="q">Ad ve shell</p>
+        <div class="row">
+          <input class="path" bind:value={draft.name} placeholder="workspace adı" />
+          <select bind:value={draft.shellId}>
+            <option value={null}>Varsayılan ({app.config.defaultShellId})</option>
+            {#each app.shells as s (s.id)}
+              <option value={s.id}>{s.name}</option>
+            {/each}
+          </select>
+        </div>
+      </section>
+
+      <section>
+        <p class="q">AI aracı</p>
         <div class="list">
           <button
             class="option"
@@ -118,9 +133,10 @@
           {/each}
         </div>
         <p class="note">Komut, workspace'teki <strong>her</strong> terminalde çalışır.</p>
+      </section>
 
-      {:else if step === 3}
-        <p class="q">Kaç terminal?</p>
+      <section>
+        <p class="q">Terminaller</p>
         <div class="counts">
           {#each Array(MAX_TERMINALS) as _, i (i)}
             <button class="count" class:on={draft.count === i + 1} onclick={() => setCount(i + 1)}>
@@ -148,39 +164,13 @@
             </button>
           {/each}
         </div>
-
-      {:else}
-        <p class="q">Ad ve shell</p>
-        <input class="path" bind:value={draft.name} placeholder="workspace adı" />
-
-        <p class="label">Shell</p>
-        <select bind:value={draft.shellId}>
-          <option value={null}>Varsayılan ({app.config.defaultShellId})</option>
-          {#each app.shells as s (s.id)}
-            <option value={s.id}>{s.name}</option>
-          {/each}
-        </select>
-
-        <dl class="summary">
-          <dt>Dizin</dt><dd>{draft.path}</dd>
-          <dt>AI aracı</dt>
-          <dd>{app.config.aiTools.find((t) => t.id === draft.aiToolId)?.name ?? "Sadece shell"}</dd>
-          <dt>Terminal</dt><dd>{draft.count} ({draft.layout.rows}×{draft.layout.cols})</dd>
-        </dl>
-      {/if}
+      </section>
     </div>
 
     <footer>
       <button class="ghost" onclick={onclose}>Vazgeç</button>
       <span class="spacer"></span>
-      {#if step > 1}
-        <button class="ghost" onclick={() => step--}>Geri</button>
-      {/if}
-      {#if step < 4}
-        <button class="primary" disabled={!canNext} onclick={() => step++}>İleri</button>
-      {:else}
-        <button class="primary" onclick={finish}>Oluştur</button>
-      {/if}
+      <button class="primary" disabled={!canCreate} onclick={finish}>Oluştur</button>
     </footer>
   </div>
 </dialog>
@@ -220,17 +210,20 @@
     font-size: 15px;
     font-weight: 600;
   }
-  .step {
-    color: var(--text-dim);
-    font-size: 12px;
-  }
   .body {
     flex: 1;
     overflow-y: auto;
     padding: 16px 18px;
   }
+  /* Separators carry the grouping the step counter used to. */
+  section + section {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
   .q {
     margin: 0 0 12px;
+    font-weight: 600;
     font-size: 13px;
   }
   .label {
@@ -360,21 +353,6 @@
   }
   .layout.on .mini i {
     background: var(--accent);
-  }
-  .summary {
-    display: grid;
-    grid-template-columns: 90px 1fr;
-    gap: 4px 10px;
-    margin-top: 16px;
-    font-size: 12px;
-  }
-  .summary dt {
-    color: var(--text-dim);
-  }
-  .summary dd {
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   footer {
     display: flex;

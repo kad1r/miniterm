@@ -34,3 +34,34 @@ export function deletePrompt(node: Node, liveSessions: (id: string) => number): 
 export function newFolder(name = "Yeni klasör"): Folder {
   return { id: crypto.randomUUID(), kind: "folder", name, expanded: true, children: [] }
 }
+
+export const COLLAPSE_KEY = "miniterm.sidebar.collapsed"
+
+/** The slice of `Storage` this module needs. Narrow on purpose: it keeps the
+ *  functions testable in the node environment, where `localStorage` is absent. */
+export interface CollapseStore {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+}
+
+/** Read the persisted collapse state, defaulting to expanded.
+ *  Storage access can throw (private browsing, disabled cookies) and the stored
+ *  value can be anything, so every failure resolves to the default rather than
+ *  propagating — a bad entry must not stop the sidebar from rendering. */
+export function readCollapsed(store: CollapseStore): boolean {
+  try {
+    return store.getItem(COLLAPSE_KEY) === "true"
+  } catch {
+    return false
+  }
+}
+
+/** Persist the collapse state. Failure is silent: this is a cosmetic
+ *  preference, and a quota or permission error must not break the toggle. */
+export function writeCollapsed(store: CollapseStore, collapsed: boolean): void {
+  try {
+    store.setItem(COLLAPSE_KEY, String(collapsed))
+  } catch {
+    // ignored — see doc comment
+  }
+}

@@ -45,17 +45,21 @@ export function commit(mutate: (config: Config) => Config) {
 }
 
 export async function bootstrap() {
-  const [result, shells] = await Promise.all([ipc.loadConfig(), ipc.detectShells()]);
-  app.config = result.config;
-  app.shells = shells;
-  app.ready = true;
-
-  if (result.status.kind === "recovered") {
-    notify(
-      `Ayar dosyası okunamadı, ${result.status.backup} olarak kenara alındı. Boş bir çalışma alanıyla başlatıldı.`,
-      "error",
-    );
+  try {
+    const [result, shells] = await Promise.all([ipc.loadConfig(), ipc.detectShells()]);
+    app.config = result.config;
+    app.shells = shells;
+    if (result.status.kind === "recovered") {
+      notify(
+        `Ayar dosyası okunamadı, ${result.status.backup} olarak kenara alındı. Boş bir çalışma alanıyla başlatıldı.`,
+        "error",
+      );
+    }
+  } catch (e) {
+    // app.config stays emptyConfig — the rest of the UI is safe against it.
+    notify(`Başlatma hatası: ${e}`, "error");
+  } finally {
+    app.ready = true;
+    window.addEventListener("beforeunload", () => void saver.flush());
   }
-
-  window.addEventListener("beforeunload", () => void saver.flush());
 }

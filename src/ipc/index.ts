@@ -3,6 +3,9 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Config, LoadResult, ShellInfo } from "../store/types";
 
+/** Active channels keyed by session id. One entry per id at most. */
+const _channels = new Map<number, Channel<ArrayBuffer | Uint8Array | number[]>>();
+
 export interface SpawnOpts {
   cwd: string;
   program: string;
@@ -45,15 +48,34 @@ export function killSession(id: number): Promise<void> {
   return invoke<void>("kill_session", { id });
 }
 
-/** Kanal `InvokeResponseBody::Raw` taşır; JSON serileştirme yoktur. */
-export function attachSession(id: number, onData: (bytes: Uint8Array) => void): Promise<void> {
+/** Kanal `InvokeResponseBody::Raw` taşır; JSON serileştirme yoktur.
+ *
+ * Aynı id için ikinci kez çağrılırsa eski kanalın onmessage'ı no-op'a
+ * yönlendirilir; böylece Rust'ın detach sonrası geç gönderebileceği tek
+ * mesaj ne eski callback'e ulaşır ne de hata fırlatır.
+ */
+export async function attachSession(id: number, onData: (bytes: Uint8Array) => void): Promise<void> {
+  // Silence any previously registered channel for this id before replacing it.
+  const prev = _channels.get(id);
+  if (prev !== undefined) {
+    prev.onmessage = () => {};
+  }
+
   const channel = new Channel<ArrayBuffer | Uint8Array | number[]>();
   channel.onmessage = (message) => onData(toBytes(message));
-  return invoke<void>("attach_session", { id, channel });
+  _channels.set(id, channel);
+  await invoke<void>("attach_session", { id, channel });
 }
 
-export function detachSession(id: number): Promise<void> {
-  return invoke<void>("detach_session", { id });
+export async function detachSession(id: number): Promise<void> {
+  const ch = _channels.get(id);
+  if (ch !== undefined) {
+    // Silence the channel first so any post-detach message from the Rust sink
+    // reaches a no-op and never calls a stale callback.
+    ch.onmessage = () => {};
+    _channels.delete(id);
+  }
+  await invoke<void>("detach_session", { id });
 }
 
 export async function getBuffer(id: number): Promise<Uint8Array> {

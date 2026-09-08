@@ -21,27 +21,10 @@
     }
   })
 
-  function handleDialogKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.preventDefault()
-      onclose()
-    }
-  }
-
-  function handleBackdropClick(e: MouseEvent) {
-    // The dialog element itself is the backdrop target when clicking outside
-    // the dialog content box; the content sits inside dialog padding area.
-    if (e.target === dialogEl) {
-      onclose()
-    }
-  }
-
   function choosePath(path: string) {
-    const name = draft.name.trim()
+    const oldBasename = basename(draft.path)
     draft.path = path
-    // Ad hâlâ eski dizinden türemişse yenile; kullanıcı elle yazdıysa dokunma.
-    if (name === "" || name === basename(draft.path)) draft.name = basename(path)
-    if (draft.name === "") draft.name = basename(path)
+    if (draft.name.trim() === "" || draft.name === oldBasename) draft.name = basename(path)
   }
 
   async function browse() {
@@ -72,15 +55,13 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <dialog
   bind:this={dialogEl}
   aria-modal="true"
   aria-label="Yeni workspace"
-  onkeydown={handleDialogKeydown}
-  onclick={handleBackdropClick}
+  oncancel={(e) => { e.preventDefault(); onclose() }}
 >
-  <div class="dialog-inner" role="presentation" onclick={(e) => e.stopPropagation()}>
+  <div class="dialog-inner" role="presentation">
     <header>
       <h2>Yeni workspace</h2>
       <span class="step">{step} / 4</span>

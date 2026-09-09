@@ -7,6 +7,7 @@
   import TreeItem from "./TreeItem.svelte"
   import ContextMenu from "./ContextMenu.svelte"
   import { closeSubtree, statusOf, sessions } from "../store/sessions.svelte"
+  import { locale, t } from "../i18n/locale.svelte"
 
   let { onnew }: { onnew: () => void } = $props()
 
@@ -55,7 +56,7 @@
   }
 
   function renameNode(node: Node) {
-    const name = prompt("Yeni ad", node.name)?.trim()
+    const name = prompt(t("sidebar.renamePrompt"), node.name)?.trim()
     if (!name) return
     commit((c) => ({ ...c, tree: rename(c.tree, node.id, name) }))
   }
@@ -67,17 +68,17 @@
   }
 
   async function deleteNode(node: Node) {
-    if (!confirm(deletePrompt(node, liveCount))) return
+    if (!confirm(deletePrompt(node, liveCount, locale.current))) return
     await closeSubtree(node)
     commit((c) => ({ ...c, tree: remove(c.tree, node.id).tree }))
     if (app.activeWorkspaceId && !findNode(app.config.tree, app.activeWorkspaceId)) {
       app.activeWorkspaceId = null
     }
-    notify(`"${node.name}" silindi`)
+    notify(t("sidebar.deleted", { name: node.name }))
   }
 
   function addFolder() {
-    const f = newFolder()
+    const f = newFolder(t("sidebar.newFolderName"))
     commit((c) => ({ ...c, tree: insert(c.tree, f, { type: "rootEnd" }) }))
   }
 
@@ -110,7 +111,7 @@
     dragEnd()
     if (!id || !hint) return
     if (!hint.ok) {
-      notify("Buraya taşınamaz", "error")
+      notify(t("sidebar.dropRejected"), "error")
       return
     }
     commit((c) => ({ ...c, tree: move(c.tree, id, targetFor(hint.zone, hint.nodeId)) }))
@@ -135,17 +136,17 @@
   <header>
     <button
       class="icon"
-      title={collapsed ? "Kenar çubuğunu genişlet" : "Kenar çubuğunu daralt"}
-      aria-label={collapsed ? "Kenar çubuğunu genişlet" : "Kenar çubuğunu daralt"}
+      title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
+      aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
       aria-expanded={!collapsed}
       onclick={toggleCollapsed}
     >
       {collapsed ? "»" : "«"}
     </button>
     {#if !collapsed}
-      <span class="title">Workspaces</span>
-      <button class="icon" title="Yeni klasör" onclick={addFolder}>🗀</button>
-      <button class="icon" title="Yeni workspace" onclick={onnew}>+</button>
+      <span class="title">{t("sidebar.title")}</span>
+      <button class="icon" title={t("sidebar.newFolder")} onclick={addFolder}>🗀</button>
+      <button class="icon" title={t("sidebar.newWorkspace")} onclick={onnew}>+</button>
     {/if}
   </header>
 
@@ -170,7 +171,7 @@
   <div
     class="tree"
     role="tree"
-    aria-label="Workspaces"
+    aria-label={t("sidebar.title")}
     tabindex="0"
     ondragover={(e) => e.preventDefault()}
     ondrop={dropToRoot}
@@ -193,7 +194,7 @@
       />
     {/each}
     {#if app.config.tree.length === 0}
-      <p class="empty">Henüz workspace yok.<br />Başlamak için + düğmesine bas.</p>
+      <p class="empty">{t("sidebar.emptyTitle")}<br />{t("sidebar.emptyHint")}</p>
     {/if}
   </div>
   {/if}
@@ -202,11 +203,11 @@
     <button
       class="settings"
       class:on={app.view === "settings"}
-      title="Ayarlar"
-      aria-label="Ayarlar"
+      title={t("sidebar.settings")}
+      aria-label={t("sidebar.settings")}
       onclick={() => (app.view = app.view === "settings" ? "workspace" : "settings")}
     >
-      {collapsed ? "⚙" : "⚙ Ayarlar"}
+      {collapsed ? "⚙" : `⚙ ${t("sidebar.settings")}`}
     </button>
   </footer>
 </aside>
@@ -218,8 +219,8 @@
     y={menu.y}
     onclose={() => (menu = null)}
     items={[
-      { label: "Yeniden adlandır", action: () => renameNode(target) },
-      { label: "Sil", action: () => void deleteNode(target), danger: true },
+      { label: t("sidebar.rename"), action: () => renameNode(target) },
+      { label: t("sidebar.delete"), action: () => void deleteNode(target), danger: true },
     ]}
   />
 {/if}
@@ -273,7 +274,7 @@
     color: var(--text);
   }
   .rail-initial {
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
     font-weight: 600;
   }
   .dot {
@@ -305,7 +306,7 @@
   .title {
     flex: 1;
     color: var(--text-dim);
-    font-size: 11px;
+    font-size: calc(11px * var(--font-scale, 1));
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -316,7 +317,7 @@
     border-radius: 4px;
     background: none;
     color: var(--text-dim);
-    font-size: 15px;
+    font-size: calc(15px * var(--font-scale, 1));
     line-height: 1;
     cursor: pointer;
   }
@@ -340,7 +341,7 @@
   .empty {
     margin: 24px 8px;
     color: var(--text-dim);
-    font-size: 12px;
+    font-size: calc(12px * var(--font-scale, 1));
     line-height: 1.6;
     text-align: center;
   }
@@ -356,7 +357,7 @@
     background: none;
     color: var(--text-dim);
     font: inherit;
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
     text-align: left;
     cursor: pointer;
   }

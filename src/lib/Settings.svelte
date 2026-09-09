@@ -5,8 +5,12 @@
     commandPreview, removeDir, removeTool, toolUsage, upsertDir, upsertTool,
   } from "../store/settings"
   import type { AiTool, DirAlias } from "../store/types"
+  import { DEFAULT_FONT_SCALE, MAX_FONT_SCALE, MIN_FONT_SCALE } from "../store/font"
+  import { applyFontAction, fontScale, setFontScale } from "../store/font.svelte"
+  import { LOCALES, LOCALE_NAMES, type Locale } from "../i18n/messages"
+  import { locale, setLocale, t } from "../i18n/locale.svelte"
 
-  let tab = $state<"tools" | "dirs" | "terminal">("tools")
+  let tab = $state<"tools" | "dirs" | "terminal" | "gorunum">("tools")
   let editingTool = $state<AiTool | null>(null)
   let editingDir = $state<DirAlias | null>(null)
 
@@ -21,7 +25,7 @@
   function saveTool() {
     const tool = editingTool
     if (!tool || tool.name.trim() === "" || tool.command.trim() === "") {
-      notify("Ad ve komut boş olamaz", "error")
+      notify(t("settings.tools.required"), "error")
       return
     }
     commit((c) => upsertTool(c, { ...tool, name: tool.name.trim(), command: tool.command.trim() }))
@@ -32,11 +36,11 @@
     const used = toolUsage(app.config.tree, tool.id)
     const warning =
       used === 0
-        ? `"${tool.name}" silinecek. Devam?`
-        : `"${tool.name}" silinecek. ${used} workspace "Sadece shell"e dönecek. Devam?`
+        ? t("settings.tools.deleteConfirm", { name: tool.name })
+        : t("settings.tools.deleteConfirmUsed", { name: tool.name, count: used })
     if (!confirm(warning)) return
     commit((c) => removeTool(c, tool.id))
-    notify(`"${tool.name}" silindi`)
+    notify(t("sidebar.deleted", { name: tool.name }))
   }
 
   function newDir() {
@@ -56,7 +60,7 @@
   function saveDir() {
     const dir = editingDir
     if (!dir || dir.alias.trim() === "" || dir.path.trim() === "") {
-      notify("Alias ve yol boş olamaz", "error")
+      notify(t("settings.dirs.required"), "error")
       return
     }
     commit((c) => upsertDir(c, { ...dir, alias: dir.alias.trim(), path: dir.path.trim() }))
@@ -64,7 +68,7 @@
   }
 
   function deleteDir(dir: DirAlias) {
-    if (!confirm(`"${dir.alias}" kısayolu silinecek. Workspace'ler etkilenmez. Devam?`)) return
+    if (!confirm(t("settings.dirs.deleteConfirm", { alias: dir.alias }))) return
     commit((c) => removeDir(c, dir.id))
   }
 
@@ -74,7 +78,7 @@
       const first = app.shells[0].id
       commit((c) => ({ ...c, defaultShellId: first }))
     }
-    notify(`${app.shells.length} shell bulundu`)
+    notify(t("settings.terminal.found", { count: app.shells.length }))
   }
 
   function setDefaultShell(id: string) {
@@ -84,42 +88,62 @@
 
 <section class="settings">
   <nav>
-    <button class:on={tab === "tools"} onclick={() => (tab = "tools")}>AI Araçları</button>
-    <button class:on={tab === "dirs"} onclick={() => (tab = "dirs")}>Dizinler</button>
-    <button class:on={tab === "terminal"} onclick={() => (tab = "terminal")}>Terminal</button>
+    <button class:on={tab === "tools"} onclick={() => (tab = "tools")}>
+      {t("settings.tab.tools")}
+    </button>
+    <button class:on={tab === "dirs"} onclick={() => (tab = "dirs")}>
+      {t("settings.tab.dirs")}
+    </button>
+    <button class:on={tab === "terminal"} onclick={() => (tab = "terminal")}>
+      {t("settings.tab.terminal")}
+    </button>
+    <button class:on={tab === "gorunum"} onclick={() => (tab = "gorunum")}>
+      {t("settings.tab.appearance")}
+    </button>
   </nav>
 
   <div class="content">
     {#if tab === "tools"}
-      <p class="hint">
-        miniterm hiçbir kimlik bilgisi saklamaz. Oturum açma işini AI CLI'ları kendi yapar.
-      </p>
+      <p class="hint">{t("settings.tools.hint")}</p>
 
       {#each app.config.aiTools as tool (tool.id)}
         <div class="card">
           <div class="card-main">
             <strong>{tool.name}</strong>
             <code>{tool.command}</code>
-            <span class="preview">{commandPreview(defaultShell, tool.command)}</span>
+            <span class="preview">
+              {commandPreview(defaultShell, tool.command, locale.current)}
+            </span>
           </div>
-          <button class="ghost" onclick={() => (editingTool = { ...tool })}>Düzenle</button>
-          <button class="ghost danger" onclick={() => deleteTool(tool)}>Sil</button>
+          <button class="ghost" onclick={() => (editingTool = { ...tool })}>
+            {t("settings.edit")}
+          </button>
+          <button class="ghost danger" onclick={() => deleteTool(tool)}>
+            {t("settings.delete")}
+          </button>
         </div>
       {/each}
 
       {#if editingTool}
         {@const tool = editingTool}
         <div class="editor">
-          <label>Ad<input bind:value={tool.name} placeholder="Claude Code" /></label>
-          <label>Komut<input bind:value={tool.command} placeholder="claude --model sonnet-5" /></label>
-          <p class="preview">{commandPreview(defaultShell, tool.command)}</p>
+          <label>
+            {t("settings.tools.name")}<input bind:value={tool.name} placeholder="Claude Code" />
+          </label>
+          <label>
+            {t("settings.tools.command")}
+            <input bind:value={tool.command} placeholder="claude --model sonnet-5" />
+          </label>
+          <p class="preview">{commandPreview(defaultShell, tool.command, locale.current)}</p>
           <div class="actions">
-            <button class="ghost" onclick={() => (editingTool = null)}>Vazgeç</button>
-            <button class="primary" onclick={saveTool}>Kaydet</button>
+            <button class="ghost" onclick={() => (editingTool = null)}>
+              {t("settings.cancel")}
+            </button>
+            <button class="primary" onclick={saveTool}>{t("settings.save")}</button>
           </div>
         </div>
       {:else}
-        <button class="ghost add" onclick={newTool}>+ AI aracı ekle</button>
+        <button class="ghost add" onclick={newTool}>{t("settings.tools.add")}</button>
       {/if}
 
     {:else if tab === "dirs"}
@@ -129,33 +153,41 @@
             <strong>{dir.alias}</strong>
             <code>{dir.path}</code>
           </div>
-          <button class="ghost" onclick={() => (editingDir = { ...dir })}>Düzenle</button>
-          <button class="ghost danger" onclick={() => deleteDir(dir)}>Sil</button>
+          <button class="ghost" onclick={() => (editingDir = { ...dir })}>
+            {t("settings.edit")}
+          </button>
+          <button class="ghost danger" onclick={() => deleteDir(dir)}>
+            {t("settings.delete")}
+          </button>
         </div>
       {/each}
 
       {#if editingDir}
         {@const dir = editingDir}
         <div class="editor">
-          <label>Alias<input bind:value={dir.alias} placeholder="api" /></label>
           <label>
-            Yol
+            {t("settings.dirs.alias")}<input bind:value={dir.alias} placeholder="api" />
+          </label>
+          <label>
+            {t("settings.dirs.path")}
             <span class="row">
               <input bind:value={dir.path} placeholder="C:\\projects\\api" />
-              <button class="ghost" onclick={browseDir}>Gözat…</button>
+              <button class="ghost" onclick={browseDir}>{t("settings.browse")}</button>
             </span>
           </label>
           <div class="actions">
-            <button class="ghost" onclick={() => (editingDir = null)}>Vazgeç</button>
-            <button class="primary" onclick={saveDir}>Kaydet</button>
+            <button class="ghost" onclick={() => (editingDir = null)}>
+              {t("settings.cancel")}
+            </button>
+            <button class="primary" onclick={saveDir}>{t("settings.save")}</button>
           </div>
         </div>
       {:else}
-        <button class="ghost add" onclick={newDir}>+ Dizin kısayolu ekle</button>
+        <button class="ghost add" onclick={newDir}>{t("settings.dirs.add")}</button>
       {/if}
 
       {#if app.config.recentDirs.length > 0}
-        <h3>Son kullanılanlar</h3>
+        <h3>{t("settings.dirs.recents")}</h3>
         <ul class="recents">
           {#each app.config.recentDirs as p (p)}
             <li>{p}</li>
@@ -163,8 +195,8 @@
         </ul>
       {/if}
 
-    {:else}
-      <p class="hint">Varsayılan shell, kendi shell'ini seçmemiş workspace'ler için kullanılır.</p>
+    {:else if tab === "terminal"}
+      <p class="hint">{t("settings.terminal.hint")}</p>
       {#each app.shells as shell (shell.id)}
         <label class="card shell">
           <input
@@ -179,7 +211,43 @@
           </span>
         </label>
       {/each}
-      <button class="ghost add" onclick={rescan}>Shell'leri yeniden tara</button>
+      <button class="ghost add" onclick={rescan}>{t("settings.terminal.rescan")}</button>
+
+    {:else}
+      <div class="card">
+        <span class="card-main"><strong>{t("settings.appearance.language")}</strong></span>
+        {#each LOCALES as code (code)}
+          <button
+            class="ghost"
+            class:on={locale.current === code}
+            aria-pressed={locale.current === code}
+            onclick={() => setLocale(code as Locale)}
+          >{LOCALE_NAMES[code]}</button>
+        {/each}
+      </div>
+
+      <p class="hint">{t("settings.appearance.hint")}</p>
+      <div class="card font-scale">
+        <span class="card-main"><strong>{t("settings.appearance.fontSize")}</strong></span>
+        <button
+          class="ghost step"
+          aria-label={t("settings.appearance.smaller")}
+          disabled={fontScale.level <= MIN_FONT_SCALE}
+          onclick={() => applyFontAction("out")}
+        >−</button>
+        <output class="level">%{Math.round(fontScale.level * 100)}</output>
+        <button
+          class="ghost step"
+          aria-label={t("settings.appearance.larger")}
+          disabled={fontScale.level >= MAX_FONT_SCALE}
+          onclick={() => applyFontAction("in")}
+        >+</button>
+        <button
+          class="ghost"
+          disabled={fontScale.level === DEFAULT_FONT_SCALE}
+          onclick={() => setFontScale(DEFAULT_FONT_SCALE)}
+        >{t("settings.appearance.reset")}</button>
+      </div>
     {/if}
   </div>
 </section>
@@ -203,7 +271,7 @@
     background: none;
     color: var(--text-dim);
     font: inherit;
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
     cursor: pointer;
   }
   nav button.on {
@@ -219,12 +287,12 @@
   .hint {
     margin: 0 0 14px;
     color: var(--text-dim);
-    font-size: 12px;
+    font-size: calc(12px * var(--font-scale, 1));
   }
   h3 {
     margin: 22px 0 8px;
     color: var(--text-dim);
-    font-size: 11px;
+    font-size: calc(11px * var(--font-scale, 1));
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
@@ -249,7 +317,7 @@
   .preview {
     overflow: hidden;
     color: var(--text-dim);
-    font-size: 11px;
+    font-size: calc(11px * var(--font-scale, 1));
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -268,7 +336,7 @@
     flex-direction: column;
     gap: 5px;
     color: var(--text-dim);
-    font-size: 12px;
+    font-size: calc(12px * var(--font-scale, 1));
   }
   .row {
     display: flex;
@@ -282,7 +350,7 @@
     background: var(--bg);
     color: var(--text);
     font: inherit;
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
   }
   .actions {
     display: flex;
@@ -294,7 +362,7 @@
     padding: 6px 12px;
     border-radius: 6px;
     font: inherit;
-    font-size: 12px;
+    font-size: calc(12px * var(--font-scale, 1));
     cursor: pointer;
   }
   .ghost {
@@ -304,6 +372,10 @@
   }
   .ghost.danger {
     color: var(--err);
+  }
+  .ghost.on {
+    border-color: var(--accent);
+    color: var(--text);
   }
   .ghost.add {
     width: 100%;
@@ -320,11 +392,27 @@
     align-items: center;
     cursor: pointer;
   }
+  .ghost:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+  .step {
+    width: 30px;
+    font-size: calc(15px * var(--font-scale, 1));
+    line-height: 1;
+  }
+  /* Fixed width so the row does not jitter as the percentage changes width. */
+  .level {
+    width: 46px;
+    color: var(--text-dim);
+    font-size: calc(12px * var(--font-scale, 1));
+    text-align: center;
+  }
   .recents {
     margin: 0;
     padding-left: 18px;
     color: var(--text-dim);
-    font-size: 12px;
+    font-size: calc(12px * var(--font-scale, 1));
     line-height: 1.7;
   }
 </style>

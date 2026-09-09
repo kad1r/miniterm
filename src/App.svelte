@@ -3,6 +3,9 @@
   import { app, bootstrap, commit, dismissToast } from "./store/app.svelte"
   import { findNode, updateWorkspace } from "./store/tree"
   import { activate, listenExits, restart, sessions } from "./store/sessions.svelte"
+  import { fontAction } from "./store/font"
+  import { applyFontAction, initFontScale } from "./store/font.svelte"
+  import { initLocale, t } from "./i18n/locale.svelte"
   import Sidebar from "./lib/Sidebar.svelte"
   import Settings from "./lib/Settings.svelte"
   import Wizard from "./lib/Wizard.svelte"
@@ -11,9 +14,38 @@
   let wizardOpen = $state(false)
 
   onMount(async () => {
+    initLocale()
+    initFontScale()
     const exits = listenExits()
     await bootstrap()
     await exits
+  })
+
+  /** Ctrl/Cmd +, − and 0. Handled at the window rather than per-component so it
+   *  works with focus anywhere, including inside a terminal — TerminalPane hands
+   *  these keys back to the window instead of forwarding them to the shell. */
+  function onKeydown(e: KeyboardEvent) {
+    const action = fontAction(e)
+    if (!action) return
+    e.preventDefault()
+    applyFontAction(action)
+  }
+
+  /** Ctrl/Cmd + wheel, the mouse spelling of the same zoom.
+   *
+   *  Capture phase and stopPropagation because xterm's own wheel listener would
+   *  otherwise scroll the scrollback at the same time, and preventDefault with
+   *  an explicitly non-passive listener because the WebView's default action for
+   *  Ctrl+wheel is to zoom the entire app chrome. */
+  onMount(() => {
+    const onWheel = (e: WheelEvent) => {
+      if ((!e.ctrlKey && !e.metaKey) || e.deltaY === 0) return
+      e.preventDefault()
+      e.stopPropagation()
+      applyFontAction(e.deltaY < 0 ? "in" : "out")
+    }
+    window.addEventListener("wheel", onWheel, { capture: true, passive: false })
+    return () => window.removeEventListener("wheel", onWheel, { capture: true })
   })
 
   // Seçili workspace değişince oturumları hazırla.
@@ -28,16 +60,18 @@
   }
 </script>
 
+<svelte:window onkeydown={onKeydown} />
+
 <div class="shell">
   {#if !app.ready}
-    <div class="boot">Yükleniyor…</div>
+    <div class="boot">{t("app.loading")}</div>
   {:else}
     <Sidebar onnew={() => (wizardOpen = true)} />
     <main>
       {#if app.view === "settings"}
         <Settings />
       {:else if app.activeWorkspaceId === null}
-        <div class="placeholder">Bir workspace seç ya da yeni bir tane oluştur.</div>
+        <div class="placeholder">{t("app.placeholder")}</div>
       {:else}
         {#each [...sessions.live].sort() as wsId (wsId)}
           {@const ws = workspaceById(wsId)}
@@ -73,8 +107,8 @@
 <style>
   .shell {
     display: flex;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
   }
   main {
@@ -83,9 +117,13 @@
     position: relative;
     background: var(--bg);
   }
+  /* Breathing room around the grid. It sits here rather than on `main` because
+     the layers are absolutely positioned, and `inset: 0` resolves against the
+     padding box — padding on the parent would not inset them at all. */
   .layer {
     position: absolute;
     inset: 0;
+    padding: 8px;
   }
   .layer.hidden {
     visibility: hidden;
@@ -98,7 +136,7 @@
     width: 100%;
     height: 100%;
     color: var(--text-dim);
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
   }
   .toast {
     position: fixed;
@@ -110,7 +148,7 @@
     background: var(--bg-raised);
     color: var(--text);
     font: inherit;
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
     cursor: pointer;
   }
   .toast.err {

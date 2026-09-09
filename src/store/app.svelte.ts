@@ -1,4 +1,5 @@
 import * as ipc from "../ipc";
+import { t } from "../i18n/locale.svelte";
 import { createSaver, SAVE_DEBOUNCE_MS } from "./persist";
 import type { Config, ShellInfo } from "./types";
 
@@ -25,7 +26,7 @@ const saver = createSaver<Config>(async (config) => {
   try {
     await ipc.saveConfig(config);
   } catch (e) {
-    notify(`Ayarlar kaydedilemedi: ${e}`, "error");
+    notify(t("app.saveFailed", { error: String(e) }), "error");
   }
 }, SAVE_DEBOUNCE_MS);
 
@@ -52,10 +53,7 @@ export async function bootstrap() {
     app.config = result.config;
     app.shells = shells;
     if (result.status.kind === "recovered") {
-      notify(
-        `Ayar dosyası okunamadı, ${result.status.backup} olarak kenara alındı. Boş bir çalışma alanıyla başlatıldı.`,
-        "error",
-      );
+      notify(t("app.recovered", { backup: result.status.backup }), "error");
     }
   } catch (e) {
     // app.config stays emptyConfig — the rest of the UI is safe against it.
@@ -63,8 +61,14 @@ export async function bootstrap() {
     // with an empty tree during this session.
     app.loadFailed = true;
     saver.cancel();
-    notify(`Başlatma hatası: ${e} — bu oturumda değişiklikler kaydedilmeyecek.`, "error");
+    notify(t("app.bootFailed", { error: String(e) }), "error");
   } finally {
+    // xterm derives its cell geometry by measuring a glyph once, at construction.
+    // If the bundled woff2 arrives after that, every cell keeps the fallback
+    // font's metrics and the text drifts out of its grid. The files are local,
+    // so this resolves within a frame or two. `document` is absent in the node
+    // test environment.
+    if (typeof document !== "undefined") await document.fonts.ready;
     app.ready = true;
     // Tauri 2 CloseRequested: await the flush before the window is destroyed.
     // This is the primary path — it prevents the last change being lost if the

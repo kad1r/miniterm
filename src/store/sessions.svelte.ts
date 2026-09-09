@@ -1,4 +1,5 @@
 import { app, notify } from "./app.svelte"
+import { t } from "../i18n/locale.svelte"
 import { findNode } from "./tree"
 import { touch, LIVE_LIMIT } from "./lru"
 import { killSession, onSessionExit, spawnSession } from "../ipc"
@@ -48,7 +49,7 @@ async function spawnOne(ws: Workspace, index: number, shell: ShellInfo): Promise
     owner.set(id, { workspaceId: ws.id, index })
     return id
   } catch (err) {
-    notify(`Terminal açılamadı (${ws.path}): ${String(err)}`, "error")
+    notify(t("sessions.spawnFailed", { path: ws.path, error: String(err) }), "error")
     return null
   }
 }
@@ -68,7 +69,7 @@ export async function activate(workspaceId: string): Promise<void> {
 
   const shell = shellFor(ws)
   if (!shell) {
-    notify("Kullanılabilir shell bulunamadı", "error")
+    notify(t("sessions.noShell"), "error")
     return
   }
 

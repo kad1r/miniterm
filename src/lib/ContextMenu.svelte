@@ -1,21 +1,12 @@
 <script lang="ts">
-  interface Item {
-    label: string
-    action: () => void
-    danger?: boolean
-  }
+  import { pickItem, type MenuItem } from "../store/menu"
 
   let { x, y, items, onclose }: {
     x: number
     y: number
-    items: Item[]
+    items: MenuItem[]
     onclose: () => void
   } = $props()
-
-  function pick(item: Item) {
-    onclose()
-    item.action()
-  }
 </script>
 
 <svelte:window
@@ -30,7 +21,7 @@
       class:danger={item.danger}
       role="menuitem"
       onpointerdown={(e) => e.stopPropagation()}
-      onclick={() => pick(item)}
+      onclick={() => pickItem(item, onclose)}
     >
       {item.label}
     </button>
@@ -57,7 +48,7 @@
     background: none;
     color: var(--text);
     font: inherit;
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
     text-align: left;
     cursor: pointer;
   }

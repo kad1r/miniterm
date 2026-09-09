@@ -1,3 +1,4 @@
+import { translate, type Locale } from "../i18n/messages"
 import type { AiTool, Config, DirAlias, Node, ShellInfo, Workspace } from "./types"
 
 export const RECENT_LIMIT = 20
@@ -14,13 +15,15 @@ function mapWorkspaces(tree: Node[], fn: (ws: Workspace) => Workspace): Node[] {
   )
 }
 
-export function commandPreview(shell: ShellInfo | null, command: string): string {
-  const shellPart = shell ? [shell.program, ...shell.args].join(" ") : "(shell seçilmedi)"
+export function commandPreview(shell: ShellInfo | null, command: string, locale: Locale): string {
+  const shellPart = shell
+    ? [shell.program, ...shell.args].join(" ")
+    : translate(locale, "preview.noShell")
   const cmd = command.trim()
   // Komut asla argüman olarak geçirilmez; etkileşimli shell'in stdin'ine yazılır (§6.1).
   return cmd === ""
-    ? `${shellPart} açılır, komut çalıştırılmaz`
-    : `${shellPart} açılır, ardından "${cmd}" yazılır`
+    ? translate(locale, "preview.noCommand", { shell: shellPart })
+    : translate(locale, "preview.withCommand", { shell: shellPart, command: cmd })
 }
 
 export function toolUsage(tree: Node[], toolId: string): number {

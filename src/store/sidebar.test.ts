@@ -39,14 +39,14 @@ describe("flatten", () => {
 describe("deletePrompt", () => {
   it("reports zero when the workspace was never activated", () => {
     // liveSessions always returns 0 — workspace was never activated.
-    expect(deletePrompt(ws("a", "API", 2, 3), () => 0)).toBe(
+    expect(deletePrompt(ws("a", "API", 2, 3), () => 0, "tr")).toBe(
       '"API" silinecek. Açık terminal yok. Devam?',
     )
   })
 
   it("reports the live session count when the workspace is active", () => {
     // 2×3 workspace that has all 6 sessions running.
-    expect(deletePrompt(ws("a", "API", 2, 3), () => 6)).toBe(
+    expect(deletePrompt(ws("a", "API", 2, 3), () => 6, "tr")).toBe(
       '"API" silinecek. 6 terminal kapanacak. Devam?',
     )
   })
@@ -55,20 +55,26 @@ describe("deletePrompt", () => {
     const f = folder("f", true, [ws("a", "A", 2, 2), ws("b", "B", 1, 3)])
     // "a" has 4 live, "b" has 3 live.
     const live = (id: string) => id === "a" ? 4 : 3
-    expect(deletePrompt(f, live)).toBe('"f" silinecek. 7 terminal kapanacak. Devam?')
+    expect(deletePrompt(f, live, "tr")).toBe('"f" silinecek. 7 terminal kapanacak. Devam?')
   })
 
   it("says so when nothing would close", () => {
-    expect(deletePrompt(folder("f", true, []), () => 0)).toBe(
+    expect(deletePrompt(folder("f", true, []), () => 0, "tr")).toBe(
       '"f" silinecek. Açık terminal yok. Devam?',
+    )
+  })
+
+  it("prompts in the caller's locale", () => {
+    expect(deletePrompt(ws("a", "API", 2, 3), () => 6, "en")).toBe(
+      '"API" will be deleted. 6 terminals will close. Continue?',
     )
   })
 })
 
 describe("newFolder", () => {
   it("creates an expanded empty folder with a unique id", () => {
-    const a = newFolder()
-    const b = newFolder()
+    const a = newFolder("Yeni klasör")
+    const b = newFolder("Yeni klasör")
     expect(a.kind).toBe("folder")
     expect(a.name).toBe("Yeni klasör")
     expect(a.expanded).toBe(true)

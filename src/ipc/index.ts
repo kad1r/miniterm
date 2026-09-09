@@ -1,8 +1,10 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Config, LoadResult, ShellInfo } from "../store/types";
+import { closeSequence } from "./close";
 
 /** Active channels keyed by session id. One entry per id at most. */
 const _channels = new Map<number, Channel<ArrayBuffer | Uint8Array | number[]>>();
@@ -93,21 +95,46 @@ export function onSessionExit(
 /**
  * Register an async handler that runs before the window closes.
  * Tauri 2's CloseRequested event lets us await async work (e.g. config flush)
- * before the window is actually destroyed.  The handler must never throw a
- * rejection that hangs the close — we catch internally and always close.
+ * before the window is actually torn down.
+ *
+ * `destroy()`, not `close()`: `close()` re-emits CloseRequested, so calling it
+ * from the handler that just called `preventDefault()` loops straight back into
+ * this listener and the window never goes away.
  */
 export async function onCloseRequested(handler: () => Promise<void>): Promise<() => void> {
   const win = getCurrentWebviewWindow();
   const unlisten = await win.onCloseRequested(async (event) => {
     event.preventDefault();
-    try {
-      await handler();
-    } catch {
-      // Swallow — a failed save must never prevent the window from closing.
-    }
-    await win.close();
+    await closeSequence(handler, () => win.destroy());
   });
   return unlisten;
+}
+
+export interface FileDrop {
+  paths: string[];
+  /** Drop point in CSS pixels, relative to the viewport. */
+  x: number;
+  y: number;
+}
+
+/**
+ * Files dropped onto the window.
+ *
+ * The WebView never sees an HTML5 drop: Tauri intercepts the OS drag so it can
+ * report real absolute paths, which a DataTransfer `File` cannot give us. The
+ * position Tauri reports is in physical pixels, so it is scaled here into the
+ * CSS pixels the DOM hit-tests with.
+ */
+export async function onFileDrop(cb: (drop: FileDrop) => void): Promise<() => void> {
+  return getCurrentWebview().onDragDropEvent((e) => {
+    if (e.payload.type !== "drop") return;
+    const scale = window.devicePixelRatio || 1;
+    cb({
+      paths: e.payload.paths,
+      x: e.payload.position.x / scale,
+      y: e.payload.position.y / scale,
+    });
+  });
 }
 
 function toBytes(value: ArrayBuffer | Uint8Array | number[]): Uint8Array {

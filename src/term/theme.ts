@@ -1,9 +1,10 @@
 import type { ITheme } from "@xterm/xterm"
 
-/// Mirrors --font-mono in styles.css. xterm.js takes a plain string and cannot
-/// read CSS custom properties, so the list is duplicated rather than shared.
+/// Mirrors --font-mono in styles.css, character for character. xterm.js takes a
+/// plain string and cannot read CSS custom properties, so the list is duplicated
+/// rather than shared — keep the two in step when either changes.
 export const TERM_FONT =
-  '"Roboto Mono", "Cascadia Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace'
+  '"Roboto Mono Variable", "Cascadia Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace'
 export const TERM_FONT_SIZE = 13
 
 export const TERM_THEME: ITheme = {

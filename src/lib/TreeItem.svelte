@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Node } from "../store/types"
   import type { DropZone } from "../store/dnd"
+  import { t } from "../i18n/locale.svelte"
   import Self from "./TreeItem.svelte"
 
   let { node, depth, activeId, dragId, dropHint, onselect, ontoggle, oncontext,
@@ -78,7 +79,7 @@
   </span>
   <span class="name">{node.name}</span>
   {#if !isFolder}
-    <span class="dot {status}" title={status}></span>
+    <span class="dot {status}" title={t(`status.${status}`)}></span>
   {/if}
   {#if !isFolder}
     <span class="badge">{terminals}</span>
@@ -102,7 +103,7 @@
     padding-right: 6px;
     border-radius: 4px;
     color: var(--text);
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
     cursor: pointer;
     user-select: none;
   }
@@ -115,7 +116,7 @@
   .chevron {
     width: 12px;
     color: var(--text-dim);
-    font-size: 10px;
+    font-size: calc(10px * var(--font-scale, 1));
   }
   .chevron.hidden {
     visibility: hidden;
@@ -140,7 +141,7 @@
   }
   .badge {
     color: var(--text-dim);
-    font-size: 11px;
+    font-size: calc(11px * var(--font-scale, 1));
   }
   .tree-item.dragging {
     opacity: 0.4;

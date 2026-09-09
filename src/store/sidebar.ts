@@ -1,3 +1,4 @@
+import { translate, type Locale } from "../i18n/messages"
 import type { Folder, Node } from "./types"
 
 export interface Row {
@@ -25,13 +26,18 @@ export function countLiveSessions(node: Node, liveSessions: (id: string) => numb
   return node.children.reduce((sum, child) => sum + countLiveSessions(child, liveSessions), 0)
 }
 
-export function deletePrompt(node: Node, liveSessions: (id: string) => number): string {
+export function deletePrompt(
+  node: Node,
+  liveSessions: (id: string) => number,
+  locale: Locale,
+): string {
   const n = countLiveSessions(node, liveSessions)
-  const tail = n === 0 ? "Açık terminal yok." : `${n} terminal kapanacak.`
-  return `"${node.name}" silinecek. ${tail} Devam?`
+  return n === 0
+    ? translate(locale, "sidebar.deleteNoTerminals", { name: node.name })
+    : translate(locale, "sidebar.deleteWithTerminals", { name: node.name, count: n })
 }
 
-export function newFolder(name = "Yeni klasör"): Folder {
+export function newFolder(name: string): Folder {
   return { id: crypto.randomUUID(), kind: "folder", name, expanded: true, children: [] }
 }
 

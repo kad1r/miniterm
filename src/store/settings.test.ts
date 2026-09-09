@@ -24,17 +24,25 @@ function config(tree: Node[]): Config {
 
 describe("commandPreview", () => {
   it("says the command is typed into the shell, never passed as an argument", () => {
-    const text = commandPreview(pwsh, "claude --model sonnet-5")
+    const text = commandPreview(pwsh, "claude --model sonnet-5", "tr")
     expect(text).toBe('pwsh.exe -NoLogo açılır, ardından "claude --model sonnet-5" yazılır')
     expect(text).not.toContain("-Command")
   })
 
   it("says no command runs when the command is blank", () => {
-    expect(commandPreview(pwsh, "   ")).toBe("pwsh.exe -NoLogo açılır, komut çalıştırılmaz")
+    expect(commandPreview(pwsh, "   ", "tr")).toBe("pwsh.exe -NoLogo açılır, komut çalıştırılmaz")
   })
 
   it("handles a missing shell", () => {
-    expect(commandPreview(null, "claude")).toBe('(shell seçilmedi) açılır, ardından "claude" yazılır')
+    expect(commandPreview(null, "claude", "tr")).toBe(
+      '(shell seçilmedi) açılır, ardından "claude" yazılır',
+    )
+  })
+
+  it("previews in the caller's locale", () => {
+    expect(commandPreview(pwsh, "claude", "en")).toBe(
+      'pwsh.exe -NoLogo opens, then "claude" is typed',
+    )
   })
 })
 

@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "miniterm default capability",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:allow-open"]
+  "permissions": ["core:default", "core:window:allow-destroy", "dialog:allow-open"]
 }

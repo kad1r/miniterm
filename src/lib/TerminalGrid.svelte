@@ -231,6 +231,14 @@
     border: 1px solid var(--border);
     border-radius: 4px;
   }
+  /* Which terminal takes the keystrokes. :focus-within needs no state of its
+     own — xterm's textarea lives inside the cell, so the browser's own notion
+     of focus is already the answer. The ring is a box-shadow rather than a
+     thicker border so the cell never changes size and the panes never reflow. */
+  .cell:focus-within {
+    border-color: var(--claude);
+    box-shadow: 0 0 0 1px var(--claude);
+  }
   .divider {
     z-index: 2;
     background: transparent;

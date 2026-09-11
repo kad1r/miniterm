@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte"
-  import { app, bootstrap, commit, dismissToast } from "./store/app.svelte"
+  import { app, bootstrap, commit, dismissToast, notify } from "./store/app.svelte"
   import { findNode, updateWorkspace } from "./store/tree"
-  import { activate, listenExits, restart, sessions } from "./store/sessions.svelte"
+  import {
+    activate, closePane, listenExits, rememberFocus, restart, sessions,
+  } from "./store/sessions.svelte"
   import { fontAction } from "./store/font"
   import { applyFontAction, initFontScale } from "./store/font.svelte"
   import { initLocale, t } from "./i18n/locale.svelte"
@@ -85,9 +87,16 @@
             <div class="layer" class:hidden={!active}>
               <TerminalGrid
                 workspace={ws}
+                {active}
                 sessionIds={active ? (slot?.ids ?? []) : []}
                 exitCodes={active ? (slot?.exits ?? []) : []}
+                focusedIndex={slot?.focused ?? 0}
                 onrestart={(i) => void restart(wsId, i)}
+                onfocuspane={(i) => rememberFocus(wsId, i)}
+                onclose={(i) => {
+                  void closePane(wsId, i)
+                  notify(t("grid.paneClosed"))
+                }}
                 onsizes={(patch) =>
                   commit((c) => ({ ...c, tree: updateWorkspace(c.tree, wsId, patch) }))}
               />

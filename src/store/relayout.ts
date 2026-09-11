@@ -8,10 +8,11 @@ export function terminalCount(ws: Pick<Workspace, "rows" | "cols">): number {
   return ws.rows * ws.cols;
 }
 
-/** The layout a workspace should land on when a terminal is added: the same
- *  orientation it already has, when that shape exists for the new count — a 2×1
- *  column grows into a 3×1, not a 1×3. A lone pane has no orientation yet, so it
- *  splits side by side like every other terminal does. */
+/** The layout a workspace should land on when its terminal count changes: the
+ *  same orientation it already has, when that shape exists for the new count — a
+ *  2×1 column grows into a 3×1, not a 1×3, and shrinks back into a 1×1 rather
+ *  than flipping. A lone pane has no orientation yet, so it splits side by side
+ *  like every other terminal does. */
 export function defaultLayoutFor(ws: Pick<Workspace, "rows" | "cols">, count: number): GridLayout {
   const options = layoutsFor(count);
   if (options.length === 0) return { rows: ws.rows, cols: ws.cols };

@@ -21,6 +21,18 @@ describe("defaultLayoutFor", () => {
     expect(defaultLayoutFor({ rows: 1, cols: 1 }, 2)).toEqual({ rows: 1, cols: 2 })
   })
 
+  it("keeps a column a column when a terminal is closed", () => {
+    expect(defaultLayoutFor({ rows: 3, cols: 1 }, 2)).toEqual({ rows: 2, cols: 1 })
+  })
+
+  it("keeps a row a row when a terminal is closed", () => {
+    expect(defaultLayoutFor({ rows: 1, cols: 3 }, 2)).toEqual({ rows: 1, cols: 2 })
+  })
+
+  it("collapses to a single pane when the second to last is closed", () => {
+    expect(defaultLayoutFor({ rows: 2, cols: 1 }, 1)).toEqual({ rows: 1, cols: 1 })
+  })
+
   it("falls back to the first valid shape when the current one cannot survive", () => {
     // 5 is prime: a 2×2 has no 2-row successor.
     expect(defaultLayoutFor({ rows: 2, cols: 2 }, 5)).toEqual({ rows: 1, cols: 5 })

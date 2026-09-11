@@ -1,6 +1,8 @@
-import { app, notify } from "./app.svelte"
+import { app, commit, notify } from "./app.svelte"
 import { t } from "../i18n/locale.svelte"
-import { findNode } from "./tree"
+import { findNode, updateWorkspace } from "./tree"
+import { defaultLayoutFor, relayout, terminalCount } from "./relayout"
+import { focusAfterClose } from "./focus"
 import { touch, LIVE_LIMIT } from "./lru"
 import { killSession, onSessionExit, spawnSession } from "../ipc"
 import type { Node, ShellInfo, Workspace } from "./types"
@@ -11,6 +13,10 @@ export type PaneStatus = "off" | "running" | "dead"
 interface WorkspaceSessions {
   ids: (number | null)[]
   exits: (number | null | undefined)[]
+  /** Which cell had the keyboard last. Deliberately session-scoped rather than
+   *  stored in config.json: a focus change happens on every click into a pane,
+   *  and routing that through commit() would queue a disk write each time. */
+  focused: number
 }
 
 export const sessions = $state({
@@ -58,7 +64,7 @@ export async function activate(workspaceId: string): Promise<void> {
   const ws = workspaceById(workspaceId)
   if (!ws) return
 
-  const count = ws.rows * ws.cols
+  const count = terminalCount(ws)
   const existing = sessions.byWorkspace[workspaceId]
   if (existing && existing.ids.length === count) {
     // Already fully spawned — just update LRU order.
@@ -98,15 +104,18 @@ export async function activate(workspaceId: string): Promise<void> {
       ...(existing?.exits.slice(0, count) ?? []),
       ...Array(count - ids.length).fill(undefined),
     ],
+    focused: Math.min(existing?.focused ?? 0, count - 1),
   }
 
   // Capture the slot reference before the first await. If the slot is replaced
   // (e.g. the workspace is deleted mid-spawn), compare by reference and clean up
-  // the just-spawned session rather than orphaning it.
+  // the just-spawned session rather than orphaning it. The length check catches
+  // the other race: closePane() splices the same object in place, so the slot for
+  // index i may no longer exist by the time its session is ready.
   const mine = sessions.byWorkspace[workspaceId]
   for (let i = ids.length; i < count; i++) {
     const id = await spawnOne(ws, i, shell)
-    if (sessions.byWorkspace[workspaceId] !== mine) {
+    if (sessions.byWorkspace[workspaceId] !== mine || mine.ids.length !== count) {
       if (id !== null) {
         owner.delete(id)
         void killSession(id).catch(() => {})
@@ -139,6 +148,40 @@ export async function restart(workspaceId: string, index: number): Promise<void>
   if (id === null) slot.exits[index] = null
 }
 
+/** Close one pane and let the grid close ranks behind it.
+ *
+ *  The panes after the closed one shift down a cell, so the owner map has to be
+ *  rewritten for them — it is what routes a session-exit event to a cell, and a
+ *  stale index would paint the wrong pane dead. The grid itself is derived from
+ *  rows × cols, so the new shape is committed to the config; App re-renders from
+ *  that, and activate() is not needed because the ids array already matches the
+ *  new count. The last pane stays: a workspace with no terminal has nothing to
+ *  show, and deleting the workspace is a different action. */
+export async function closePane(workspaceId: string, index: number): Promise<void> {
+  const ws = workspaceById(workspaceId)
+  const slot = sessions.byWorkspace[workspaceId]
+  if (!ws || !slot) return
+  const count = terminalCount(ws)
+  if (count <= 1 || index < 0 || index >= count) return
+
+  const id = slot.ids[index]
+  slot.ids.splice(index, 1)
+  slot.exits.splice(index, 1)
+  slot.focused = focusAfterClose(slot.focused, index, slot.ids.length)
+  for (let i = index; i < slot.ids.length; i++) {
+    const moved = slot.ids[i]
+    if (moved !== null && moved !== undefined) owner.set(moved, { workspaceId, index: i })
+  }
+
+  const patch = relayout(ws, defaultLayoutFor(ws, count - 1))
+  commit((c) => ({ ...c, tree: updateWorkspace(c.tree, workspaceId, patch) }))
+
+  if (id !== null && id !== undefined) {
+    owner.delete(id)
+    await killSession(id).catch(() => {})
+  }
+}
+
 export async function closeSubtree(node: Node): Promise<void> {
   if (node.kind === "folder") {
     for (const child of node.children) await closeSubtree(child)
@@ -156,6 +199,17 @@ export async function closeSubtree(node: Node): Promise<void> {
     }
   }
   delete sessions.byWorkspace[node.id]
+}
+
+/** The cell a workspace should hand the keyboard to when it comes back on screen. */
+export function focusedPaneOf(workspaceId: string): number {
+  return sessions.byWorkspace[workspaceId]?.focused ?? 0
+}
+
+export function rememberFocus(workspaceId: string, index: number): void {
+  const slot = sessions.byWorkspace[workspaceId]
+  if (!slot || index < 0 || index >= slot.ids.length) return
+  slot.focused = index
 }
 
 export function statusOf(workspaceId: string): PaneStatus {

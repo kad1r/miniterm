@@ -9,6 +9,7 @@
     type FileDrop,
   } from "../ipc"
   import { clipboardAction } from "../term/clipboard"
+  import { WIN32_INPUT_ENABLE, win32KeySequence } from "../term/win32"
   import { exitNotice } from "../term/exit"
   import { dropText } from "../term/paths"
   import { locale } from "../i18n/locale.svelte"
@@ -80,11 +81,20 @@
       // shell, where Ctrl+- and Ctrl+0 would arrive as ordinary control input.
       if (fontAction(e) !== null) return false
       const clip = clipboardAction(e, term?.hasSelection() ?? false)
-      if (clip === null) return true
-      // Match Windows Terminal: a copy consumes the selection, so the next Ctrl+C
-      // is an interrupt again. The copy event fires after this handler returns,
-      // hence the deferral.
-      if (clip === "copy") setTimeout(() => term?.clearSelection(), 0)
+      if (clip !== null) {
+        // Match Windows Terminal: a copy consumes the selection, so the next Ctrl+C
+        // is an interrupt again. The copy event fires after this handler returns,
+        // hence the deferral.
+        if (clip === "copy") setTimeout(() => term?.clearSelection(), 0)
+        return false
+      }
+      // Chords whose modifier a plain VT stream would drop — Ctrl+Enter and
+      // friends — go to ConPTY as full key events instead of xterm's encoding.
+      const win32 = win32KeySequence(e)
+      if (win32 === null) return true
+      if (attached !== null && exitCode === undefined) {
+        void writeSession(attached, encoder.encode(win32))
+      }
       return false
     })
     fitAddon = new FitAddon()
@@ -163,6 +173,9 @@
         return
       }
       attached = id
+      // ConPTY swallows this DECSET itself; the shell never sees it. Re-sent on
+      // every attach because a session may outlive the pane that opened it.
+      if (exitCode === undefined) void writeSession(id, encoder.encode(WIN32_INPUT_ENABLE))
       fit()
       syncSize()
     })()

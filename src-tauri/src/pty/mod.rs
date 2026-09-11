@@ -12,6 +12,17 @@ use std::time::{Duration, Instant};
 
 pub type SessionId = u64;
 
+/// DECSET 9001, ConPTY's win32-input-mode. Written once per session, at spawn.
+///
+/// It is a property of the ConPTY, not of a pane, and conhost only consumes it
+/// while it is still translating VT input itself. The moment the child turns on
+/// ENABLE_VIRTUAL_TERMINAL_INPUT — which every TUI does within a second of
+/// starting — conhost forwards input bytes verbatim and the sequence lands in
+/// the application as literal `[?9001h` text. Spawn time is the only point that
+/// is reliably before that.
+#[cfg(windows)]
+const WIN32_INPUT_ENABLE: &[u8] = b"\x1b[?9001h";
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpawnOpts {
@@ -152,6 +163,12 @@ impl SessionManager {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let buffer = Arc::new(Mutex::new(RingBuffer::with_capacity(RING_CAPACITY)));
         let writer = Arc::new(Mutex::new(writer));
+        #[cfg(windows)]
+        {
+            let mut w = lock_recover(writer.lock());
+            let _ = w.write_all(WIN32_INPUT_ENABLE);
+            let _ = w.flush();
+        }
         let killer = Mutex::new(killer);
         let child = Arc::new(Mutex::new(child));
         let master = Arc::new(Mutex::new(pair.master));

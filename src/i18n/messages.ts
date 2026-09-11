@@ -103,6 +103,9 @@ const EN = {
   "layout.apply": "Add",
   "layout.added": '"{name}": {count} terminal(s) added',
 
+  "grid.closePane": "Close terminal {n} (Ctrl+Shift+W)",
+  "grid.paneClosed": "Terminal closed",
+
   "sessions.spawnFailed": "Could not open terminal ({path}): {error}",
   "sessions.noShell": "No usable shell found",
 
@@ -202,6 +205,9 @@ const TR: Record<keyof typeof EN, string> = {
   "layout.atLimit": "Bu workspace zaten en fazla sayıda ({max}) terminale sahip.",
   "layout.apply": "Ekle",
   "layout.added": '"{name}": {count} terminal eklendi',
+
+  "grid.closePane": "{n}. terminali kapat (Ctrl+Shift+W)",
+  "grid.paneClosed": "Terminal kapatıldı",
 
   "sessions.spawnFailed": "Terminal açılamadı ({path}): {error}",
   "sessions.noShell": "Kullanılabilir shell bulunamadı",

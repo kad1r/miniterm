@@ -1,16 +1,22 @@
 <script lang="ts">
-  import { onMount } from "svelte"
+  import { onMount, tick, untrack } from "svelte"
   import type { Workspace } from "../store/types"
   import { cells, dividerCount, templateWithDividers } from "../store/grid"
   import { MIN_CELL_PX, resizeFractions } from "../store/layout"
+  import { isClosePaneChord } from "../term/pane"
+  import { t } from "../i18n/locale.svelte"
   import TerminalPane from "./TerminalPane.svelte"
 
-  let { workspace, sessionIds, exitCodes, onrestart, onsizes }: {
+  let { workspace, active, sessionIds, exitCodes, focusedIndex, onrestart, onsizes, onclose, onfocuspane }: {
     workspace: Workspace
+    active: boolean
     sessionIds: (number | null)[]
     exitCodes: (number | null | undefined)[]
+    focusedIndex: number
     onrestart: (index: number) => void
     onsizes: (patch: { rowSizes?: number[]; colSizes?: number[] }) => void
+    onclose: (index: number) => void
+    onfocuspane: (index: number) => void
   } = $props()
 
   let container: HTMLDivElement
@@ -23,6 +29,36 @@
   const rowSizes = $derived(liveRows ?? workspace.rowSizes)
   const colSizes = $derived(liveCols ?? workspace.colSizes)
   const grid = $derived(cells(workspace.rows, workspace.cols))
+  // The last terminal has no close button: an empty workspace would render as a
+  // blank pane with no way back, and removing the workspace is a sidebar action.
+  const closable = $derived(grid.length > 1)
+
+  /** Ctrl+Shift+W, caught as it bubbles out of the focused pane. TerminalPane
+   *  hands the chord back untouched, so `e.target` is still xterm's textarea and
+   *  the enclosing `.cell` names the pane to close. Bound imperatively in onMount:
+   *  this is a delegated shortcut, and the grid is not an interactive element. */
+  function cellIndexOf(target: EventTarget | null): number | null {
+    const cell = (target as HTMLElement | null)?.closest<HTMLElement>(".cell")
+    if (!cell) return null
+    const index = Number(cell.dataset.index)
+    return Number.isInteger(index) ? index : null
+  }
+
+  function onGridKeydown(e: KeyboardEvent) {
+    if (!closable || !isClosePaneChord(e)) return
+    const index = cellIndexOf(e.target)
+    if (index === null) return
+    e.preventDefault()
+    onclose(index)
+  }
+
+  /** Whichever pane the user last put the caret in is the one this workspace
+   *  returns to. focusin rather than a per-pane handler so the close button and
+   *  xterm's own textarea both count as "this cell". */
+  function onGridFocusIn(e: FocusEvent) {
+    const index = cellIndexOf(e.target)
+    if (index !== null) onfocuspane(index)
+  }
 
   let drag: { axis: "row" | "col"; index: number; startPos: number; base: number[] } | null = null
 
@@ -135,6 +171,21 @@
     }
   }
 
+  // A relayout moves every divider at once. Panes whose sessionId changed re-attach
+  // and sync themselves, but the ones that kept their session only get a fit() from
+  // their ResizeObserver — the PTY would stay on the old grid's dimensions. Re-fit
+  // the whole grid once the new tracks are in the DOM.
+  $effect(() => {
+    void workspace.rows
+    void workspace.cols
+    void tick().then(() => {
+      for (const pane of panes) {
+        pane?.fit()
+        pane?.syncSize()
+      }
+    })
+  })
+
   // Pencere yeniden boyutlanınca 100 ms sonra bir kez eşitle.
   let resizeTimer: ReturnType<typeof setTimeout> | undefined
   function onWindowResize() {
@@ -147,8 +198,23 @@
     }, 100)
   }
 
+  // Restore the keyboard when this workspace comes back on screen, and hand it to
+  // the surviving neighbour when a pane is closed (grid.length is what changes in
+  // both the close and the add case). A hidden layer cannot hold focus, so this is
+  // the only thing that puts the caret back where the user left it.
+  $effect(() => {
+    if (!active) return
+    void grid.length
+    const index = untrack(() => focusedIndex)
+    void tick().then(() => panes[index]?.focus())
+  })
+
   onMount(() => {
+    container.addEventListener("keydown", onGridKeydown)
+    container.addEventListener("focusin", onGridFocusIn)
     return () => {
+      container.removeEventListener("keydown", onGridKeydown)
+      container.removeEventListener("focusin", onGridFocusIn)
       // Clear both timers so a mid-gesture unmount (workspace delete or LRU eviction)
       // does not fire against disposed panes.
       clearTimeout(keyNudgeTimer)
@@ -166,13 +232,30 @@
          grid-template-rows:{templateWithDividers(rowSizes)}"
 >
   {#each grid as cell (cell.index)}
-    <div class="cell" style="grid-column:{cell.col * 2 + 1}; grid-row:{cell.row * 2 + 1}">
+    <div
+      class="cell"
+      data-index={cell.index}
+      style="grid-column:{cell.col * 2 + 1}; grid-row:{cell.row * 2 + 1}"
+    >
       <TerminalPane
         bind:this={panes[cell.index]}
         sessionId={sessionIds[cell.index] ?? null}
         exitCode={exitCodes[cell.index]}
         onrestart={() => onrestart(cell.index)}
       />
+      {#if closable}
+        <button
+          class="close"
+          type="button"
+          title={t("grid.closePane", { n: cell.index + 1 })}
+          aria-label={t("grid.closePane", { n: cell.index + 1 })}
+          onclick={() => onclose(cell.index)}
+        >
+          <svg viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M3 3l6 6M9 3l-6 6" />
+          </svg>
+        </button>
+      {/if}
     </div>
   {/each}
 
@@ -225,11 +308,50 @@
     background: var(--bg);
   }
   .cell {
+    position: relative;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 4px;
+  }
+  /* Kept out of the way until the pane is pointed at or focused, so six grids
+     worth of buttons do not compete with the text. */
+  .close {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--bg-raised) 85%, transparent);
+    color: var(--text-dim);
+    opacity: 0;
+    cursor: pointer;
+  }
+  .cell:hover .close,
+  .cell:focus-within .close,
+  .close:focus-visible {
+    opacity: 1;
+  }
+  .close:hover,
+  .close:focus-visible {
+    background: var(--err);
+    color: #fff;
+    outline: none;
+  }
+  .close svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    fill: none;
   }
   /* Which terminal takes the keystrokes. :focus-within needs no state of its
      own — xterm's textarea lives inside the cell, so the browser's own notion

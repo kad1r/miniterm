@@ -99,7 +99,10 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    height: 26px;
+    /* min-height rather than height: the row is border-box, so a fixed height
+       would swallow the vertical padding instead of letting the row breathe. */
+    min-height: 30px;
+    padding-block: 4px;
     padding-right: 6px;
     border-radius: 4px;
     color: var(--text);

@@ -14,8 +14,11 @@
  * Spec: microsoft/terminal doc/specs/#4999 - Improved keyboard handling in ConPTY
  */
 
-/** Written into the PTY once per attach; consumed by ConPTY, never by the shell. */
-export const WIN32_INPUT_ENABLE = "\x1b[?9001h";
+// The mode itself is enabled Rust-side, once per session, right after the PTY is
+// created (src-tauri/src/pty/mod.rs). It used to be written from the frontend on
+// every attach, which echoed a literal `[?9001h` into whatever TUI was running:
+// by attach time the application owns stdin in VT-input mode, so conhost forwards
+// the sequence instead of consuming it.
 
 // ControlKeyState bits (wincon.h). Chromium cannot tell left from right for a
 // chord's modifiers, so the left variants stand in — conhost treats them alike.

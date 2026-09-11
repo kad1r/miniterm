@@ -9,7 +9,7 @@
     type FileDrop,
   } from "../ipc"
   import { clipboardAction } from "../term/clipboard"
-  import { WIN32_INPUT_ENABLE, win32KeySequence } from "../term/win32"
+  import { win32KeySequence } from "../term/win32"
   import { exitNotice } from "../term/exit"
   import { isClosePaneChord } from "../term/pane"
   import { dropText } from "../term/paths"
@@ -177,9 +177,6 @@
         return
       }
       attached = id
-      // ConPTY swallows this DECSET itself; the shell never sees it. Re-sent on
-      // every attach because a session may outlive the pane that opened it.
-      if (exitCode === undefined) void writeSession(id, encoder.encode(WIN32_INPUT_ENABLE))
       fit()
       syncSize()
     })()

@@ -9,9 +9,10 @@
   import { closeSubtree, statusOf, sessions } from "../store/sessions.svelte"
   import { locale, t } from "../i18n/locale.svelte"
 
-  let { onnew, onaddterminal }: {
+  let { onnew, onaddterminal, onchangelayout }: {
     onnew: () => void
     onaddterminal: (workspaceId: string) => void
+    onchangelayout: (workspaceId: string) => void
   } = $props()
 
   let menu = $state<{ node: Node; x: number; y: number } | null>(null)
@@ -223,7 +224,10 @@
     onclose={() => (menu = null)}
     items={[
       ...(target.kind === "workspace"
-        ? [{ label: t("sidebar.addTerminal"), action: () => onaddterminal(target.id) }]
+        ? [
+            { label: t("sidebar.addTerminal"), action: () => onaddterminal(target.id) },
+            { label: t("sidebar.changeLayout"), action: () => onchangelayout(target.id) },
+          ]
         : []),
       { label: t("sidebar.rename"), action: () => renameNode(target) },
       { label: t("sidebar.delete"), action: () => void deleteNode(target), danger: true },

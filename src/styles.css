@@ -1,0 +1,37 @@
+:root {
+  /* Without this, UA-styled elements resolve system colours against the light
+     scheme: <dialog> sets `color: canvastext`, which lands as black on our dark
+     surface and makes any text that does not set its own colour unreadable.
+     Native scrollbars and <select> popups pick up the dark palette too. */
+  color-scheme: dark;
+  --bg: #0f1114;
+  --bg-raised: #16191d;
+  --border: #24282e;
+  --text: #d6dae0;
+  --text-dim: #7d858f;
+  --accent: #3d7dff;
+  --ok: #3fb950;
+  --err: #f0574b;
+  /* Anthropic's brand orange. Marks the focused terminal and draws the Claude
+     logo, so both stay in step from one place. */
+  --claude: #d97757;
+  /* The bundled variable faces lead both stacks, so every machine renders the
+     same text regardless of what is installed locally — the rest of each list
+     only matters if the woff2 fails to load. `ui-monospace` is deliberately
+     *behind* the named faces: it resolves to the platform default (Consolas on
+     Windows) and would otherwise shadow every face after it. */
+  --font-mono: "Roboto Mono Variable", "Cascadia Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+  --font-ui: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--font-scale, 1));
+  overflow: hidden;
+}

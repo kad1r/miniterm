@@ -9,6 +9,7 @@ src-tauri/gen/
 
 # Machine-local build config (absolute paths, GNU toolchain workaround)
 .cargo/config.toml
+src-tauri/.cargo/config.toml
 
 # Superpowers working state
 .superpowers/

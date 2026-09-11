@@ -30,6 +30,7 @@ const EN = {
   "sidebar.emptyTitle": "No workspaces yet.",
   "sidebar.emptyHint": "Press + to get started.",
   "sidebar.settings": "Settings",
+  "sidebar.addTerminal": "Add terminal",
   "sidebar.rename": "Rename",
   "sidebar.renamePrompt": "New name",
   "sidebar.delete": "Delete",
@@ -96,6 +97,12 @@ const EN = {
   "wizard.create": "Create",
   "wizard.created": '"{name}" created',
 
+  "layout.title": 'Add a terminal to "{name}"',
+  "layout.hint": "Terminals that are already open keep running.",
+  "layout.atLimit": "This workspace already has the maximum of {max} terminals.",
+  "layout.apply": "Add",
+  "layout.added": '"{name}": {count} terminal(s) added',
+
   "sessions.spawnFailed": "Could not open terminal ({path}): {error}",
   "sessions.noShell": "No usable shell found",
 
@@ -124,6 +131,7 @@ const TR: Record<keyof typeof EN, string> = {
   "sidebar.emptyTitle": "Henüz workspace yok.",
   "sidebar.emptyHint": "Başlamak için + düğmesine bas.",
   "sidebar.settings": "Ayarlar",
+  "sidebar.addTerminal": "Terminal ekle",
   "sidebar.rename": "Yeniden adlandır",
   "sidebar.renamePrompt": "Yeni ad",
   "sidebar.delete": "Sil",
@@ -188,6 +196,12 @@ const TR: Record<keyof typeof EN, string> = {
   "wizard.layout": "Yerleşim",
   "wizard.create": "Oluştur",
   "wizard.created": '"{name}" oluşturuldu',
+
+  "layout.title": '"{name}" için terminal ekle',
+  "layout.hint": "Açık olan terminaller çalışmaya devam eder.",
+  "layout.atLimit": "Bu workspace zaten en fazla sayıda ({max}) terminale sahip.",
+  "layout.apply": "Ekle",
+  "layout.added": '"{name}": {count} terminal eklendi',
 
   "sessions.spawnFailed": "Terminal açılamadı ({path}): {error}",
   "sessions.noShell": "Kullanılabilir shell bulunamadı",

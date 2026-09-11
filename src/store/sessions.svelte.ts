@@ -80,9 +80,9 @@ export async function activate(workspaceId: string): Promise<void> {
   // Tahliye edilenlerin süreçleri yaşar; sadece xterm örnekleri kaldırılır.
 
   // Yerleşim değiştiyse fazla panelleri kapat, eksikleri aç.
-  // NOTE: This branch is currently unreachable — layout (rows/cols) is fixed at workspace
-  // creation and never mutated. It is kept as the natural seam for a future layout-editing
-  // feature; carry exits forward so surviving dead panes keep their status dots.
+  // This is how "add a terminal" lands: LayoutDialog writes the new rows/cols and
+  // calls activate() again. Exits are carried forward so surviving dead panes keep
+  // their status dots instead of resetting to "running".
   const ids: (number | null)[] = existing ? existing.ids.slice(0, count) : []
   if (existing) {
     for (const extra of existing.ids.slice(count)) {

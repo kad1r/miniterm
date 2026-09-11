@@ -9,9 +9,13 @@
   import Sidebar from "./lib/Sidebar.svelte"
   import Settings from "./lib/Settings.svelte"
   import Wizard from "./lib/Wizard.svelte"
+  import LayoutDialog from "./lib/LayoutDialog.svelte"
   import TerminalGrid from "./lib/TerminalGrid.svelte"
 
   let wizardOpen = $state(false)
+  // Held as an id, not as the node: the workspace is re-created on every commit,
+  // so a captured object would go stale the moment the dialog applies its patch.
+  let addTerminalTo = $state<string | null>(null)
 
   onMount(async () => {
     initLocale()
@@ -66,7 +70,7 @@
   {#if !app.ready}
     <div class="boot">{t("app.loading")}</div>
   {:else}
-    <Sidebar onnew={() => (wizardOpen = true)} />
+    <Sidebar onnew={() => (wizardOpen = true)} onaddterminal={(id) => (addTerminalTo = id)} />
     <main>
       {#if app.view === "settings"}
         <Settings />
@@ -94,6 +98,12 @@
     </main>
     {#if wizardOpen}
       <Wizard onclose={() => (wizardOpen = false)} />
+    {/if}
+    {#if addTerminalTo}
+      {@const target = workspaceById(addTerminalTo)}
+      {#if target}
+        <LayoutDialog workspace={target} onclose={() => (addTerminalTo = null)} />
+      {/if}
     {/if}
   {/if}
 

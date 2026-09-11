@@ -2,10 +2,11 @@
   import { app, commit, notify } from "../store/app.svelte"
   import { pickDirectory } from "../ipc"
   import { insert } from "../store/tree"
-  import { layoutsFor, MAX_TERMINALS, type GridLayout } from "../store/layout"
+  import { layoutsFor, type GridLayout } from "../store/layout"
   import { pushRecent } from "../store/settings"
   import { emptyDraft, toWorkspace, basename, type Draft } from "../store/wizard"
   import AiLogo from "./AiLogo.svelte"
+  import LayoutPicker from "./LayoutPicker.svelte"
   import { t } from "../i18n/locale.svelte"
 
   let { onclose }: { onclose: () => void } = $props()
@@ -13,7 +14,6 @@
   let draft = $state<Draft>(emptyDraft())
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined)
 
-  const layouts = $derived(layoutsFor(draft.count))
   // The directory is the only required field; everything else has a usable
   // default, which is what makes a single screen viable at all.
   const canCreate = $derived(draft.path.trim().length > 0)
@@ -151,34 +151,12 @@
       </section>
 
       <section>
-        <p class="q">{t("wizard.terminals")}</p>
-        <div class="counts">
-          {#each Array(MAX_TERMINALS) as _, i (i)}
-            <button class="count" class:on={draft.count === i + 1} onclick={() => setCount(i + 1)}>
-              {i + 1}
-            </button>
-          {/each}
-        </div>
-
-        <p class="label">{t("wizard.layout")}</p>
-        <div class="layouts">
-          {#each layouts as l (`${l.rows}x${l.cols}`)}
-            <button
-              class="layout"
-              class:on={draft.layout.rows === l.rows && draft.layout.cols === l.cols}
-              onclick={() => pickLayout(l)}
-            >
-              <span
-                class="mini"
-                style="grid-template-columns:repeat({l.cols},1fr);
-                       grid-template-rows:repeat({l.rows},1fr)"
-              >
-                {#each Array(l.rows * l.cols) as _, k (k)}<i></i>{/each}
-              </span>
-              <span class="layout-label">{l.rows}×{l.cols}</span>
-            </button>
-          {/each}
-        </div>
+        <LayoutPicker
+          count={draft.count}
+          layout={draft.layout}
+          oncount={setCount}
+          onlayout={pickLayout}
+        />
       </section>
       </div>
     </div>
@@ -358,60 +336,6 @@
     margin-top: 14px;
     color: var(--text-dim);
     font-size: calc(12px * var(--font-scale, 1));
-  }
-  .counts {
-    display: flex;
-    gap: 6px;
-  }
-  .count {
-    width: 40px;
-    height: 36px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--text);
-    font: inherit;
-    cursor: pointer;
-  }
-  .count.on {
-    border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-  }
-  .layouts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .layout {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    align-items: center;
-    padding: 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--text-dim);
-    font: inherit;
-    font-size: calc(11px * var(--font-scale, 1));
-    cursor: pointer;
-  }
-  .layout.on {
-    border-color: var(--accent);
-    color: var(--text);
-  }
-  .mini {
-    display: grid;
-    gap: 2px;
-    width: 54px;
-    height: 38px;
-  }
-  .mini i {
-    background: var(--border);
-    border-radius: 2px;
-  }
-  .layout.on .mini i {
-    background: var(--accent);
   }
   footer {
     display: flex;

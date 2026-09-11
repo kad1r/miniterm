@@ -17,7 +17,7 @@
   let wizardOpen = $state(false)
   // Held as an id, not as the node: the workspace is re-created on every commit,
   // so a captured object would go stale the moment the dialog applies its patch.
-  let addTerminalTo = $state<string | null>(null)
+  let layoutDialog = $state<{ id: string; mode: "add" | "layout" } | null>(null)
 
   onMount(async () => {
     initLocale()
@@ -72,7 +72,11 @@
   {#if !app.ready}
     <div class="boot">{t("app.loading")}</div>
   {:else}
-    <Sidebar onnew={() => (wizardOpen = true)} onaddterminal={(id) => (addTerminalTo = id)} />
+    <Sidebar
+      onnew={() => (wizardOpen = true)}
+      onaddterminal={(id) => (layoutDialog = { id, mode: "add" })}
+      onchangelayout={(id) => (layoutDialog = { id, mode: "layout" })}
+    />
     <main>
       {#if app.view === "settings"}
         <Settings />
@@ -108,10 +112,14 @@
     {#if wizardOpen}
       <Wizard onclose={() => (wizardOpen = false)} />
     {/if}
-    {#if addTerminalTo}
-      {@const target = workspaceById(addTerminalTo)}
+    {#if layoutDialog}
+      {@const target = workspaceById(layoutDialog.id)}
       {#if target}
-        <LayoutDialog workspace={target} onclose={() => (addTerminalTo = null)} />
+        <LayoutDialog
+          workspace={target}
+          mode={layoutDialog.mode}
+          onclose={() => (layoutDialog = null)}
+        />
       {/if}
     {/if}
   {/if}

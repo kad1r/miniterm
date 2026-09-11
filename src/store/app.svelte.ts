@@ -30,11 +30,22 @@ const saver = createSaver<Config>(async (config) => {
   }
 }, SAVE_DEBOUNCE_MS);
 
+const TOAST_TIMEOUT_MS = 3000;
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Bilgi mesajları kendiliğinden kaybolur; hatalar kullanıcı kapatana kadar durur. */
 export function notify(text: string, tone: "info" | "error" = "info") {
+  if (toastTimer !== null) clearTimeout(toastTimer);
+  toastTimer = null;
   app.toast = { text, tone };
+  if (tone === "info") {
+    toastTimer = setTimeout(dismissToast, TOAST_TIMEOUT_MS);
+  }
 }
 
 export function dismissToast() {
+  if (toastTimer !== null) clearTimeout(toastTimer);
+  toastTimer = null;
   app.toast = null;
 }
 

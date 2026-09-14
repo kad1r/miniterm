@@ -7,6 +7,30 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.5.0 — 2026-09-14
+
+### Minimize and maximize a terminal
+
+A pane now carries window-style controls instead of a lone close button.
+
+- **Ctrl+Shift+Z** blows the focused pane up to fill the whole workspace, and the same
+  chord puts it back — the way tmux's `prefix z` works.
+- **Ctrl+Shift+M** sends the focused pane to a strip below the grid. Click it there to
+  bring it home.
+
+Minimizing is not resizing. A fixed grid cannot shrink one cell without deforming its
+whole row and column, so the pane leaves the grid rather than shrinking inside it.
+
+A minimized terminal keeps running, scrollback and all, which means it still counts
+against the six-terminal limit. **Add terminal** and **Change layout** reserve a place
+for it, so it always has somewhere to come back to.
+
+### An About tab in Settings
+
+Settings now tells you which version you are running and what went into it. The version
+is read from the installed build itself, and the notes ship inside the app, so they are
+right even with no network and even on a build you made yourself.
+
 ## 0.4.0 — 2026-09-11
 
 ### Change a workspace's grid layout

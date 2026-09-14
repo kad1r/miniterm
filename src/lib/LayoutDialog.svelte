@@ -5,8 +5,10 @@
   import { activate, sessions } from "../store/sessions.svelte"
   import { addableCounts, defaultLayoutFor, relayout, terminalCount } from "../store/relayout"
   import { MAX_TERMINALS, type GridLayout } from "../store/layout"
+  import { normalizeTools, toolsFor } from "../store/panes"
   import type { Workspace } from "../store/types"
   import LayoutPicker from "./LayoutPicker.svelte"
+  import PaneToolPicker from "./PaneToolPicker.svelte"
   import { t } from "../i18n/locale.svelte"
 
   /** `add` opens on one terminal more than today, `layout` opens on today's count
@@ -36,6 +38,15 @@
   let layout = $state<GridLayout>(untrack(() => defaultLayoutFor(workspace, initial)))
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined)
 
+  // Only the cells being added are up for grabs. An open terminal already had
+  // its command typed into it at spawn time, so re-pointing it here would
+  // change the label without changing what is running.
+  let picked = $state<(string | null)[]>(untrack(() => toolsFor(workspace)))
+  const paneTools = $derived(normalizeTools(picked, count, workspace.aiToolId))
+  // New cells start on the workspace default, so anything else in that range is
+  // a real edit — enough on its own to enable Apply.
+  const toolsChanged = $derived(paneTools.slice(current).some((id) => id !== workspace.aiToolId))
+
   const title = $derived(
     t(mode === "add" ? "layout.title" : "layout.changeTitle", { name: workspace.name }),
   )
@@ -50,7 +61,10 @@
   }
 
   const changed = $derived(
-    count !== current || layout.rows !== workspace.rows || layout.cols !== workspace.cols,
+    count !== current ||
+      layout.rows !== workspace.rows ||
+      layout.cols !== workspace.cols ||
+      toolsChanged,
   )
 
   function apply() {
@@ -58,7 +72,7 @@
       onclose()
       return
     }
-    const patch = relayout(workspace, layout)
+    const patch = { ...relayout(workspace, layout), paneTools }
     commit((c) => ({ ...c, tree: updateWorkspace(c.tree, workspace.id, patch) }))
     app.activeWorkspaceId = workspace.id
     app.view = "workspace"
@@ -91,6 +105,14 @@
         <p class="note">{t("layout.atLimit", { max: MAX_TERMINALS })}</p>
       {:else}
         <LayoutPicker {count} {layout} {counts} oncount={setCount} onlayout={(l) => (layout = l)} />
+        {#if count > current}
+          <p class="q">{t("panes.title")}</p>
+          <PaneToolPicker
+            tools={paneTools}
+            lockedBefore={current}
+            onpick={(i, id) => (picked = paneTools.map((cur, j) => (j === i ? id : cur)))}
+          />
+        {/if}
         <p class="note">{t(mode === "add" ? "layout.hint" : "layout.changeHint")}</p>
       {/if}
     </div>
@@ -140,6 +162,11 @@
   }
   .body {
     padding: 16px 18px;
+  }
+  .q {
+    margin: 18px 0 10px;
+    font-weight: 600;
+    font-size: calc(13px * var(--font-scale, 1));
   }
   .note {
     margin: 16px 0 0;

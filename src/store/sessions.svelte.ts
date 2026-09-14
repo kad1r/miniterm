@@ -7,6 +7,7 @@ import { focusAfterClose, maximizedAfterClose } from "./focus"
 import { touch, LIVE_LIMIT } from "./lru"
 import { killSession, onSessionExit, spawnSession } from "../ipc"
 import type { Node, ShellInfo, Workspace } from "./types"
+import { toolsFor } from "./panes"
 import { paneStatus } from "./status"
 
 export type PaneStatus = "off" | "running" | "dead"
@@ -17,6 +18,9 @@ export type PaneStatus = "off" | "running" | "dead"
 export interface MinimizedPane {
   id: number | null
   exit: number | null | undefined
+  /** The AI tool of the cell it came from, carried down so restoring puts it
+   *  back the way it was instead of silently turning into a bare shell. */
+  toolId: string | null
 }
 
 interface WorkspaceSessions {
@@ -55,18 +59,22 @@ function shellFor(ws: Workspace): ShellInfo | null {
   return app.shells.find((s) => s.id === wanted) ?? app.shells[0] ?? null
 }
 
-function commandFor(ws: Workspace): string | null {
-  if (!ws.aiToolId) return null
-  return app.config.aiTools.find((t) => t.id === ws.aiToolId)?.command ?? null
+/** The command a given cell opens with. Per-cell rather than per-workspace: one
+ *  grid can run Claude in two panes, Gemini in a third and a bare shell in a
+ *  fourth. A tool id that no longer exists falls through to a bare shell. */
+function commandFor(ws: Workspace, index: number): string | null {
+  const toolId = toolsFor(ws)[index] ?? null
+  if (!toolId) return null
+  return app.config.aiTools.find((t) => t.id === toolId)?.command ?? null
 }
 
-async function spawnOne(ws: Workspace, shell: ShellInfo): Promise<number | null> {
+async function spawnOne(ws: Workspace, shell: ShellInfo, index: number): Promise<number | null> {
   try {
     const id = await spawnSession({
       cwd: ws.path,
       program: shell.program,
       args: shell.args,
-      initialCommand: commandFor(ws),
+      initialCommand: commandFor(ws, index),
       cols: 80,
       rows: 24,
     })
@@ -139,7 +147,7 @@ export async function activate(workspaceId: string): Promise<void> {
   // index i may no longer exist by the time its session is ready.
   const mine = sessions.byWorkspace[workspaceId]
   for (let i = ids.length; i < count; i++) {
-    const id = await spawnOne(ws, shell)
+    const id = await spawnOne(ws, shell, i)
     if (sessions.byWorkspace[workspaceId] !== mine || mine.ids.length !== count) {
       if (id !== null) {
         owner.delete(id)
@@ -168,7 +176,7 @@ export async function restart(workspaceId: string, index: number): Promise<void>
   slot.ids[index] = null
   slot.exits[index] = undefined
 
-  const id = await spawnOne(ws, shell)
+  const id = await spawnOne(ws, shell, index)
   slot.ids[index] = id
   if (id === null) slot.exits[index] = null
 }
@@ -191,9 +199,15 @@ function pullPane(workspaceId: string, index: number): MinimizedPane | null {
   slot.focused = focusAfterClose(slot.focused, index, slot.ids.length)
   slot.maximized = maximizedAfterClose(slot.maximized, index)
 
-  const patch = relayout(ws, defaultLayoutFor(ws, count - 1))
+  // The tools are indexed by cell, so they have to close ranks with the panes.
+  // Splicing before the relayout means every surviving pane keeps its own tool
+  // rather than inheriting its neighbour's.
+  const paneTools = toolsFor(ws)
+  const [toolId] = paneTools.splice(index, 1)
+
+  const patch = { ...relayout(ws, defaultLayoutFor(ws, count - 1)), paneTools }
   commit((c) => ({ ...c, tree: updateWorkspace(c.tree, workspaceId, patch) }))
-  return { id: id ?? null, exit }
+  return { id: id ?? null, exit, toolId: toolId ?? null }
 }
 
 /** Close one pane. The last pane stays: a workspace with no terminal has nothing
@@ -236,7 +250,11 @@ export function restorePane(workspaceId: string, stripIndex: number): boolean {
   // would be in the way.
   slot.maximized = null
 
-  const patch = relayout(ws, defaultLayoutFor(ws, count + 1))
+  // It comes back as the last cell, so its tool goes on the end. The shell is
+  // still the one that was spawned; this only keeps the config in step with it.
+  const paneTools = [...toolsFor(ws), entry.toolId]
+
+  const patch = { ...relayout(ws, defaultLayoutFor(ws, count + 1)), paneTools }
   commit((c) => ({ ...c, tree: updateWorkspace(c.tree, workspaceId, patch) }))
   return true
 }

@@ -7,6 +7,34 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.6.0 — 2026-09-14
+
+### A different AI tool in every terminal
+
+A workspace used to pick one AI tool for its whole grid. Running Claude in two panes,
+Gemini in a third and a plain shell in a fourth meant three separate workspaces pointed
+at the same directory.
+
+- The **new workspace** wizard now shows a row per terminal once you ask for more than
+  one. Leave them alone and they all follow the workspace tool; change one and only that
+  pane changes.
+- **Add terminal** offers the same choice for the panes it is about to create. The ones
+  already running are shown but locked: a terminal's command is typed into it when it
+  starts, so re-pointing it afterwards would change the label without changing what is
+  running.
+- Deleting a tool in Settings now clears it from individual panes too, not just from the
+  workspaces that had it as their default.
+
+Existing workspaces are untouched and keep running exactly one tool, which is still the
+default any pane falls back to.
+
+### The SmartScreen warning is documented
+
+Installing miniterm shows `Windows protected your PC` with an unknown publisher. The
+README now says what to click and why it happens — the installer is not code-signed,
+and a certificate is a recurring cost the project does not carry. Nothing about the
+warning changed; it was simply undocumented.
+
 ## 0.5.0 — 2026-09-14
 
 ### Minimize and maximize a terminal

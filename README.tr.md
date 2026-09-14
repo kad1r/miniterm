@@ -25,8 +25,8 @@ Bir AI CLI'yı aynı anda birkaç repoda ya da aynı reponun birkaç dalında
 çalıştırmak, elle açılmış bir yığın terminal sekmesi demek. Hangi sekmenin hangi
 dizinde olduğunu, hangisinin hâlâ çalıştığını takip etmek size kalır.
 
-miniterm bunu tersine çevirir: **workspace** tanımlarsınız — bir dizin, bir AI
-aracı, bir ızgara düzeni — gerisini uygulama kurar. Workspace'ler arasında geçiş
+miniterm bunu tersine çevirir: **workspace** tanımlarsınız — bir dizin, bir
+ızgara düzeni, terminal başına bir araç — gerisini uygulama kurar. Workspace'ler arasında geçiş
 yaptığınızda süreçler ölmez; arka planda çalışmaya devam eder ve geri
 döndüğünüzde çıktı olduğu yerden sürer.
 
@@ -35,9 +35,12 @@ döndüğünüzde çıktı olduğu yerden sürer.
 **Workspace'ler**
 - Sol tarafta ağaç görünümü; klasörlerle 5 seviyeye kadar gruplama, sürükle-bırak
   ile taşıma
-- Her workspace = bir dizin + bir AI aracı + 1–6 terminalden oluşan ızgara
-  (1×2, 2×2, 2×3 … düzenler)
-- Seçilen aracın komutu ızgaradaki her terminale açılışta yazılır
+- Her workspace = bir dizin + 1–6 terminalden oluşan ızgara (1×2, 2×2, 2×3 …
+  düzenler)
+- **Her terminal kendi AI aracını seçer** — iki Claude paneli, bir Gemini paneli
+  ve düz bir kabuk aynı ızgarada durabilir. Workspace'in aracı, kendi seçimi
+  olmayanların varsayılanıdır
+- Seçilen komut açılışta terminale yazılır, argüman olarak geçirilmez
 - Bölme çizgileri sürüklenerek yeniden boyutlandırılır; oran workspace ile
   birlikte saklanır
 - Kenar çubuğu daraltılabilir; daraldığında workspace'ler durum noktalı bir ikon
@@ -75,6 +78,27 @@ ve içinde token bulunmaz.
 
 ## Kurulum
 
+Kurulum dosyasını [son sürümden](https://github.com/kad1r/miniterm/releases/latest)
+indirip çalıştırın. Kayıtlı workspace'leriniz ve ayarlarınız yükseltmeden
+etkilenmez; yalnızca programı bilerek kaldırdığınızda silinirler.
+
+### "Windows protected your PC"
+
+Kurulumu ilk çalıştırdığınızda Windows mavi bir SmartScreen penceresi gösterir:
+
+> Windows Defender SmartScreen prevented an unrecognized app from starting.
+> **Publisher: Unknown publisher**
+
+**More info**, ardından **Run anyway** deyin.
+
+Bunun sebebi kurulum dosyasının **kod imzalı olmaması**. İmzalamak ticari bir
+sertifika otoritesinden alınan, her yıl yenilenen bir sertifika gerektiriyor;
+proje şu an bu masrafı taşımıyor. Yani uyarı beklenen bir durum, bir sorunun
+işareti değil. Bir ikiliye hiç güvenmek istemiyorsanız, her sürüm aşağıdaki
+adımlarla kaynaktan derlenebilir.
+
+### Kaynaktan derleme
+
 Gereksinimler: Node 20+, Rust stable, platformunuzun Tauri 2
 [önkoşulları](https://tauri.app/start/prerequisites/).
 
@@ -101,12 +125,17 @@ tıkla doldurulur; zorunlu tek alan dizindir.
 
 ![Tek ekranlık yeni workspace sihirbazı](docs/screenshots/new-workspace.png)
 
-**Oluştur**'a bastığınızda ızgara kurulur ve seçtiğiniz aracın komutu her
-terminale yazılır.
+Birden fazla terminal istediğinizde her terminal için bir satır çıkar, her biri
+kendi aracını seçer. Dokunmazsanız hepsi workspace'in aracını izler; birini
+değiştirirseniz yalnız o panel değişir. Sonradan "terminal ekle" dediğinizde de
+aynı seçim eklenen paneller için sunulur — çalışmakta olanlar açıldıkları araçla
+kalır.
+
+**Oluştur**'a bastığınızda ızgara kurulur, her terminal kendi komutuyla açılır.
 
 ## Ayarlar
 
-**AI araçları** — her workspace'in seçebileceği komutlar. Önizleme, komutun
+**AI araçları** — bir terminalin açılabileceği komutlar. Önizleme, komutun
 argüman olarak değil kabuğa yazılarak çalıştırıldığını gösterir.
 
 ![AI araçları sekmesi](docs/screenshots/settings-ai-tools.png)

@@ -1,4 +1,5 @@
 import { translate, type Locale } from "../i18n/messages"
+import { clearTool, toolsFor } from "./panes"
 import type { AiTool, Config, DirAlias, Node, ShellInfo, Workspace } from "./types"
 
 export const RECENT_LIMIT = 20
@@ -26,14 +27,21 @@ export function commandPreview(shell: ShellInfo | null, command: string, locale:
     : translate(locale, "preview.withCommand", { shell: shellPart, command: cmd })
 }
 
+/** How many workspaces deleting this tool would change. Counted per workspace,
+ *  not per pane: this feeds the "used in N workspaces" warning, and a workspace
+ *  running the tool in three of its four panes is still one workspace. */
 export function toolUsage(tree: Node[], toolId: string): number {
   return tree.reduce(
     (n, node) =>
       node.kind === "folder"
         ? n + toolUsage(node.children, toolId)
-        : n + (node.aiToolId === toolId ? 1 : 0),
+        : n + (usesTool(node, toolId) ? 1 : 0),
     0,
   )
+}
+
+function usesTool(ws: Workspace, toolId: string): boolean {
+  return ws.aiToolId === toolId || toolsFor(ws).includes(toolId)
 }
 
 export function upsertTool(config: Config, tool: AiTool): Config {
@@ -48,8 +56,16 @@ export function removeTool(config: Config, toolId: string): Config {
   return {
     ...config,
     aiTools: config.aiTools.filter((t) => t.id !== toolId),
+    // Both the workspace default and the per-pane overrides: a dangling id
+    // spawns a bare shell anyway, so it is cleared rather than left in config.
     tree: mapWorkspaces(config.tree, (ws) =>
-      ws.aiToolId === toolId ? { ...ws, aiToolId: null } : ws,
+      usesTool(ws, toolId)
+        ? {
+            ...ws,
+            aiToolId: ws.aiToolId === toolId ? null : ws.aiToolId,
+            paneTools: clearTool(toolsFor(ws), toolId),
+          }
+        : ws,
     ),
   }
 }

@@ -25,8 +25,8 @@ Running an AI CLI across several repos — or several branches of one repo — m
 a pile of hand-opened terminal tabs. Keeping track of which tab sits in which
 directory, and which one is still working, is left to you.
 
-miniterm turns that around: you define a **workspace** — a directory, an AI tool,
-a grid layout — and the app sets the rest up. Switching between workspaces does
+miniterm turns that around: you define a **workspace** — a directory, a grid
+layout, a tool per terminal — and the app sets the rest up. Switching between workspaces does
 not kill processes; they keep running in the background and the output picks up
 where it left off when you come back.
 
@@ -35,9 +35,13 @@ where it left off when you come back.
 **Workspaces**
 - Tree view on the left; group with folders up to 5 levels deep, move by
   drag and drop
-- Each workspace = one directory + one AI tool + a grid of 1–6 terminals
-  (1×2, 2×2, 2×3 … layouts)
-- The selected tool's command is typed into every terminal in the grid on start
+- Each workspace = one directory + a grid of 1–6 terminals (1×2, 2×2, 2×3 …
+  layouts)
+- **Each terminal picks its own AI tool** — two Claude panes, a Gemini pane and
+  a plain shell can share one grid. The workspace tool is the default the rest
+  fall back to
+- The chosen command is typed into the terminal on start, never passed as an
+  argument
 - Split lines resize by dragging; the ratio is stored with the workspace
 - The sidebar collapses; when collapsed, workspaces shrink to an icon rail with
   status dots
@@ -74,6 +78,27 @@ no tokens.
 
 ## Install
 
+Grab the installer from the [latest release](https://github.com/kad1r/miniterm/releases/latest)
+and run it. Your saved workspaces and settings survive an upgrade; only a
+deliberate uninstall removes them.
+
+### "Windows protected your PC"
+
+Windows shows a blue SmartScreen dialog the first time you run the installer:
+
+> Windows Defender SmartScreen prevented an unrecognized app from starting.
+> **Publisher: Unknown publisher**
+
+Click **More info**, then **Run anyway**.
+
+This appears because the installer is **not code-signed**. Signing requires a
+certificate from a commercial authority — a recurring cost that this project
+does not carry today, so the warning is expected rather than a sign that
+anything is wrong. If you would rather not trust a binary at all, every release
+builds from source with the steps below.
+
+### Building from source
+
 Requirements: Node 20+, Rust stable, and the Tauri 2
 [prerequisites](https://tauri.app/start/prerequisites/) for your platform.
 
@@ -100,12 +125,16 @@ recent ones fill in with one click; the only required field is the directory.
 
 ![The single-screen new workspace wizard](docs/screenshots/new-workspace.png)
 
-Hit **Create** and the grid is built with your chosen tool's command typed into
-every terminal.
+Ask for more than one terminal and a row per terminal appears, each with its own
+tool. Leave them alone and they all follow the workspace tool; change one and
+only that pane changes. "Add a terminal" later offers the same choice for the
+panes being added — the ones already running keep what they were started with.
+
+Hit **Create** and the grid is built, each terminal opening with its own command.
 
 ## Settings
 
-**AI tools** — the commands each workspace can pick from. The preview shows that
+**AI tools** — the commands a terminal can be opened with. The preview shows that
 the command is typed into the shell rather than passed as an argument.
 
 ![The AI tools tab](docs/screenshots/settings-ai-tools.png)

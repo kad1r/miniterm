@@ -4,10 +4,12 @@ import type { Config, Node, ShellInfo, Workspace } from "./types"
 
 const pwsh: ShellInfo = { id: "pwsh", name: "PowerShell 7", program: "pwsh.exe", args: ["-NoLogo"] }
 
-function ws(id: string, aiToolId: string | null): Workspace {
+function ws(id: string, aiToolId: string | null, paneTools: (string | null)[] = []): Workspace {
   return {
     id, kind: "workspace", name: id, path: "/x", aiToolId, shellId: null,
-    rows: 1, cols: 1, rowSizes: [1], colSizes: [1],
+    rows: 1, cols: paneTools.length || 1,
+    rowSizes: [1], colSizes: Array(paneTools.length || 1).fill(1),
+    paneTools,
   }
 }
 
@@ -55,6 +57,18 @@ describe("toolUsage", () => {
     expect(toolUsage(tree, "t1")).toBe(2)
     expect(toolUsage(tree, "t9")).toBe(0)
   })
+
+  it("counts a workspace that only uses the tool in one of its panes", () => {
+    expect(toolUsage([ws("a", null, [null, "t1"])], "t1")).toBe(1)
+  })
+
+  it("counts a workspace once however many panes use the tool", () => {
+    expect(toolUsage([ws("a", "t1", ["t1", "t1", "t1"])], "t1")).toBe(1)
+  })
+
+  it("ignores a workspace whose panes have all overridden the tool", () => {
+    expect(toolUsage([ws("a", "t2", ["t9", "t9"])], "t1")).toBe(0)
+  })
 })
 
 describe("removeTool", () => {
@@ -64,6 +78,18 @@ describe("removeTool", () => {
     expect(after.aiTools).toEqual([])
     expect((after.tree[0] as Workspace).aiToolId).toBeNull()
     expect((after.tree[1] as Workspace).aiToolId).toBeNull()
+  })
+
+  it("clears the tool from the panes that named it, leaving the rest", () => {
+    const after = removeTool(config([ws("a", null, ["t1", "t2", "t1"])]), "t1")
+    expect((after.tree[0] as Workspace).paneTools).toEqual([null, "t2", null])
+  })
+
+  it("clears panes that inherited the tool from the workspace", () => {
+    const after = removeTool(config([ws("a", "t1", [])]), "t1")
+    const w = after.tree[0] as Workspace
+    expect(w.aiToolId).toBeNull()
+    expect(w.paneTools).toEqual([null])
   })
 
   it("does not mutate the original config", () => {

@@ -2,7 +2,7 @@
   import { untrack } from "svelte"
   import { app, commit, notify } from "../store/app.svelte"
   import { updateWorkspace } from "../store/tree"
-  import { activate } from "../store/sessions.svelte"
+  import { activate, sessions } from "../store/sessions.svelte"
   import { addableCounts, defaultLayoutFor, relayout, terminalCount } from "../store/relayout"
   import { MAX_TERMINALS, type GridLayout } from "../store/layout"
   import type { Workspace } from "../store/types"
@@ -19,10 +19,13 @@
   } = $props()
 
   const current = $derived(terminalCount(workspace))
-  const counts = $derived(addableCounts(workspace))
+  // Minimized terminals are still running, so they hold a place in the budget —
+  // otherwise the grid could fill up and leave them nowhere to come back to.
+  const parked = $derived(sessions.byWorkspace[workspace.id]?.minimized.length ?? 0)
+  const counts = $derived(addableCounts(workspace, parked))
   // A full workspace can still be reshaped (6 terminals is 1×6, 2×3, 3×2 or 6×1),
   // so the limit only closes the door on the mode that wanted to add one.
-  const atLimit = $derived(mode === "add" && current >= MAX_TERMINALS)
+  const atLimit = $derived(mode === "add" && current + parked >= MAX_TERMINALS)
 
   // untrack because these two are the user's working copy: once the dialog is up,
   // a change to the workspace must not yank the selection out from under them.

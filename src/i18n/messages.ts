@@ -110,6 +110,15 @@ const EN = {
 
   "grid.closePane": "Close terminal {n} (Ctrl+Shift+W)",
   "grid.paneClosed": "Terminal closed",
+  "grid.minimizePane": "Minimize terminal {n} (Ctrl+Shift+M)",
+  "grid.maximizePane": "Maximize terminal {n} (Ctrl+Shift+Z)",
+  "grid.unmaximizePane": "Back to the grid (Ctrl+Shift+Z)",
+  "grid.paneMinimized": "Terminal minimized",
+  "grid.paneRestored": "Terminal restored",
+  "grid.minimizedStrip": "Minimized terminals",
+  "grid.restorePane": "Reopen minimized terminal {n}",
+  "grid.minimizedPane": "Terminal {n}",
+  "grid.gridFull": "The grid is full ({max} terminals) — close one first",
 
   "sessions.spawnFailed": "Could not open terminal ({path}): {error}",
   "sessions.noShell": "No usable shell found",
@@ -218,6 +227,15 @@ const TR: Record<keyof typeof EN, string> = {
 
   "grid.closePane": "{n}. terminali kapat (Ctrl+Shift+W)",
   "grid.paneClosed": "Terminal kapatıldı",
+  "grid.minimizePane": "{n}. terminali küçült (Ctrl+Shift+M)",
+  "grid.maximizePane": "{n}. terminali tam ekran yap (Ctrl+Shift+Z)",
+  "grid.unmaximizePane": "Izgaraya dön (Ctrl+Shift+Z)",
+  "grid.paneMinimized": "Terminal küçültüldü",
+  "grid.paneRestored": "Terminal geri getirildi",
+  "grid.minimizedStrip": "Küçültülmüş terminaller",
+  "grid.restorePane": "{n}. küçültülmüş terminali geri aç",
+  "grid.minimizedPane": "Terminal {n}",
+  "grid.gridFull": "Izgara dolu ({max} terminal) — önce birini kapat",
 
   "sessions.spawnFailed": "Terminal açılamadı ({path}): {error}",
   "sessions.noShell": "Kullanılabilir shell bulunamadı",

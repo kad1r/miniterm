@@ -3,20 +3,29 @@
   import type { Workspace } from "../store/types"
   import { cells, dividerCount, templateWithDividers } from "../store/grid"
   import { MIN_CELL_PX, resizeFractions } from "../store/layout"
-  import { isClosePaneChord } from "../term/pane"
+  import { isClosePaneChord, isMaximizePaneChord, isMinimizePaneChord } from "../term/pane"
+  import type { MinimizedPane } from "../store/sessions.svelte"
   import { t } from "../i18n/locale.svelte"
   import TerminalPane from "./TerminalPane.svelte"
 
-  let { workspace, active, sessionIds, exitCodes, focusedIndex, onrestart, onsizes, onclose, onfocuspane }: {
+  let {
+    workspace, active, sessionIds, exitCodes, focusedIndex, minimized, maximized,
+    onrestart, onsizes, onclose, onfocuspane, onminimize, onmaximize, onrestore,
+  }: {
     workspace: Workspace
     active: boolean
     sessionIds: (number | null)[]
     exitCodes: (number | null | undefined)[]
     focusedIndex: number
+    minimized: MinimizedPane[]
+    maximized: number | null
     onrestart: (index: number) => void
     onsizes: (patch: { rowSizes?: number[]; colSizes?: number[] }) => void
     onclose: (index: number) => void
     onfocuspane: (index: number) => void
+    onminimize: (index: number) => void
+    onmaximize: (index: number) => void
+    onrestore: (stripIndex: number) => void
   } = $props()
 
   let container: HTMLDivElement
@@ -29,14 +38,15 @@
   const rowSizes = $derived(liveRows ?? workspace.rowSizes)
   const colSizes = $derived(liveCols ?? workspace.colSizes)
   const grid = $derived(cells(workspace.rows, workspace.cols))
-  // The last terminal has no close button: an empty workspace would render as a
-  // blank pane with no way back, and removing the workspace is a sidebar action.
+  // The last terminal keeps no pane controls: an empty workspace would render as
+  // a blank pane with no way back, removing the workspace is a sidebar action,
+  // and there is nothing to maximize a lone pane over.
   const closable = $derived(grid.length > 1)
 
-  /** Ctrl+Shift+W, caught as it bubbles out of the focused pane. TerminalPane
-   *  hands the chord back untouched, so `e.target` is still xterm's textarea and
-   *  the enclosing `.cell` names the pane to close. Bound imperatively in onMount:
-   *  this is a delegated shortcut, and the grid is not an interactive element. */
+  /** Ctrl+Shift+W/Z/M, caught as they bubble out of the focused pane. TerminalPane
+   *  hands the chords back untouched, so `e.target` is still xterm's textarea and
+   *  the enclosing `.cell` names the pane to act on. Bound imperatively in onMount:
+   *  these are delegated shortcuts, and the grid is not an interactive element. */
   function cellIndexOf(target: EventTarget | null): number | null {
     const cell = (target as HTMLElement | null)?.closest<HTMLElement>(".cell")
     if (!cell) return null
@@ -45,11 +55,19 @@
   }
 
   function onGridKeydown(e: KeyboardEvent) {
-    if (!closable || !isClosePaneChord(e)) return
+    if (!closable) return
+    const action = isClosePaneChord(e)
+      ? onclose
+      : isMinimizePaneChord(e)
+        ? onminimize
+        : isMaximizePaneChord(e)
+          ? onmaximize
+          : null
+    if (!action) return
     const index = cellIndexOf(e.target)
     if (index === null) return
     e.preventDefault()
-    onclose(index)
+    action(index)
   }
 
   /** Whichever pane the user last put the caret in is the one this workspace
@@ -186,6 +204,27 @@
     })
   })
 
+  // Maximizing lifts one cell out of the grid flow to cover it, so exactly two
+  // panes can have changed size: the one going up and the one coming back down.
+  // The other panes keep their tracks untouched — no fit, no resize IPC for them.
+  let lastMaximized: number | null = null
+  $effect(() => {
+    const now = maximized
+    if (now === lastMaximized) return
+    const before = lastMaximized
+    lastMaximized = now
+    void tick().then(() => {
+      for (const index of new Set([before, now])) {
+        if (index === null) continue
+        panes[index]?.fit()
+        panes[index]?.syncSize()
+      }
+      // The button that was clicked holds the keyboard, so hand it to the terminal
+      // the user is now looking at.
+      panes[now ?? before ?? 0]?.focus()
+    })
+  })
+
   // Pencere yeniden boyutlanınca 100 ms sonra bir kez eşitle.
   let resizeTimer: ReturnType<typeof setTimeout> | undefined
   function onWindowResize() {
@@ -225,6 +264,7 @@
 
 <svelte:window onresize={onWindowResize} />
 
+<div class="workspace">
 <div
   class="grid"
   bind:this={container}
@@ -234,6 +274,8 @@
   {#each grid as cell (cell.index)}
     <div
       class="cell"
+      class:max={maximized === cell.index}
+      class:covered={maximized !== null && maximized !== cell.index}
       data-index={cell.index}
       style="grid-column:{cell.col * 2 + 1}; grid-row:{cell.row * 2 + 1}"
     >
@@ -244,17 +286,52 @@
         onrestart={() => onrestart(cell.index)}
       />
       {#if closable}
-        <button
-          class="close"
-          type="button"
-          title={t("grid.closePane", { n: cell.index + 1 })}
-          aria-label={t("grid.closePane", { n: cell.index + 1 })}
-          onclick={() => onclose(cell.index)}
-        >
-          <svg viewBox="0 0 12 12" aria-hidden="true">
-            <path d="M3 3l6 6M9 3l-6 6" />
-          </svg>
-        </button>
+        <div class="controls">
+          <button
+            class="pane-btn"
+            type="button"
+            title={t("grid.minimizePane", { n: cell.index + 1 })}
+            aria-label={t("grid.minimizePane", { n: cell.index + 1 })}
+            onclick={() => onminimize(cell.index)}
+          >
+            <svg viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M3 8h6" />
+            </svg>
+          </button>
+          <button
+            class="pane-btn"
+            type="button"
+            title={maximized === cell.index
+              ? t("grid.unmaximizePane")
+              : t("grid.maximizePane", { n: cell.index + 1 })}
+            aria-label={maximized === cell.index
+              ? t("grid.unmaximizePane")
+              : t("grid.maximizePane", { n: cell.index + 1 })}
+            aria-pressed={maximized === cell.index}
+            onclick={() => onmaximize(cell.index)}
+          >
+            {#if maximized === cell.index}
+              <svg viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M5 5h4v4H5zM3 7V3h4" />
+              </svg>
+            {:else}
+              <svg viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M3 3h6v6H3z" />
+              </svg>
+            {/if}
+          </button>
+          <button
+            class="pane-btn danger"
+            type="button"
+            title={t("grid.closePane", { n: cell.index + 1 })}
+            aria-label={t("grid.closePane", { n: cell.index + 1 })}
+            onclick={() => onclose(cell.index)}
+          >
+            <svg viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M3 3l6 6M9 3l-6 6" />
+            </svg>
+          </button>
+        </div>
       {/if}
     </div>
   {/each}
@@ -300,11 +377,43 @@
   {/each}
 </div>
 
+{#if minimized.length > 0}
+  <div class="dock" role="group" aria-label={t("grid.minimizedStrip")}>
+    {#each minimized as item, i (i)}
+      <button
+        class="chip"
+        type="button"
+        title={t("grid.restorePane", { n: i + 1 })}
+        aria-label={t("grid.restorePane", { n: i + 1 })}
+        onclick={() => onrestore(i)}
+      >
+        <span class="dot" class:dead={item.exit !== undefined}></span>
+        <span>{t("grid.minimizedPane", { n: i + 1 })}</span>
+        <svg viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M3 7l3-3 3 3" />
+        </svg>
+      </button>
+    {/each}
+  </div>
+{/if}
+</div>
+
 <style>
-  .grid {
-    display: grid;
+  .workspace {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100%;
+    min-height: 0;
+    gap: 6px;
+  }
+  .grid {
+    /* Positioned so a maximized cell can take `inset: 0` against the grid area
+       rather than the window. */
+    position: relative;
+    display: grid;
+    flex: 1;
+    min-height: 0;
     background: var(--bg);
   }
   .cell {
@@ -315,13 +424,46 @@
     border: 1px solid var(--border);
     border-radius: 4px;
   }
+  /* Maximize deliberately does not touch the grid tracks: the other panes keep
+     their size underneath, so coming back costs no reflow and no resize IPC. */
+  .cell.max {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+  }
+  .cell.covered {
+    /* The maximized pane covers these anyway; blocking the pointer stops a click
+       that lands on a sliver of border from stealing focus. */
+    pointer-events: none;
+  }
   /* Kept out of the way until the pane is pointed at or focused, so six grids
      worth of buttons do not compete with the text. */
-  .close {
+  .controls {
     position: absolute;
     top: 4px;
     right: 4px;
-    z-index: 1;
+    /* Above xterm's scrollbar, which takes z-index 11 the moment it becomes
+       visible (xterm.css, .xterm-scrollable-element > .visible). At z-index 1
+       the buttons sat under the scrollbar, which ate every click in a pane with
+       scrollback. */
+    z-index: 20;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--bg-raised) 88%, transparent);
+    opacity: 0;
+    /* Invisible must also mean intangible: a hidden 60 px bar over the top-right
+       corner of the text would swallow clicks meant for the terminal. `.cell:hover`
+       is already true by the time the pointer can reach a button. */
+    pointer-events: none;
+  }
+  .cell:hover .controls,
+  .cell:focus-within .controls {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .pane-btn {
     display: grid;
     place-items: center;
     width: 18px;
@@ -329,29 +471,69 @@
     padding: 0;
     border: 0;
     border-radius: 4px;
-    background: color-mix(in srgb, var(--bg-raised) 85%, transparent);
+    background: none;
     color: var(--text-dim);
-    opacity: 0;
     cursor: pointer;
   }
-  .cell:hover .close,
-  .cell:focus-within .close,
-  .close:focus-visible {
-    opacity: 1;
-  }
-  .close:hover,
-  .close:focus-visible {
-    background: var(--err);
-    color: #fff;
+  .pane-btn:hover,
+  .pane-btn:focus-visible {
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+    color: var(--text);
     outline: none;
   }
-  .close svg {
+  .pane-btn.danger:hover,
+  .pane-btn.danger:focus-visible {
+    background: var(--err);
+    color: #fff;
+  }
+  .pane-btn[aria-pressed="true"] {
+    color: var(--claude);
+  }
+  .pane-btn svg,
+  .chip svg {
     width: 12px;
     height: 12px;
     stroke: currentColor;
     stroke-width: 1.6;
     stroke-linecap: round;
+    stroke-linejoin: round;
     fill: none;
+  }
+  /* The strip minimized terminals wait in. Sized by its content so an empty
+     strip costs no vertical space at all. */
+  .dock {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-raised);
+    color: var(--text-dim);
+    font: inherit;
+    font-size: calc(12px * var(--font-scale, 1));
+    cursor: pointer;
+  }
+  .chip:hover,
+  .chip:focus-visible {
+    border-color: var(--claude);
+    color: var(--text);
+    outline: none;
+  }
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+  .dot.dead {
+    background: var(--err);
   }
   /* Which terminal takes the keystrokes. :focus-within needs no state of its
      own — xterm's textarea lives inside the cell, so the browser's own notion

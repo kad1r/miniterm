@@ -3,8 +3,10 @@
   import { app, bootstrap, commit, dismissToast, notify } from "./store/app.svelte"
   import { findNode, updateWorkspace } from "./store/tree"
   import {
-    activate, closePane, listenExits, rememberFocus, restart, sessions,
+    activate, closePane, listenExits, minimizePane, rememberFocus, restart, restorePane,
+    sessions, toggleMaximize,
   } from "./store/sessions.svelte"
+  import { MAX_TERMINALS } from "./store/layout"
   import { fontAction } from "./store/font"
   import { applyFontAction, initFontScale } from "./store/font.svelte"
   import { initLocale, t } from "./i18n/locale.svelte"
@@ -95,11 +97,22 @@
                 sessionIds={active ? (slot?.ids ?? []) : []}
                 exitCodes={active ? (slot?.exits ?? []) : []}
                 focusedIndex={slot?.focused ?? 0}
+                minimized={slot?.minimized ?? []}
+                maximized={slot?.maximized ?? null}
                 onrestart={(i) => void restart(wsId, i)}
                 onfocuspane={(i) => rememberFocus(wsId, i)}
                 onclose={(i) => {
                   void closePane(wsId, i)
                   notify(t("grid.paneClosed"))
+                }}
+                onminimize={(i) => {
+                  minimizePane(wsId, i)
+                  notify(t("grid.paneMinimized"))
+                }}
+                onmaximize={(i) => toggleMaximize(wsId, i)}
+                onrestore={(i) => {
+                  if (restorePane(wsId, i)) notify(t("grid.paneRestored"))
+                  else notify(t("grid.gridFull", { max: MAX_TERMINALS }), "error")
                 }}
                 onsizes={(patch) =>
                   commit((c) => ({ ...c, tree: updateWorkspace(c.tree, wsId, patch) }))}

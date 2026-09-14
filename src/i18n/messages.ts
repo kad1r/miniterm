@@ -129,6 +129,15 @@ const EN = {
 
   "term.exitUnknown": "unknown",
   "term.exitNotice": "[process exited: {code}] — press Enter to restart",
+
+  "settings.tab.about": "About",
+  "settings.about.tagline": "A multi-workspace terminal for running AI CLI sessions side by side.",
+  "settings.about.version": "Version",
+  "settings.about.released": "released {date}",
+  "settings.about.unknownVersion": "could not be read",
+  "settings.about.notes": "What's in this version",
+  "settings.about.noNotes": "This build ships no release notes for {version}.",
+  "settings.about.source": "Project page",
 } as const
 
 const TR: Record<keyof typeof EN, string> = {
@@ -246,6 +255,15 @@ const TR: Record<keyof typeof EN, string> = {
 
   "term.exitUnknown": "bilinmiyor",
   "term.exitNotice": "[process exited: {code}] — yeniden başlatmak için Enter",
+
+  "settings.tab.about": "Hakkında",
+  "settings.about.tagline": "AI CLI oturumlarını yan yana çalıştırmak için çok çalışma alanlı terminal.",
+  "settings.about.version": "Sürüm",
+  "settings.about.released": "{date} tarihinde yayınlandı",
+  "settings.about.unknownVersion": "okunamadı",
+  "settings.about.notes": "Bu sürümde neler var",
+  "settings.about.noNotes": "Bu yapı {version} için sürüm notu içermiyor.",
+  "settings.about.source": "Proje sayfası",
 }
 
 export type MessageKey = keyof typeof EN

@@ -1,0 +1,66 @@
+# Changelog
+
+Every released version of miniterm, newest first.
+
+This file ships inside the app: the **About** tab in Settings shows the entry whose
+version matches the running build, so it is also what `gh release create --notes-file`
+should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
+`- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
+
+## 0.4.0 — 2026-09-11
+
+### Change a workspace's grid layout
+
+Right-click a workspace in the sidebar and pick **Change layout**. A 2×2 can become a
+1×4 without deleting anything — every shell keeps running, scrollback and all, and the
+panes just re-arrange.
+
+- The layout picker is no longer decoration: **Apply** follows whether anything changed
+  at all, count or shape.
+- A workspace at the six-terminal limit can still be reshaped — 1×6, 2×3, 3×2 and 6×1
+  are all on offer.
+- **Add terminal** is unchanged; it still opens on one more than today.
+
+## 0.3.0 — 2026-09-11
+
+### Close a terminal
+
+Every pane now has a close button in its corner, and **Ctrl+Shift+W** does the same
+thing from the keyboard — the chord Windows Terminal uses.
+
+The grid closes ranks behind the pane that left. The layout keeps the orientation it
+had, so a column of three becomes a column of two rather than flipping on its side. The
+last terminal has no close button: an empty workspace would have nothing to show, and
+removing the workspace is still the sidebar's job.
+
+### Focus comes back where you left it
+
+Each workspace remembers the pane that last held the keyboard and hands it back when you
+return to it. Close the focused pane and the caret stays in that cell, which is now the
+pane that took its place.
+
+The first terminal is also focused on startup, so there is no longer a click needed
+before typing.
+
+### Fixes
+
+- Switching workspaces no longer sprays `[?9001h` into whatever is running in the pane.
+  ConPTY's win32-input-mode was being re-sent on every attach; it is now enabled once,
+  when the session is created.
+- Panes that survive a relayout now resize their shell as well as their own view.
+  Previously only the panes whose session changed were told about the new geometry, so
+  `clear` and full-screen programs could render at the old grid's size.
+
+## 0.2.0 — 2026-09-11
+
+First tagged build of miniterm — a multi-workspace terminal for running AI CLI sessions
+side by side on Windows.
+
+- **Add terminals to an existing workspace.** Right-click a workspace in the sidebar and
+  pick **Add terminal** to walk the same layout picker the wizard uses, up to six panes.
+- **Ctrl+Enter reaches the shell.** Modified chords are now sent to ConPTY as real key
+  events, so PSReadLine inserts a continuation line instead of submitting the command.
+- **Upgrades keep your settings.** Installing a newer version no longer offers to delete
+  saved workspaces and directory shortcuts; that only happens on a deliberate uninstall.
+- **Information toasts dismiss themselves** after three seconds. Errors still wait for you.
+- Roomier sidebar rows.

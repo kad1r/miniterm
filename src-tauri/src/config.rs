@@ -170,7 +170,7 @@ const MAX_DEPTH: usize = 5;
 
 /// Clamp a parsed config to the project's global constraints.
 /// Returns `(clamped_config, was_changed)`.
-fn clamp_config(mut config: Config) -> (Config, bool) {
+pub fn clamp_config(mut config: Config) -> (Config, bool) {
     let mut changed = false;
     config.tree = clamp_nodes(config.tree, 0, &mut changed);
     (config, changed)

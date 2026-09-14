@@ -78,6 +78,27 @@ no tokens.
 
 ## Install
 
+Grab the installer from the [latest release](https://github.com/kad1r/miniterm/releases/latest)
+and run it. Your saved workspaces and settings survive an upgrade; only a
+deliberate uninstall removes them.
+
+### "Windows protected your PC"
+
+Windows shows a blue SmartScreen dialog the first time you run the installer:
+
+> Windows Defender SmartScreen prevented an unrecognized app from starting.
+> **Publisher: Unknown publisher**
+
+Click **More info**, then **Run anyway**.
+
+This appears because the installer is **not code-signed**. Signing requires a
+certificate from a commercial authority — a recurring cost that this project
+does not carry today, so the warning is expected rather than a sign that
+anything is wrong. If you would rather not trust a binary at all, every release
+builds from source with the steps below.
+
+### Building from source
+
 Requirements: Node 20+, Rust stable, and the Tauri 2
 [prerequisites](https://tauri.app/start/prerequisites/) for your platform.
 

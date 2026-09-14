@@ -78,6 +78,27 @@ ve içinde token bulunmaz.
 
 ## Kurulum
 
+Kurulum dosyasını [son sürümden](https://github.com/kad1r/miniterm/releases/latest)
+indirip çalıştırın. Kayıtlı workspace'leriniz ve ayarlarınız yükseltmeden
+etkilenmez; yalnızca programı bilerek kaldırdığınızda silinirler.
+
+### "Windows protected your PC"
+
+Kurulumu ilk çalıştırdığınızda Windows mavi bir SmartScreen penceresi gösterir:
+
+> Windows Defender SmartScreen prevented an unrecognized app from starting.
+> **Publisher: Unknown publisher**
+
+**More info**, ardından **Run anyway** deyin.
+
+Bunun sebebi kurulum dosyasının **kod imzalı olmaması**. İmzalamak ticari bir
+sertifika otoritesinden alınan, her yıl yenilenen bir sertifika gerektiriyor;
+proje şu an bu masrafı taşımıyor. Yani uyarı beklenen bir durum, bir sorunun
+işareti değil. Bir ikiliye hiç güvenmek istemiyorsanız, her sürüm aşağıdaki
+adımlarla kaynaktan derlenebilir.
+
+### Kaynaktan derleme
+
 Gereksinimler: Node 20+, Rust stable, platformunuzun Tauri 2
 [önkoşulları](https://tauri.app/start/prerequisites/).
 

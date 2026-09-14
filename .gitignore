@@ -11,9 +11,10 @@ src-tauri/gen/
 .cargo/config.toml
 src-tauri/.cargo/config.toml
 
-# Superpowers working state
+# Agent working state (machine-local settings, not shared config)
 .superpowers/
 .omc/
+.claude/
 
 # OS
 .DS_Store

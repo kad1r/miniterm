@@ -5,8 +5,10 @@
   import { layoutsFor, type GridLayout } from "../store/layout"
   import { pushRecent } from "../store/settings"
   import { emptyDraft, toWorkspace, basename, type Draft } from "../store/wizard"
+  import { normalizeTools } from "../store/panes"
   import AiLogo from "./AiLogo.svelte"
   import LayoutPicker from "./LayoutPicker.svelte"
+  import PaneToolPicker from "./PaneToolPicker.svelte"
   import { t } from "../i18n/locale.svelte"
 
   let { onclose }: { onclose: () => void } = $props()
@@ -35,6 +37,11 @@
     if (picked) choosePath(picked)
   }
 
+  const cells = $derived(draft.layout.rows * draft.layout.cols)
+  // The per-pane list is kept sparse in the draft and padded for display, so
+  // adding a terminal or switching the workspace tool needs no bookkeeping here.
+  const paneTools = $derived(normalizeTools(draft.paneTools, cells, draft.aiToolId))
+
   function setCount(n: number) {
     draft.count = n
     draft.layout = layoutsFor(n)[0]
@@ -42,6 +49,18 @@
 
   function pickLayout(l: GridLayout) {
     draft.layout = l
+  }
+
+  /** Picking the workspace tool clears the per-pane choices. It is the coarse
+   *  control: reaching for it means "all of them", and leaving overrides in
+   *  place would make it look like it had done nothing. */
+  function pickTool(id: string | null) {
+    draft.aiToolId = id
+    draft.paneTools = []
+  }
+
+  function pickPane(index: number, id: string | null) {
+    draft.paneTools = paneTools.map((cur, i) => (i === index ? id : cur))
   }
 
   function finish() {
@@ -123,7 +142,7 @@
           <button
             class="option"
             class:on={draft.aiToolId === null}
-            onclick={() => (draft.aiToolId = null)}
+            onclick={() => pickTool(null)}
           >
             <span class="shell-mark" aria-hidden="true">›_</span>
             <span class="opt-text">
@@ -135,7 +154,7 @@
             <button
               class="option"
               class:on={draft.aiToolId === tool.id}
-              onclick={() => (draft.aiToolId = tool.id)}
+              onclick={() => pickTool(tool.id)}
             >
               <AiLogo command={tool.command} name={tool.name} />
               <span class="opt-text">
@@ -158,6 +177,14 @@
           onlayout={pickLayout}
         />
       </section>
+
+      {#if cells > 1}
+        <section>
+          <p class="q">{t("panes.title")}</p>
+          <PaneToolPicker tools={paneTools} onpick={pickPane} />
+          <p class="note">{t("panes.hint")}</p>
+        </section>
+      {/if}
       </div>
     </div>
 

@@ -30,6 +30,7 @@ function workspace(id: string, rows = 1, cols = 1): Workspace {
     cols,
     rowSizes: Array(rows).fill(1 / rows),
     colSizes: Array(cols).fill(1 / cols),
+    paneTools: [],
   };
 }
 

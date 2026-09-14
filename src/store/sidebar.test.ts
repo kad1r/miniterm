@@ -12,7 +12,7 @@ import type { Folder, Node, Workspace } from "./types"
 function ws(id: string, name: string, rows = 1, cols = 1): Workspace {
   return {
     id, kind: "workspace", name, path: `C:/${id}`, aiToolId: null, shellId: null,
-    rows, cols, rowSizes: [1], colSizes: [1],
+    rows, cols, rowSizes: [1], colSizes: [1], paneTools: [],
   }
 }
 function folder(id: string, expanded: boolean, children: Node[]): Folder {

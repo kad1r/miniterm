@@ -43,6 +43,13 @@ pub enum Node {
         cols: u8,
         row_sizes: Vec<f64>,
         col_sizes: Vec<f64>,
+        /// Per-cell AI tool. Defaulted rather than required, and deliberately
+        /// not a reason to raise CONFIG_VERSION: a version the loader does not
+        /// know is treated as corrupt, which would set aside every existing
+        /// user's workspaces. An older config simply arrives with an empty
+        /// list, and the frontend fills it from `ai_tool_id`.
+        #[serde(default)]
+        pane_tools: Vec<Option<String>>,
     },
 }
 
@@ -204,6 +211,7 @@ fn clamp_nodes(nodes: Vec<Node>, depth: usize, changed: &mut bool) -> Vec<Node> 
                 mut cols,
                 mut row_sizes,
                 mut col_sizes,
+                pane_tools,
             } => {
                 // Clamp each dimension to [1, MAX_DIM].
                 let rows_orig = rows;
@@ -247,6 +255,11 @@ fn clamp_nodes(nodes: Vec<Node>, depth: usize, changed: &mut bool) -> Vec<Node> 
                     cols,
                     row_sizes,
                     col_sizes,
+                    // Left exactly as found: a mismatched length is normal
+                    // (an older config has none) and the frontend resolves it
+                    // per read. Touching it here would set `changed`, which
+                    // means a `.bak` and a "recovered" warning for everyone.
+                    pane_tools,
                 }
             }
         })
@@ -314,6 +327,7 @@ mod tests {
             cols: 2,
             row_sizes: vec![0.5, 0.5],
             col_sizes: vec![0.5, 0.5],
+            pane_tools: vec![Some("t1".into()), None, Some("t2".into()), None],
         });
         save(&d, &c).unwrap();
 
@@ -322,6 +336,50 @@ mod tests {
         assert_eq!(r.config.default_shell_id, "bash");
         assert_eq!(r.config.recent_dirs, vec!["/tmp/x".to_string()]);
         assert_eq!(r.config.tree.len(), 1);
+        match &r.config.tree[0] {
+            Node::Workspace { pane_tools, .. } => {
+                assert_eq!(
+                    pane_tools,
+                    &vec![Some("t1".to_string()), None, Some("t2".to_string()), None]
+                );
+            }
+            _ => panic!("expected a workspace"),
+        }
+    }
+
+    /// A config written before `paneTools` existed must still load as `Loaded`,
+    /// not `Recovered` — the field is defaulted, and its emptiness is the
+    /// frontend's problem, not a reason to quarantine the file.
+    #[test]
+    fn loads_a_workspace_saved_without_pane_tools() {
+        let d = tmp("no-pane-tools");
+        let raw = r#"{
+            "version": 1,
+            "aiTools": [],
+            "directories": [],
+            "recentDirs": [],
+            "defaultShellId": "bash",
+            "tree": [{
+                "kind": "workspace",
+                "id": "w1",
+                "name": "api",
+                "path": "/tmp/x",
+                "aiToolId": "t1",
+                "shellId": null,
+                "rows": 1,
+                "cols": 1,
+                "rowSizes": [1.0],
+                "colSizes": [1.0]
+            }]
+        }"#;
+        fs::write(d.join(FILE_NAME), raw).unwrap();
+
+        let r = load(&d, "ignored".into());
+        assert!(matches!(r.status, LoadStatus::Loaded));
+        match &r.config.tree[0] {
+            Node::Workspace { pane_tools, .. } => assert!(pane_tools.is_empty()),
+            _ => panic!("expected a workspace"),
+        }
     }
 
     #[test]
@@ -375,6 +433,7 @@ mod tests {
             cols,
             row_sizes,
             col_sizes,
+            pane_tools: Vec::new(),
         }
     }
 
@@ -448,6 +507,7 @@ mod tests {
                     cols: 1,
                     row_sizes: vec![1.0],
                     col_sizes: vec![1.0],
+                    pane_tools: Vec::new(),
                 }]
             } else {
                 vec![Node::Folder {

@@ -35,7 +35,7 @@ describe("toWorkspace", () => {
   it("builds a workspace node with equal track sizes", () => {
     const ws = toWorkspace({
       path: "/x/api", name: "api", aiToolId: "t1", shellId: null,
-      count: 6, layout: { rows: 2, cols: 3 },
+      count: 6, layout: { rows: 2, cols: 3 }, paneTools: [],
     })
     expect(ws.kind).toBe("workspace")
     expect(ws.name).toBe("api")
@@ -48,6 +48,22 @@ describe("toWorkspace", () => {
     expect(ws.colSizes.length).toBe(3)
     expect(ws.colSizes.reduce((a, b) => a + b, 0)).toBeCloseTo(1)
     expect(ws.id).toMatch(/[0-9a-f-]{36}/)
+  })
+
+  it("gives every cell a tool, defaulting to the workspace one", () => {
+    const ws = toWorkspace({
+      ...emptyDraft(), path: "/x/api", aiToolId: "t1",
+      count: 4, layout: { rows: 2, cols: 2 },
+    })
+    expect(ws.paneTools).toEqual(["t1", "t1", "t1", "t1"])
+  })
+
+  it("keeps the per-pane choices the draft made", () => {
+    const ws = toWorkspace({
+      ...emptyDraft(), path: "/x/api", aiToolId: "t1",
+      count: 4, layout: { rows: 2, cols: 2 }, paneTools: ["t1", "t1", null, "t2"],
+    })
+    expect(ws.paneTools).toEqual(["t1", "t1", null, "t2"])
   })
 
   it("gives every workspace a distinct id", () => {

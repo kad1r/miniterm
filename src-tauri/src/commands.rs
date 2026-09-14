@@ -23,6 +23,10 @@ pub fn load_config(state: State<'_, AppState>) -> LoadResult {
 
 #[tauri::command]
 pub fn save_config(state: State<'_, AppState>, config: Config) -> Result<(), String> {
+    // Clamp before persisting so the on-disk file obeys the same depth/shape
+    // invariants that load enforces, even if the frontend sends something out
+    // of bounds.
+    let (config, _) = config::clamp_config(config);
     config::save(&state.config_dir, &config).map_err(map_err)
 }
 

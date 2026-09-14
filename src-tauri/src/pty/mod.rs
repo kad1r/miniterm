@@ -342,6 +342,10 @@ impl SessionManager {
                 let (lock, cv) = &*saw_output;
                 let seen = lock_recover(lock.lock());
                 let _ = cv.wait_timeout_while(seen, Duration::from_secs(1), |s| !*s);
+                // Strip embedded newlines so the configured command is a single
+                // submitted line; a stray \n/\r would otherwise inject extra
+                // lines into the shell.
+                let command = command.replace(['\r', '\n'], "");
                 let mut w = lock_recover(writer.lock());
                 let _ = w.write_all(format!("{command}\r").as_bytes());
                 let _ = w.flush();

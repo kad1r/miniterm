@@ -7,6 +7,22 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.6.1 — 2026-09-14
+
+### Security hardening
+
+A round of defence-in-depth after an internal security pass. Nothing here
+changes what the app does; it closes doors that were open but unused.
+
+- The window now runs under a **Content-Security-Policy** instead of none, so
+  the WebView will only ever load the bundled assets and talk to miniterm's own
+  backend — a bundled page cannot reach out to the network.
+- **Saved workspaces are validated on write, not just on read.** The same
+  depth-and-shape limits that clean a config when it is loaded now also run
+  before it is saved, so a malformed tree can never reach disk.
+- A terminal's **startup command has embedded line breaks stripped** before it
+  is typed in, so it is always the single line you configured.
+
 ## 0.6.0 — 2026-09-14
 
 ### A different AI tool in every terminal

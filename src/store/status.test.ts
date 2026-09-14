@@ -25,4 +25,16 @@ describe("paneStatus", () => {
   it("returns 'running' after restart (exits back to undefined, ids non-null)", () => {
     expect(paneStatus({ ids: [3], exits: [undefined] })).toBe("running")
   })
+
+  it("counts a minimized terminal as running", () => {
+    expect(
+      paneStatus({ ids: [null], exits: [undefined], minimized: [{ id: 7, exit: undefined }] }),
+    ).toBe("running")
+  })
+
+  it("reports a minimized terminal that died", () => {
+    expect(paneStatus({ ids: [1], exits: [undefined], minimized: [{ id: 7, exit: 1 }] })).toBe(
+      "dead",
+    )
+  })
 })

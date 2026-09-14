@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -28,6 +29,15 @@ export function saveConfig(config: Config): Promise<void> {
 
 export function detectShells(): Promise<ShellInfo[]> {
   return invoke<ShellInfo[]>("detect_shells");
+}
+
+/**
+ * The version of the build that is actually running, straight from the bundle's
+ * metadata. package.json is not read instead: it is a build input, while the
+ * About tab is describing the binary the user installed.
+ */
+export function appVersion(): Promise<string> {
+  return getVersion();
 }
 
 export async function pickDirectory(): Promise<string | null> {

@@ -36,10 +36,17 @@ export function relayout(ws: GridPatch, next: GridLayout): GridPatch {
 
 /** Counts the dialog may offer. Shrinking would kill running shells, which is a
  *  different action than the one the user asked for, so the floor is today's
- *  count and the ceiling is the grid limit. */
-export function addableCounts(ws: Pick<Workspace, "rows" | "cols">): number[] {
+ *  count and the ceiling is the grid limit.
+ *
+ *  `reserved` is the number of minimized terminals: they are off the grid but
+ *  their shells and 256 KB ring buffers are still alive, so they spend from the
+ *  same budget. Without this the grid could fill to the limit and leave a
+ *  minimized terminal with nowhere to come back to. */
+export function addableCounts(ws: Pick<Workspace, "rows" | "cols">, reserved = 0): number[] {
   const current = terminalCount(ws);
+  const ceiling = MAX_TERMINALS - reserved;
   const out: number[] = [];
-  for (let n = current; n <= MAX_TERMINALS; n++) out.push(n);
-  return out;
+  for (let n = current; n <= ceiling; n++) out.push(n);
+  // The current count is always offered: a full workspace can still be reshaped.
+  return out.length > 0 ? out : [current];
 }

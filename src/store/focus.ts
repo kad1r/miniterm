@@ -11,3 +11,14 @@ export function focusAfterClose(focused: number, closed: number, remaining: numb
   const shifted = focused > closed ? focused - 1 : focused;
   return Math.min(Math.max(shifted, 0), remaining - 1);
 }
+
+/**
+ * The same slide applied to the maximized pane. Unlike focus, a maximized pane
+ * that is itself removed has no successor: blowing an unrelated pane up to full
+ * screen because its neighbour was closed would be the app moving on its own.
+ */
+export function maximizedAfterClose(maximized: number | null, closed: number): number | null {
+  if (maximized === null) return null;
+  if (maximized === closed) return null;
+  return maximized > closed ? maximized - 1 : maximized;
+}

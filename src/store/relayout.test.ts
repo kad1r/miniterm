@@ -75,6 +75,14 @@ describe("addableCounts", () => {
   it("offers nothing but the status quo at the grid limit", () => {
     expect(addableCounts({ rows: 2, cols: 3 })).toEqual([6])
   })
+
+  it("leaves room for the minimized terminals to come back", () => {
+    expect(addableCounts({ rows: 1, cols: 3 }, 2)).toEqual([3, 4])
+  })
+
+  it("still offers the status quo when the minimized ones use up the budget", () => {
+    expect(addableCounts({ rows: 1, cols: 4 }, 3)).toEqual([4])
+  })
 })
 
 describe("terminalCount", () => {

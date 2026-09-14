@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { isClosePaneChord } from "./pane"
+import { isClosePaneChord, isMaximizePaneChord, isMinimizePaneChord } from "./pane"
 
 const key = (over: Partial<Parameters<typeof isClosePaneChord>[0]>) => ({
   key: "w",
@@ -25,5 +25,33 @@ describe("isClosePaneChord", () => {
 
   it("ignores other letters", () => {
     expect(isClosePaneChord(key({ key: "q", ctrlKey: true, shiftKey: true }))).toBe(false)
+  })
+})
+
+describe("isMaximizePaneChord", () => {
+  it("matches Ctrl+Shift+Z", () => {
+    expect(isMaximizePaneChord(key({ key: "Z", ctrlKey: true, shiftKey: true }))).toBe(true)
+  })
+
+  it("leaves Ctrl+Z to the shell, where it suspends the job", () => {
+    expect(isMaximizePaneChord(key({ key: "z", ctrlKey: true }))).toBe(false)
+  })
+
+  it("does not answer to the close chord", () => {
+    expect(isMaximizePaneChord(key({ key: "w", ctrlKey: true, shiftKey: true }))).toBe(false)
+  })
+})
+
+describe("isMinimizePaneChord", () => {
+  it("matches Ctrl+Shift+M", () => {
+    expect(isMinimizePaneChord(key({ key: "M", ctrlKey: true, shiftKey: true }))).toBe(true)
+  })
+
+  it("leaves Ctrl+M to the shell, where it is Enter", () => {
+    expect(isMinimizePaneChord(key({ key: "m", ctrlKey: true }))).toBe(false)
+  })
+
+  it("does not answer to the maximize chord", () => {
+    expect(isMinimizePaneChord(key({ key: "z", ctrlKey: true, shiftKey: true }))).toBe(false)
   })
 })

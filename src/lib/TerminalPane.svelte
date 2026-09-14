@@ -11,7 +11,7 @@
   import { clipboardAction } from "../term/clipboard"
   import { win32KeySequence } from "../term/win32"
   import { exitNotice } from "../term/exit"
-  import { isClosePaneChord } from "../term/pane"
+  import { isClosePaneChord, isMaximizePaneChord, isMinimizePaneChord } from "../term/pane"
   import { dropText } from "../term/paths"
   import { locale } from "../i18n/locale.svelte"
   import { TERM_FONT, TERM_FONT_SIZE, TERM_THEME } from "../term/theme"
@@ -81,9 +81,9 @@
       // Font-size accelerators belong to the window handler in App.svelte, not the
       // shell, where Ctrl+- and Ctrl+0 would arrive as ordinary control input.
       if (fontAction(e) !== null) return false
-      // Closing a pane is the grid's business, and the grid listens for the
+      // Arranging panes is the grid's business, and the grid listens for the
       // bubbled keydown — returning false leaves the event live all the way up.
-      if (isClosePaneChord(e)) return false
+      if (isClosePaneChord(e) || isMaximizePaneChord(e) || isMinimizePaneChord(e)) return false
       const clip = clipboardAction(e, term?.hasSelection() ?? false)
       if (clip !== null) {
         // Match Windows Terminal: a copy consumes the selection, so the next Ctrl+C

@@ -110,6 +110,15 @@ const EN = {
 
   "grid.closePane": "Close terminal {n} (Ctrl+Shift+W)",
   "grid.paneClosed": "Terminal closed",
+  "grid.minimizePane": "Minimize terminal {n} (Ctrl+Shift+M)",
+  "grid.maximizePane": "Maximize terminal {n} (Ctrl+Shift+Z)",
+  "grid.unmaximizePane": "Back to the grid (Ctrl+Shift+Z)",
+  "grid.paneMinimized": "Terminal minimized",
+  "grid.paneRestored": "Terminal restored",
+  "grid.minimizedStrip": "Minimized terminals",
+  "grid.restorePane": "Reopen minimized terminal {n}",
+  "grid.minimizedPane": "Terminal {n}",
+  "grid.gridFull": "The grid is full ({max} terminals) — close one first",
 
   "sessions.spawnFailed": "Could not open terminal ({path}): {error}",
   "sessions.noShell": "No usable shell found",
@@ -120,6 +129,15 @@ const EN = {
 
   "term.exitUnknown": "unknown",
   "term.exitNotice": "[process exited: {code}] — press Enter to restart",
+
+  "settings.tab.about": "About",
+  "settings.about.tagline": "A multi-workspace terminal for running AI CLI sessions side by side.",
+  "settings.about.version": "Version",
+  "settings.about.released": "released {date}",
+  "settings.about.unknownVersion": "could not be read",
+  "settings.about.notes": "What's in this version",
+  "settings.about.noNotes": "This build ships no release notes for {version}.",
+  "settings.about.source": "Project page",
 } as const
 
 const TR: Record<keyof typeof EN, string> = {
@@ -218,6 +236,15 @@ const TR: Record<keyof typeof EN, string> = {
 
   "grid.closePane": "{n}. terminali kapat (Ctrl+Shift+W)",
   "grid.paneClosed": "Terminal kapatıldı",
+  "grid.minimizePane": "{n}. terminali küçült (Ctrl+Shift+M)",
+  "grid.maximizePane": "{n}. terminali tam ekran yap (Ctrl+Shift+Z)",
+  "grid.unmaximizePane": "Izgaraya dön (Ctrl+Shift+Z)",
+  "grid.paneMinimized": "Terminal küçültüldü",
+  "grid.paneRestored": "Terminal geri getirildi",
+  "grid.minimizedStrip": "Küçültülmüş terminaller",
+  "grid.restorePane": "{n}. küçültülmüş terminali geri aç",
+  "grid.minimizedPane": "Terminal {n}",
+  "grid.gridFull": "Izgara dolu ({max} terminal) — önce birini kapat",
 
   "sessions.spawnFailed": "Terminal açılamadı ({path}): {error}",
   "sessions.noShell": "Kullanılabilir shell bulunamadı",
@@ -228,6 +255,15 @@ const TR: Record<keyof typeof EN, string> = {
 
   "term.exitUnknown": "bilinmiyor",
   "term.exitNotice": "[process exited: {code}] — yeniden başlatmak için Enter",
+
+  "settings.tab.about": "Hakkında",
+  "settings.about.tagline": "AI CLI oturumlarını yan yana çalıştırmak için çok çalışma alanlı terminal.",
+  "settings.about.version": "Sürüm",
+  "settings.about.released": "{date} tarihinde yayınlandı",
+  "settings.about.unknownVersion": "okunamadı",
+  "settings.about.notes": "Bu sürümde neler var",
+  "settings.about.noNotes": "Bu yapı {version} için sürüm notu içermiyor.",
+  "settings.about.source": "Proje sayfası",
 }
 
 export type MessageKey = keyof typeof EN

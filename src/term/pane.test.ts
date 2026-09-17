@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest"
-import { isClosePaneChord, isMaximizePaneChord, isMinimizePaneChord } from "./pane"
+import {
+  isClosePaneChord, isFocusNextPaneChord, isFocusPrevPaneChord, isMaximizePaneChord,
+  isMinimizePaneChord,
+} from "./pane"
 
 const key = (over: Partial<Parameters<typeof isClosePaneChord>[0]>) => ({
   key: "w",
@@ -53,5 +56,29 @@ describe("isMinimizePaneChord", () => {
 
   it("does not answer to the maximize chord", () => {
     expect(isMinimizePaneChord(key({ key: "z", ctrlKey: true, shiftKey: true }))).toBe(false)
+  })
+})
+
+describe("isFocusNextPaneChord", () => {
+  it("matches Ctrl+Tab", () => {
+    expect(isFocusNextPaneChord(key({ key: "Tab", ctrlKey: true }))).toBe(true)
+  })
+
+  it("does not match Ctrl+Shift+Tab", () => {
+    expect(isFocusNextPaneChord(key({ key: "Tab", ctrlKey: true, shiftKey: true }))).toBe(false)
+  })
+
+  it("leaves a bare Tab to the shell", () => {
+    expect(isFocusNextPaneChord(key({ key: "Tab" }))).toBe(false)
+  })
+})
+
+describe("isFocusPrevPaneChord", () => {
+  it("matches Ctrl+Shift+Tab", () => {
+    expect(isFocusPrevPaneChord(key({ key: "Tab", ctrlKey: true, shiftKey: true }))).toBe(true)
+  })
+
+  it("does not match plain Ctrl+Tab", () => {
+    expect(isFocusPrevPaneChord(key({ key: "Tab", ctrlKey: true }))).toBe(false)
   })
 })

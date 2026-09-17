@@ -7,6 +7,26 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.7.0 — 2026-09-17
+
+### Keyboard shortcuts
+
+miniterm now has its own set of shortcuts, and an **F1** panel that lists them.
+They all use `Ctrl+Shift` chords or function keys, so the program running inside
+a terminal keeps every binding of its own — `Ctrl+C`, `Esc`, the arrows and the
+rest still go straight through to the shell.
+
+- **`Ctrl+Shift+N`** opens the new-workspace wizard; **`Ctrl+Shift+T`** adds a
+  terminal to the workspace you are in.
+- **`Ctrl+Tab`** and **`Ctrl+Shift+Tab`** move the keyboard to the next or
+  previous terminal in the grid.
+- **`Ctrl+,`** opens or closes settings.
+- **`F1`** shows the full list, grouped and with a reminder that everything else
+  belongs to the terminal.
+
+The pane chords that already existed — `Ctrl+Shift+W` to close, `Ctrl+Shift+M`
+to minimize, `Ctrl+Shift+Z` to maximize — and `F2` to rename are on the panel too.
+
 ## 0.6.1 — 2026-09-14
 
 ### Security hardening

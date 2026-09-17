@@ -10,13 +10,18 @@
   import { fontAction } from "./store/font"
   import { applyFontAction, initFontScale } from "./store/font.svelte"
   import { initLocale, t } from "./i18n/locale.svelte"
+  import {
+    isHelpChord, isNewTerminalChord, isNewWorkspaceChord, isSettingsChord,
+  } from "./term/shortcuts"
   import Sidebar from "./lib/Sidebar.svelte"
   import Settings from "./lib/Settings.svelte"
   import Wizard from "./lib/Wizard.svelte"
   import LayoutDialog from "./lib/LayoutDialog.svelte"
+  import Shortcuts from "./lib/Shortcuts.svelte"
   import TerminalGrid from "./lib/TerminalGrid.svelte"
 
   let wizardOpen = $state(false)
+  let helpOpen = $state(false)
   // Held as an id, not as the node: the workspace is re-created on every commit,
   // so a captured object would go stale the moment the dialog applies its patch.
   let layoutDialog = $state<{ id: string; mode: "add" | "layout" } | null>(null)
@@ -34,9 +39,32 @@
    *  these keys back to the window instead of forwarding them to the shell. */
   function onKeydown(e: KeyboardEvent) {
     const action = fontAction(e)
-    if (!action) return
-    e.preventDefault()
-    applyFontAction(action)
+    if (action) {
+      e.preventDefault()
+      applyFontAction(action)
+      return
+    }
+    if (isHelpChord(e)) {
+      e.preventDefault()
+      helpOpen = !helpOpen
+      return
+    }
+    if (isSettingsChord(e)) {
+      e.preventDefault()
+      app.view = app.view === "settings" ? "workspace" : "settings"
+      return
+    }
+    if (isNewWorkspaceChord(e)) {
+      e.preventDefault()
+      wizardOpen = true
+      return
+    }
+    // Adding a terminal needs a workspace to add it to; with none selected the
+    // chord is a no-op and the keystroke is left alone.
+    if (isNewTerminalChord(e) && app.activeWorkspaceId) {
+      e.preventDefault()
+      layoutDialog = { id: app.activeWorkspaceId, mode: "add" }
+    }
   }
 
   /** Ctrl/Cmd + wheel, the mouse spelling of the same zoom.
@@ -124,6 +152,9 @@
     </main>
     {#if wizardOpen}
       <Wizard onclose={() => (wizardOpen = false)} />
+    {/if}
+    {#if helpOpen}
+      <Shortcuts onclose={() => (helpOpen = false)} />
     {/if}
     {#if layoutDialog}
       {@const target = workspaceById(layoutDialog.id)}

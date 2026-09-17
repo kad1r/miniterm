@@ -11,7 +11,11 @@
   import { clipboardAction } from "../term/clipboard"
   import { win32KeySequence } from "../term/win32"
   import { exitNotice } from "../term/exit"
-  import { isClosePaneChord, isMaximizePaneChord, isMinimizePaneChord } from "../term/pane"
+  import {
+    isClosePaneChord, isFocusNextPaneChord, isFocusPrevPaneChord, isMaximizePaneChord,
+    isMinimizePaneChord,
+  } from "../term/pane"
+  import { isAppShortcut } from "../term/shortcuts"
   import { dropText } from "../term/paths"
   import { locale } from "../i18n/locale.svelte"
   import { TERM_FONT, TERM_FONT_SIZE, TERM_THEME } from "../term/theme"
@@ -84,6 +88,10 @@
       // Arranging panes is the grid's business, and the grid listens for the
       // bubbled keydown — returning false leaves the event live all the way up.
       if (isClosePaneChord(e) || isMaximizePaneChord(e) || isMinimizePaneChord(e)) return false
+      // Moving focus between panes is the grid's business too.
+      if (isFocusNextPaneChord(e) || isFocusPrevPaneChord(e)) return false
+      // Window-level shortcuts (new terminal, settings, help…) belong to App.svelte.
+      if (isAppShortcut(e)) return false
       const clip = clipboardAction(e, term?.hasSelection() ?? false)
       if (clip !== null) {
         // Match Windows Terminal: a copy consumes the selection, so the next Ctrl+C

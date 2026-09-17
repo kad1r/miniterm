@@ -3,7 +3,10 @@
   import type { Workspace } from "../store/types"
   import { cells, dividerCount, templateWithDividers } from "../store/grid"
   import { MIN_CELL_PX, resizeFractions } from "../store/layout"
-  import { isClosePaneChord, isMaximizePaneChord, isMinimizePaneChord } from "../term/pane"
+  import {
+    isClosePaneChord, isFocusNextPaneChord, isFocusPrevPaneChord, isMaximizePaneChord,
+    isMinimizePaneChord,
+  } from "../term/pane"
   import type { MinimizedPane } from "../store/sessions.svelte"
   import { t } from "../i18n/locale.svelte"
   import TerminalPane from "./TerminalPane.svelte"
@@ -56,6 +59,19 @@
 
   function onGridKeydown(e: KeyboardEvent) {
     if (!closable) return
+    // Ctrl+Tab / Ctrl+Shift+Tab cycle the keyboard through the panes. A maximized
+    // cell is the only visible one, so cycling to a covered pane makes no sense —
+    // leave the chord alone there.
+    if (isFocusNextPaneChord(e) || isFocusPrevPaneChord(e)) {
+      if (maximized !== null) return
+      const index = cellIndexOf(e.target)
+      if (index === null) return
+      e.preventDefault()
+      const n = grid.length
+      const next = isFocusNextPaneChord(e) ? (index + 1) % n : (index - 1 + n) % n
+      panes[next]?.focus()
+      return
+    }
     const action = isClosePaneChord(e)
       ? onclose
       : isMinimizePaneChord(e)

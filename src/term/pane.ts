@@ -26,6 +26,24 @@ export function isMinimizePaneChord(e: PaneKey): boolean {
   return isPaneChord(e, "m")
 }
 
+/** Ctrl+Tab — move the keyboard to the next terminal in the grid, wrapping at the
+ *  end. Ctrl+Shift+Tab walks the other way. Tab (with no Ctrl) still reaches the
+ *  shell as an ordinary tab, so completion in the running program is untouched. */
+export function isFocusNextPaneChord(e: PaneKey): boolean {
+  return isFocusNavChord(e) && !e.shiftKey
+}
+
+/** Ctrl+Shift+Tab — the reverse of {@link isFocusNextPaneChord}. */
+export function isFocusPrevPaneChord(e: PaneKey): boolean {
+  return isFocusNavChord(e) && e.shiftKey
+}
+
+function isFocusNavChord(e: PaneKey): boolean {
+  if (e.altKey) return false
+  if (!e.ctrlKey && !e.metaKey) return false
+  return e.key === "Tab"
+}
+
 /** Shared shape of every pane chord: Ctrl (or Cmd) + Shift + a letter, never
  *  Alt. Shift is what keeps these off the shell's own bindings — plain Ctrl+W
  *  is readline's "delete word", Ctrl+Z is suspend. */

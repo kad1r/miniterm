@@ -94,47 +94,78 @@
     if (node) renameNode(node)
   }
 
+  // Reorder runs on pointer events, not HTML5 drag-and-drop: Tauri's OS-level
+  // drag-drop handler (needed for file drops onto terminals) intercepts every
+  // native drag over the WebView on Windows, so `dragstart`/`drop` never fire
+  // inside the app. Pointer events are untouched by it.
   let dragId = $state<string | null>(null)
   let dropHint = $state<{ nodeId: string; zone: DropZone; ok: boolean } | null>(null)
+  let dropRoot = $state(false)
+  // Where the press began; the drag only starts once the pointer moves past a
+  // small threshold, so a plain click still selects/toggles the row.
+  let pending: { id: string; x: number; y: number } | null = null
+  const DRAG_THRESHOLD_PX = 5
 
-  function dragStart(node: Node) {
-    dragId = node.id
-    dropHint = null
+  function pointerDownItem(node: Node, e: PointerEvent) {
+    if (e.button !== 0) return
+    pending = { id: node.id, x: e.clientX, y: e.clientY }
   }
 
-  function dragOver(node: Node, offsetY: number, height: number) {
+  function onPointerMove(e: PointerEvent) {
+    if (!pending && !dragId) return
+    if (pending && !dragId) {
+      if (Math.hypot(e.clientX - pending.x, e.clientY - pending.y) < DRAG_THRESHOLD_PX) return
+      dragId = pending.id
+      dropHint = null
+      dropRoot = false
+    }
     if (!dragId) return
-    const zone = zoneFor(offsetY, height, node.kind === "folder")
-    const ok = node.id !== dragId && canDrop(app.config.tree, dragId, targetFor(zone, node.id))
-    dropHint = { nodeId: node.id, zone, ok }
+    const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+    const row = el?.closest<HTMLElement>(".tree-item")
+    if (row?.dataset.nodeId) {
+      const box = row.getBoundingClientRect()
+      const zone = zoneFor(e.clientY - box.top, box.height, row.dataset.kind === "folder")
+      const nodeId = row.dataset.nodeId
+      const ok = nodeId !== dragId && canDrop(app.config.tree, dragId, targetFor(zone, nodeId))
+      dropHint = { nodeId, zone, ok }
+      dropRoot = false
+    } else {
+      // Over the tree's blank area — drop lands at the root end.
+      dropHint = null
+      dropRoot = el?.closest(".tree") != null
+    }
   }
 
-  function drop() {
+  function onPointerUp() {
     const hint = dropHint
     const id = dragId
-    dragEnd()
-    if (!id || !hint) return
-    if (!hint.ok) {
-      notify(t("sidebar.dropRejected"), "error")
-      return
-    }
-    commit((c) => ({ ...c, tree: move(c.tree, id, targetFor(hint.zone, hint.nodeId)) }))
-  }
-
-  function dragEnd() {
+    const toRoot = dropRoot
+    const wasDragging = dragId !== null
+    pending = null
     dragId = null
     dropHint = null
+    dropRoot = false
+    if (!wasDragging || !id) return
+    // A completed drag must not also fire the row's click (select/toggle).
+    window.addEventListener("click", killClick, { capture: true, once: true })
+    if (hint) {
+      if (!hint.ok) {
+        notify(t("sidebar.dropRejected"), "error")
+        return
+      }
+      commit((c) => ({ ...c, tree: move(c.tree, id, targetFor(hint.zone, hint.nodeId)) }))
+    } else if (toRoot) {
+      commit((c) => ({ ...c, tree: move(c.tree, id, { type: "rootEnd" }) }))
+    }
   }
 
-  function dropToRoot() {
-    const id = dragId
-    dragEnd()
-    if (!id) return
-    commit((c) => ({ ...c, tree: move(c.tree, id, { type: "rootEnd" }) }))
+  function killClick(e: MouseEvent) {
+    e.stopPropagation()
+    e.preventDefault()
   }
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown} onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp} />
 
 <aside class="sidebar" class:collapsed ontransitionend={onTransitionEnd}>
   <header>
@@ -174,11 +205,10 @@
   {:else}
   <div
     class="tree"
+    class:root-drop={dropRoot}
     role="tree"
     aria-label={t("sidebar.title")}
     tabindex="0"
-    ondragover={(e) => e.preventDefault()}
-    ondrop={dropToRoot}
   >
     {#each app.config.tree as node (node.id)}
       <TreeItem
@@ -190,10 +220,7 @@
         onselect={select}
         ontoggle={toggle}
         oncontext={(n, x, y) => (menu = { node: n, x, y })}
-        ondragstart={dragStart}
-        ondragover={dragOver}
-        ondrop={drop}
-        ondragend={dragEnd}
+        onpointerdownitem={pointerDownItem}
         statusFor={statusOf}
       />
     {/each}
@@ -347,6 +374,9 @@
     flex: 1;
     overflow-y: auto;
     padding: 6px 6px 12px;
+  }
+  .tree.root-drop {
+    box-shadow: inset 0 -2px 0 var(--accent);
   }
   .empty {
     margin: 24px 8px;

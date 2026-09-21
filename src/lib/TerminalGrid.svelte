@@ -8,6 +8,7 @@
     isMinimizePaneChord,
   } from "../term/pane"
   import type { MinimizedPane } from "../store/sessions.svelte"
+  import { basename } from "../store/tree"
   import { t } from "../i18n/locale.svelte"
   import TerminalPane from "./TerminalPane.svelte"
 
@@ -45,6 +46,9 @@
   // a blank pane with no way back, removing the workspace is a sidebar action,
   // and there is nothing to maximize a lone pane over.
   const closable = $derived(grid.length > 1)
+  // Every pane in a workspace shares its directory, so the header names it: the
+  // folder for a quick read, the full path alongside for the exact location.
+  const folderName = $derived(basename(workspace.path) || workspace.name)
 
   /** Ctrl+Shift+W/Z/M, caught as they bubble out of the focused pane. TerminalPane
    *  hands the chords back untouched, so `e.target` is still xterm's textarea and
@@ -295,14 +299,13 @@
       data-index={cell.index}
       style="grid-column:{cell.col * 2 + 1}; grid-row:{cell.row * 2 + 1}"
     >
-      <TerminalPane
-        bind:this={panes[cell.index]}
-        sessionId={sessionIds[cell.index] ?? null}
-        exitCode={exitCodes[cell.index]}
-        onrestart={() => onrestart(cell.index)}
-      />
-      {#if closable}
-        <div class="controls">
+      <div class="pane-header">
+        <div class="pane-loc" title={workspace.path}>
+          <span class="pane-name">{folderName}</span>
+          {#if workspace.path}<span class="pane-path">{workspace.path}</span>{/if}
+        </div>
+        {#if closable}
+          <div class="pane-actions">
           <button
             class="pane-btn"
             type="button"
@@ -347,8 +350,17 @@
               <path d="M3 3l6 6M9 3l-6 6" />
             </svg>
           </button>
-        </div>
-      {/if}
+          </div>
+        {/if}
+      </div>
+      <div class="pane-wrap">
+        <TerminalPane
+          bind:this={panes[cell.index]}
+          sessionId={sessionIds[cell.index] ?? null}
+          exitCode={exitCodes[cell.index]}
+          onrestart={() => onrestart(cell.index)}
+        />
+      </div>
     </div>
   {/each}
 
@@ -434,11 +446,19 @@
   }
   .cell {
     position: relative;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 4px;
+  }
+  /* Shell fills whatever the header leaves. min-height:0 lets it shrink so the
+     header is never pushed off-screen in a short cell. */
+  .pane-wrap {
+    flex: 1;
+    min-height: 0;
   }
   /* Maximize deliberately does not touch the grid tracks: the other panes keep
      their size underneath, so coming back costs no reflow and no resize IPC. */
@@ -452,32 +472,43 @@
        that lands on a sliver of border from stealing focus. */
     pointer-events: none;
   }
-  /* Kept out of the way until the pane is pointed at or focused, so six grids
-     worth of buttons do not compete with the text. */
-  .controls {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    /* Above xterm's scrollbar, which takes z-index 11 the moment it becomes
-       visible (xterm.css, .xterm-scrollable-element > .visible). At z-index 1
-       the buttons sat under the scrollbar, which ate every click in a pane with
-       scrollback. */
-    z-index: 20;
+  /* A real header bar above the shell, not an overlay — the buttons can never
+     sit on top of terminal text now, so typing no longer collides with them. */
+  .pane-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 3px 4px 3px 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+  }
+  .pane-loc {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .pane-name {
+    flex: 0 0 auto;
+    color: var(--text);
+    font-size: calc(12px * var(--font-scale, 1));
+    font-weight: 600;
+  }
+  .pane-path {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-dim);
+    font-size: calc(11px * var(--font-scale, 1));
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .pane-actions {
+    flex: 0 0 auto;
     display: flex;
     gap: 2px;
-    padding: 3px;
-    border-radius: 5px;
-    background: color-mix(in srgb, var(--bg-raised) 88%, transparent);
-    opacity: 0;
-    /* Invisible must also mean intangible: a hidden 60 px bar over the top-right
-       corner of the text would swallow clicks meant for the terminal. `.cell:hover`
-       is already true by the time the pointer can reach a button. */
-    pointer-events: none;
-  }
-  .cell:hover .controls,
-  .cell:focus-within .controls {
-    opacity: 1;
-    pointer-events: auto;
   }
   .pane-btn {
     display: grid;

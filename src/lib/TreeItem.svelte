@@ -5,7 +5,7 @@
   import Self from "./TreeItem.svelte"
 
   let { node, depth, activeId, dragId, dropHint, onselect, ontoggle, oncontext,
-        ondragstart, ondragover, ondrop, ondragend, statusFor }: {
+        onpointerdownitem, statusFor }: {
     node: Node
     depth: number
     activeId: string | null
@@ -14,10 +14,7 @@
     onselect: (node: Node) => void
     ontoggle: (node: Node) => void
     oncontext: (node: Node, x: number, y: number) => void
-    ondragstart: (node: Node) => void
-    ondragover: (node: Node, offsetY: number, height: number) => void
-    ondrop: () => void
-    ondragend: () => void
+    onpointerdownitem: (node: Node, e: PointerEvent) => void
     statusFor: (nodeId: string) => "off" | "running" | "dead"
   } = $props()
 
@@ -37,12 +34,11 @@
   class:hint-bad={hint != null && !hint.ok}
   data-node-id={node.id}
   data-kind={node.kind}
-  style="padding-left:{4 + (depth - 1) * 14}px"
+  style="padding-left:{8 + (depth - 1) * 14}px"
   role="treeitem"
   aria-selected={node.id === activeId}
   aria-expanded={node.kind === "folder" ? node.expanded : undefined}
   tabindex="0"
-  draggable="true"
   onclick={() => (isFolder ? ontoggle(node) : onselect(node))}
   onkeydown={(e) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -55,28 +51,11 @@
     e.preventDefault()
     oncontext(node, e.clientX, e.clientY)
   }}
-  ondragstart={(e) => {
-    e.stopPropagation()
-    e.dataTransfer?.setData("text/plain", node.id)
-    ondragstart(node)
-  }}
-  ondragover={(e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    ondragover(node, e.clientY - box.top, box.height)
-    if (e.dataTransfer) e.dataTransfer.dropEffect = hint?.ok === false ? "none" : "move"
-  }}
-  ondrop={(e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    ondrop()
-  }}
-  ondragend={ondragend}
+  onpointerdown={(e) => onpointerdownitem(node, e)}
 >
-  <span class="chevron" class:hidden={!isFolder}>
-    {node.kind === "folder" && node.expanded ? "▾" : "▸"}
-  </span>
+  {#if node.kind === "folder"}
+    <span class="chevron">{node.expanded ? "▾" : "▸"}</span>
+  {/if}
   <span class="name">{node.name}</span>
   {#if !isFolder}
     <span class="dot {status}" title={t(`status.${status}`)}></span>
@@ -90,7 +69,7 @@
   {#each node.children as child (child.id)}
     <Self node={child} depth={depth + 1} {activeId} {dragId} {dropHint}
           {onselect} {ontoggle} {oncontext}
-          {ondragstart} {ondragover} {ondrop} {ondragend} {statusFor} />
+          {onpointerdownitem} {statusFor} />
   {/each}
 {/if}
 
@@ -101,14 +80,15 @@
     gap: 4px;
     /* min-height rather than height: the row is border-box, so a fixed height
        would swallow the vertical padding instead of letting the row breathe. */
-    min-height: 30px;
-    padding-block: 4px;
+    min-height: 36px;
+    padding-block: 6px;
     padding-right: 6px;
     border-radius: 4px;
     color: var(--text);
     font-size: calc(13px * var(--font-scale, 1));
     cursor: pointer;
     user-select: none;
+    touch-action: none;
   }
   .tree-item:hover {
     background: color-mix(in srgb, var(--text) 8%, transparent);

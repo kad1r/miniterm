@@ -7,6 +7,31 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.8.0 — 2026-09-21
+
+### Sidebar reordering works again
+
+Dragging a workspace or folder to reorder it now works. It never fired before:
+Tauri's own drag-and-drop handler — the one that lets you drop a file onto a
+terminal — sits in front of the WebView on Windows and swallows every native
+drag, so the sidebar's HTML5 drag-and-drop never saw one. The reorder is now
+built on pointer events, which that handler leaves alone. A short drag still
+reads as a plain click, so selecting and expanding rows is unchanged.
+
+### A header on every pane
+
+Each terminal now has a small header bar instead of buttons that floated over
+the top-right corner of the text. The **minimize**, **maximize** and **close**
+controls live there, so they can no longer land on top of what you are typing.
+
+The header also names the workspace's directory — the folder in bold, with the
+full path beside it — so you can tell panes apart at a glance.
+
+### Sidebar polish
+
+Workspace rows are a little taller, and their names sit against the left edge
+with a small margin.
+
 ## 0.7.0 — 2026-09-17
 
 ### Keyboard shortcuts

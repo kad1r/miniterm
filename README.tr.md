@@ -43,6 +43,9 @@ döndüğünüzde çıktı olduğu yerden sürer.
 - Seçilen komut açılışta terminale yazılır, argüman olarak geçirilmez
 - Bölme çizgileri sürüklenerek yeniden boyutlandırılır; oran workspace ile
   birlikte saklanır
+- Kenar çubuğunda yazdıkça workspace'leri süzen bir **arama kutusu**, vurgu renkli
+  yeni-workspace düğmesi ve her satırda canlı terminal sayısı gösteren durum
+  noktaları var
 - Kenar çubuğu daraltılabilir; daraldığında workspace'ler durum noktalı bir ikon
   rayına iner
 
@@ -64,11 +67,18 @@ döndüğünüzde çıktı olduğu yerden sürer.
 - `F2` seçili workspace'i yeniden adlandırır
 
 **Arayüz**
+- **Koyu ve açık tema**; kenar çubuğunun altındaki anahtardan geçilir, açılışlar
+  arasında hatırlanır. Her terminal paleti anahtarı canlı izler, çalışan kabuklar
+  yıkılmadan
 - Türkçe ve İngilizce; ilk açılışta sistem diline göre seçilir, Ayarlar →
   Görünüm'den değiştirilir
-- Odaklanmış terminal Claude turuncusuyla çerçevelenir
+- Üst bar yok — tema ve ayar kontrolleri kenar çubuğunun altında durur, böylece
+  terminaller pencerenin tüm yüksekliğini alır. Alttaki ince **durum çubuğu**
+  kabuğu, oturum sayısını, yazı boyutunu ve dili gösterir
+- Paneller yuvarlatılmış; odaklanmış panel vurgu renkli bir kenarla işaretlenir
 - WebGL renderer; bağlam kaybında sessizce canvas'a düşer
-- Inter + Roboto Mono gömülü gelir, sistem fontlarına bağımlı değildir
+- **Geist** (arayüz) ve **JetBrains Mono** (terminaller) gömülü gelir, sistem
+  fontlarına bağımlı değildir
 
 ## Kimlik bilgileri
 

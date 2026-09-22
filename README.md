@@ -43,6 +43,8 @@ where it left off when you come back.
 - The chosen command is typed into the terminal on start, never passed as an
   argument
 - Split lines resize by dragging; the ratio is stored with the workspace
+- The sidebar has a **search box** that filters workspaces as you type, an accent
+  new-workspace button, and status dots with a live terminal count on each row
 - The sidebar collapses; when collapsed, workspaces shrink to an icon rail with
   status dots
 
@@ -64,11 +66,18 @@ where it left off when you come back.
 - `F2` renames the selected workspace
 
 **Interface**
+- **Dark and light themes**; toggle at the bottom of the sidebar, remembered
+  between runs. Every terminal palette follows the switch live, without tearing
+  down the running shells
 - Turkish and English; picked from the system language on first run, changed
   under Settings → Appearance
-- The focused terminal is framed in Claude orange
+- No top bar — the theme and settings controls live in the sidebar footer, so
+  terminals get the full height of the window. A slim **status bar** along the
+  bottom shows the shell, the session tally, the font size and the language
+- Panes are rounded; the focused pane is marked with an accent border
 - WebGL renderer; falls back to canvas silently on context loss
-- Inter + Roboto Mono ship embedded, no dependency on system fonts
+- **Geist** (interface) and **JetBrains Mono** (terminals) ship embedded, no
+  dependency on system fonts
 
 ## Credentials
 

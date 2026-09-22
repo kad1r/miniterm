@@ -18,9 +18,10 @@
   import { isAppShortcut } from "../term/shortcuts"
   import { dropText } from "../term/paths"
   import { locale } from "../i18n/locale.svelte"
-  import { TERM_FONT, TERM_FONT_SIZE, TERM_THEME } from "../term/theme"
+  import { TERM_FONT, TERM_FONT_SIZE, TERM_THEMES } from "../term/theme"
   import { fontAction, termFontSize } from "../store/font"
   import { fontScale } from "../store/font.svelte"
+  import { theme } from "../store/theme.svelte"
 
   let { sessionId, exitCode = undefined, onrestart }: {
     sessionId: number | null
@@ -72,7 +73,7 @@
     term = new Terminal({
       fontFamily: TERM_FONT,
       fontSize: termFontSize(TERM_FONT_SIZE, fontScale.level),
-      theme: TERM_THEME,
+      theme: TERM_THEMES[theme.current],
       cursorBlink: true,
       scrollback: 5000,
       allowProposedApi: true,
@@ -205,6 +206,14 @@
     syncSize()
   })
 
+  // Uygulama teması değişince xterm paletini canlı güncelle. Yeni bir terminal
+  // kurmak scrollback'i ve bağlı oturumu koparırdı; sadece options.theme atanır.
+  $effect(() => {
+    const palette = TERM_THEMES[theme.current]
+    if (!term) return
+    term.options.theme = palette
+  })
+
   // Süreç ölünce bilgi satırını bir kez bas.
   $effect(() => {
     if (exitCode === undefined || noticeShown || !term) return
@@ -225,7 +234,7 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: var(--bg);
+    background: var(--bg-term);
   }
   .pane.dead::after {
     content: "";

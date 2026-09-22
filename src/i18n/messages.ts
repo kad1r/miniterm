@@ -27,6 +27,7 @@ const EN = {
   "sidebar.newFolder": "New folder",
   "sidebar.newFolderName": "New folder",
   "sidebar.newWorkspace": "New workspace",
+  "sidebar.search": "Search…",
   "sidebar.emptyTitle": "No workspaces yet.",
   "sidebar.emptyHint": "Press + to get started.",
   "sidebar.settings": "Settings",
@@ -44,6 +45,9 @@ const EN = {
   "status.running": "running",
   "status.dead": "exited",
   "status.off": "stopped",
+
+  "statusbar.sessions": "{n} sessions",
+  "statusbar.running": "{n} running",
 
   "settings.tab.tools": "AI tools",
   "settings.tab.dirs": "Directories",
@@ -81,6 +85,12 @@ const EN = {
   "settings.appearance.larger": "Increase",
   "settings.appearance.reset": "Reset",
   "settings.appearance.language": "Language",
+  "settings.appearance.theme": "Theme",
+  "settings.appearance.themeDark": "Dark",
+  "settings.appearance.themeLight": "Light",
+
+  "header.toLight": "Switch to light theme",
+  "header.toDark": "Switch to dark theme",
 
   "wizard.title": "New workspace",
   "wizard.dir": "Directory",
@@ -180,6 +190,7 @@ const TR: Record<keyof typeof EN, string> = {
   "sidebar.newFolder": "Yeni klasör",
   "sidebar.newFolderName": "Yeni klasör",
   "sidebar.newWorkspace": "Yeni workspace",
+  "sidebar.search": "Ara…",
   "sidebar.emptyTitle": "Henüz workspace yok.",
   "sidebar.emptyHint": "Başlamak için + düğmesine bas.",
   "sidebar.settings": "Ayarlar",
@@ -196,6 +207,9 @@ const TR: Record<keyof typeof EN, string> = {
   "status.running": "çalışıyor",
   "status.dead": "kapandı",
   "status.off": "durdu",
+
+  "statusbar.sessions": "{n} oturum",
+  "statusbar.running": "{n} çalışıyor",
 
   "settings.tab.tools": "AI Araçları",
   "settings.tab.dirs": "Dizinler",
@@ -233,6 +247,12 @@ const TR: Record<keyof typeof EN, string> = {
   "settings.appearance.larger": "Büyüt",
   "settings.appearance.reset": "Sıfırla",
   "settings.appearance.language": "Dil",
+  "settings.appearance.theme": "Tema",
+  "settings.appearance.themeDark": "Koyu",
+  "settings.appearance.themeLight": "Açık",
+
+  "header.toLight": "Açık temaya geç",
+  "header.toDark": "Koyu temaya geç",
 
   "wizard.title": "Yeni workspace",
   "wizard.dir": "Dizin",

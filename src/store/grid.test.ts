@@ -27,7 +27,7 @@ describe("dividerCount", () => {
 
 describe("templateWithDividers", () => {
   it("interleaves fixed divider tracks between fractions", () => {
-    expect(templateWithDividers([0.25, 0.75])).toBe("0.25fr 4px 0.75fr")
+    expect(templateWithDividers([0.25, 0.75])).toBe("0.25fr 10px 0.75fr")
   })
 
   it("leaves a single track untouched", () => {

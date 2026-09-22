@@ -8,6 +8,8 @@
   import ContextMenu from "./ContextMenu.svelte"
   import { closeSubtree, statusOf, sessions } from "../store/sessions.svelte"
   import { locale, t } from "../i18n/locale.svelte"
+  import { appVersion } from "../ipc"
+  import { theme, toggleTheme } from "../store/theme.svelte"
 
   let { onnew, onaddterminal, onchangelayout }: {
     onnew: () => void
@@ -16,6 +18,36 @@
   } = $props()
 
   let menu = $state<{ node: Node; x: number; y: number } | null>(null)
+
+  // The running build's version, shown in the footer. Straight from the bundle
+  // metadata like the About tab, so it never drifts from what is installed.
+  let version = $state("")
+  appVersion().then((v) => (version = v)).catch(() => {})
+
+  // Free-text filter over workspace/folder names. Empty query keeps the real
+  // tree (and its expansion state); a live query returns a pruned copy with
+  // every surviving folder force-expanded so matches are always visible.
+  let query = $state("")
+  const displayTree = $derived(
+    query.trim() ? filterTree(app.config.tree, query.trim().toLowerCase()) : app.config.tree
+  )
+
+  function filterTree(nodes: Node[], q: string): Node[] {
+    const out: Node[] = []
+    for (const n of nodes) {
+      if (n.kind === "folder") {
+        if (n.name.toLowerCase().includes(q)) {
+          out.push({ ...n, expanded: true })
+        } else {
+          const kids = filterTree(n.children, q)
+          if (kids.length) out.push({ ...n, children: kids, expanded: true })
+        }
+      } else if (n.name.toLowerCase().includes(q)) {
+        out.push(n)
+      }
+    }
+    return out
+  }
 
   // Read once at construction. localStorage is unavailable in the node test
   // environment, hence the guard rather than a bare reference.
@@ -168,22 +200,37 @@
 <svelte:window onkeydown={onKeydown} onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp} />
 
 <aside class="sidebar" class:collapsed ontransitionend={onTransitionEnd}>
-  <header>
-    <button
-      class="icon"
-      title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
-      aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
-      aria-expanded={!collapsed}
-      onclick={toggleCollapsed}
-    >
-      {collapsed ? "»" : "«"}
-    </button>
-    {#if !collapsed}
-      <span class="title">{t("sidebar.title")}</span>
-      <button class="icon" title={t("sidebar.newFolder")} onclick={addFolder}>🗀</button>
-      <button class="icon" title={t("sidebar.newWorkspace")} onclick={onnew}>+</button>
-    {/if}
-  </header>
+  {#if collapsed}
+    <header class="rail-head">
+      <button
+        class="icon"
+        title={t("sidebar.expand")}
+        aria-label={t("sidebar.expand")}
+        aria-expanded="false"
+        onclick={toggleCollapsed}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><line x1="13" y1="6" x2="19" y2="12"></line><line x1="13" y1="18" x2="19" y2="12"></line></svg>
+      </button>
+    </header>
+  {:else}
+    <header>
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+        <input
+          type="text"
+          placeholder={t("sidebar.search")}
+          aria-label={t("sidebar.title")}
+          bind:value={query}
+        />
+      </div>
+      <button class="icon" title={t("sidebar.newFolder")} aria-label={t("sidebar.newFolder")} onclick={addFolder}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+      </button>
+      <button class="icon new" title={t("sidebar.newWorkspace")} aria-label={t("sidebar.newWorkspace")} onclick={onnew}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
+    </header>
+  {/if}
 
   {#if collapsed}
     <!-- Icon rail: workspaces only, flattened. Folders carry no session state,
@@ -210,7 +257,8 @@
     aria-label={t("sidebar.title")}
     tabindex="0"
   >
-    {#each app.config.tree as node (node.id)}
+    <div class="section">{t("sidebar.title")}</div>
+    {#each displayTree as node (node.id)}
       <TreeItem
         {node}
         depth={1}
@@ -224,22 +272,58 @@
         statusFor={statusOf}
       />
     {/each}
-    {#if app.config.tree.length === 0}
-      <p class="empty">{t("sidebar.emptyTitle")}<br />{t("sidebar.emptyHint")}</p>
+    {#if displayTree.length === 0}
+      <p class="empty">
+        {#if query.trim()}
+          {t("sidebar.emptyTitle")}
+        {:else}
+          {t("sidebar.emptyTitle")}<br />{t("sidebar.emptyHint")}
+        {/if}
+      </p>
     {/if}
   </div>
   {/if}
 
   <footer>
     <button
-      class="settings"
+      class="icon"
+      title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
+      aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
+      aria-expanded={!collapsed}
+      onclick={toggleCollapsed}
+    >
+      {#if collapsed}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><line x1="13" y1="6" x2="19" y2="12"></line><line x1="13" y1="18" x2="19" y2="12"></line></svg>
+      {:else}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><line x1="10" y1="4" x2="10" y2="20"></line></svg>
+      {/if}
+    </button>
+    <button
+      class="icon"
+      title={theme.current === "dark" ? t("header.toLight") : t("header.toDark")}
+      aria-label={theme.current === "dark" ? t("header.toLight") : t("header.toDark")}
+      onclick={() => toggleTheme()}
+    >
+      {#if theme.current === "dark"}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+      {:else}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+      {/if}
+    </button>
+    <button
+      class="icon"
       class:on={app.view === "settings"}
       title={t("sidebar.settings")}
       aria-label={t("sidebar.settings")}
+      aria-pressed={app.view === "settings"}
       onclick={() => (app.view = app.view === "settings" ? "workspace" : "settings")}
     >
-      {collapsed ? "⚙" : `⚙ ${t("sidebar.settings")}`}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line><circle cx="10" cy="7" r="2.2"></circle><circle cx="16" cy="17" r="2.2"></circle></svg>
     </button>
+    {#if !collapsed}
+      <div class="footer-spacer"></div>
+      <span class="version">v{version}</span>
+    {/if}
   </footer>
 </aside>
 
@@ -266,10 +350,10 @@
   .sidebar {
     display: flex;
     flex-direction: column;
-    width: 240px;
-    min-width: 240px;
+    width: 264px;
+    min-width: 264px;
     height: 100%;
-    background: var(--bg-raised);
+    background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
     transition: width 160ms ease, min-width 160ms ease;
   }
@@ -295,26 +379,26 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 32px;
+    height: 34px;
     border: 1px solid transparent;
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--text-dim);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    color: var(--text-2);
     font: inherit;
     cursor: pointer;
   }
   .rail-item:hover {
-    color: var(--text);
+    color: var(--text-1);
   }
   .rail-item.on {
     border-color: var(--accent);
-    color: var(--text);
+    color: var(--text-1);
   }
   .rail-initial {
     font-size: calc(13px * var(--font-scale, 1));
     font-weight: 600;
   }
-  .dot {
+  .rail-item .dot {
     position: absolute;
     right: 4px;
     bottom: 4px;
@@ -329,81 +413,127 @@
     background: var(--err);
   }
   .dot.off {
-    background: var(--text-dim);
-    opacity: 0.4;
+    background: var(--text-3);
+    opacity: 0.5;
   }
   header {
     display: flex;
     align-items: center;
-    gap: 2px;
-    height: 38px;
-    padding: 0 6px 0 10px;
-    border-bottom: 1px solid var(--border);
+    gap: 8px;
+    height: 56px;
+    padding: 0 12px;
   }
-  .title {
-    flex: 1;
-    color: var(--text-dim);
-    font-size: calc(11px * var(--font-scale, 1));
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .icon {
-    width: 24px;
-    height: 24px;
-    border: 0;
-    border-radius: 4px;
-    background: none;
-    color: var(--text-dim);
-    font-size: calc(15px * var(--font-scale, 1));
-    line-height: 1;
-    cursor: pointer;
-  }
-  .icon:hover {
-    background: color-mix(in srgb, var(--text) 10%, transparent);
-    color: var(--text);
-  }
-  /* With the title and add-buttons gone, centre what remains. */
-  .sidebar.collapsed header {
+  header.rail-head {
     justify-content: center;
     padding: 0 6px;
   }
-  .sidebar.collapsed .settings {
-    text-align: center;
+  .search {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-elevated);
+    color: var(--text-3);
+  }
+  .search:focus-within {
+    border-color: var(--border-strong);
+  }
+  .search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    color: var(--text-1);
+    font: inherit;
+    font-size: calc(12.5px * var(--font-scale, 1));
+    outline: none;
+  }
+  .search input::placeholder {
+    color: var(--text-3);
+  }
+  .icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .icon:hover {
+    background: color-mix(in srgb, var(--text-1) 8%, transparent);
+    color: var(--text-1);
+  }
+  .icon.new {
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+  }
+  .icon.new:hover {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--accent);
   }
   .tree {
     flex: 1;
     overflow-y: auto;
-    padding: 6px 6px 12px;
+    padding: 0 8px 12px;
   }
   .tree.root-drop {
     box-shadow: inset 0 -2px 0 var(--accent);
   }
+  .section {
+    padding: 8px 8px 6px;
+    color: var(--text-3);
+    font-size: calc(10.5px * var(--font-scale, 1));
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
   .empty {
     margin: 24px 8px;
-    color: var(--text-dim);
+    color: var(--text-2);
     font-size: calc(12px * var(--font-scale, 1));
     line-height: 1.6;
     text-align: center;
   }
   footer {
-    padding: 6px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 44px;
+    padding: 0 8px;
     border-top: 1px solid var(--border);
   }
-  .settings {
-    width: 100%;
-    padding: 7px 10px;
-    border: 0;
-    border-radius: 4px;
-    background: none;
-    color: var(--text-dim);
-    font: inherit;
-    font-size: calc(13px * var(--font-scale, 1));
-    text-align: left;
-    cursor: pointer;
+  .sidebar.collapsed footer {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    height: auto;
+    padding: 8px 6px;
   }
-  .settings:hover,
-  .settings.on {
-    background: color-mix(in srgb, var(--text) 10%, transparent);
-    color: var(--text);
+  footer .icon {
+    width: 30px;
+    height: 30px;
+  }
+  footer .icon.on {
+    background: var(--bg-elevated);
+    color: var(--accent);
+  }
+  .footer-spacer {
+    flex: 1 1 auto;
+  }
+  .version {
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: calc(11px * var(--font-scale, 1));
   }
 </style>

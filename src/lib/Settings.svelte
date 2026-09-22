@@ -9,6 +9,7 @@
   import type { AiTool, DirAlias } from "../store/types"
   import { DEFAULT_FONT_SCALE, MAX_FONT_SCALE, MIN_FONT_SCALE } from "../store/font"
   import { applyFontAction, fontScale, setFontScale } from "../store/font.svelte"
+  import { setTheme, theme } from "../store/theme.svelte"
   import { LOCALES, LOCALE_NAMES, type Locale } from "../i18n/messages"
   import { locale, setLocale, t } from "../i18n/locale.svelte"
 
@@ -232,6 +233,22 @@
       <button class="ghost add" onclick={rescan}>{t("settings.terminal.rescan")}</button>
 
     {:else if tab === "gorunum"}
+      <div class="card">
+        <span class="card-main"><strong>{t("settings.appearance.theme")}</strong></span>
+        <button
+          class="ghost"
+          class:on={theme.current === "dark"}
+          aria-pressed={theme.current === "dark"}
+          onclick={() => setTheme("dark")}
+        >{t("settings.appearance.themeDark")}</button>
+        <button
+          class="ghost"
+          class:on={theme.current === "light"}
+          aria-pressed={theme.current === "light"}
+          onclick={() => setTheme("light")}
+        >{t("settings.appearance.themeLight")}</button>
+      </div>
+
       <div class="card">
         <span class="card-main"><strong>{t("settings.appearance.language")}</strong></span>
         {#each LOCALES as code (code)}

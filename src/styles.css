@@ -1,27 +1,73 @@
+/* ── Design tokens ───────────────────────────────────────────────────────────
+   One variable set drives both themes: `:root` is the dark default and
+   `[data-theme="light"]` overrides the same names. Values come straight from the
+   approved design's token table (2026-09-22). Existing components reference the
+   older names (--bg, --text, --claude…); those are kept as aliases at the bottom
+   so nothing has to be renamed in one pass. */
 :root {
-  /* Without this, UA-styled elements resolve system colours against the light
-     scheme: <dialog> sets `color: canvastext`, which lands as black on our dark
-     surface and makes any text that does not set its own colour unreadable.
-     Native scrollbars and <select> popups pick up the dark palette too. */
+  /* color-scheme keeps UA-styled elements (native scrollbars, <select> popups,
+     <dialog>'s canvastext default) resolving against the matching palette. It is
+     re-declared per theme below. */
   color-scheme: dark;
-  --bg: #0f1114;
-  --bg-raised: #16191d;
-  --border: #24282e;
-  --text: #d6dae0;
-  --text-dim: #7d858f;
-  --accent: #3d7dff;
-  --ok: #3fb950;
-  --err: #f0574b;
-  /* Anthropic's brand orange. Marks the focused terminal and draws the Claude
-     logo, so both stay in step from one place. */
-  --claude: #d97757;
+
+  --bg-app: #0b0d10;
+  --bg-sidebar: #0e1116;
+  --bg-term: #0f1217;
+  --bg-elevated: #14181e;
+  --border: #1d222a;
+  --border-strong: #2a313b;
+  --text-1: #e6e9ee;
+  --text-2: #99a1ae;
+  --text-3: #6b727e;
+  --accent: #e8825a;
+  --ok: #4ec48a;
+  --warn: #dda63b;
+  --err: #e0776c;
+
+  /* Corner radii the design uses: controls 6/8, cards/panes 10, dialogs 14. */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Focus halo: the accent at 12% opacity, 3 px, in both themes. */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+
   /* The bundled variable faces lead both stacks, so every machine renders the
      same text regardless of what is installed locally — the rest of each list
      only matters if the woff2 fails to load. `ui-monospace` is deliberately
      *behind* the named faces: it resolves to the platform default (Consolas on
      Windows) and would otherwise shadow every face after it. */
-  --font-mono: "Roboto Mono Variable", "Cascadia Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
-  --font-ui: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", "Cascadia Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+  --font-ui: "Geist Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* ── Backward-compat aliases ──
+     Older component styles still say --bg / --bg-raised / --text / --text-dim /
+     --claude. Map them onto the new tokens so both spellings stay in step and a
+     theme switch updates everything at once. */
+  --bg: var(--bg-app);
+  --bg-raised: var(--bg-elevated);
+  --text: var(--text-1);
+  --text-dim: var(--text-2);
+  --claude: var(--accent);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-app: #f2f1ed;
+  --bg-sidebar: #edece7;
+  --bg-term: #ffffff;
+  --bg-elevated: #faf9f6;
+  --border: #dddbd3;
+  --border-strong: #cbc8bf;
+  --text-1: #191a1c;
+  --text-2: #56595f;
+  --text-3: #797c82;
+  --accent: #c2552e;
+  --ok: #17795a;
+  --warn: #a4700c;
+  --err: #b03a2e;
 }
 
 * { box-sizing: border-box; }

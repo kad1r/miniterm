@@ -300,6 +300,7 @@
       style="grid-column:{cell.col * 2 + 1}; grid-row:{cell.row * 2 + 1}"
     >
       <div class="pane-header">
+        <span class="pane-dot" class:dead={exitCodes[cell.index] !== undefined}></span>
         <div class="pane-loc" title={workspace.path}>
           <span class="pane-name">{folderName}</span>
           {#if workspace.path}<span class="pane-path">{workspace.path}</span>{/if}
@@ -442,7 +443,8 @@
     display: grid;
     flex: 1;
     min-height: 0;
-    background: var(--bg);
+    padding: 12px;
+    background: var(--bg-app);
   }
   .cell {
     position: relative;
@@ -452,7 +454,8 @@
     min-height: 0;
     overflow: hidden;
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
+    background: var(--bg-term);
   }
   /* Shell fills whatever the header leaves. min-height:0 lets it shrink so the
      header is never pushed off-screen in a short cell. */
@@ -478,13 +481,24 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
-    padding: 3px 4px 3px 8px;
+    min-height: 32px;
+    padding: 0 6px 0 10px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-raised);
+    background: var(--bg-elevated);
+  }
+  .pane-dot {
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+  .pane-dot.dead {
+    background: var(--err);
   }
   .pane-loc {
+    flex: 1;
     display: flex;
     align-items: baseline;
     gap: 8px;
@@ -493,15 +507,16 @@
   }
   .pane-name {
     flex: 0 0 auto;
-    color: var(--text);
-    font-size: calc(12px * var(--font-scale, 1));
+    color: var(--text-1);
+    font-size: calc(11.5px * var(--font-scale, 1));
     font-weight: 600;
   }
   .pane-path {
     min-width: 0;
     overflow: hidden;
-    color: var(--text-dim);
-    font-size: calc(11px * var(--font-scale, 1));
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: calc(10.5px * var(--font-scale, 1));
     white-space: nowrap;
     text-overflow: ellipsis;
   }
@@ -513,19 +528,19 @@
   .pane-btn {
     display: grid;
     place-items: center;
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
     padding: 0;
     border: 0;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     background: none;
-    color: var(--text-dim);
+    color: var(--text-2);
     cursor: pointer;
   }
   .pane-btn:hover,
   .pane-btn:focus-visible {
-    background: color-mix(in srgb, var(--accent) 35%, transparent);
-    color: var(--text);
+    background: color-mix(in srgb, var(--text-1) 10%, transparent);
+    color: var(--text-1);
     outline: none;
   }
   .pane-btn.danger:hover,
@@ -534,7 +549,7 @@
     color: #fff;
   }
   .pane-btn[aria-pressed="true"] {
-    color: var(--claude);
+    color: var(--accent);
   }
   .pane-btn svg,
   .chip svg {
@@ -587,8 +602,8 @@
      of focus is already the answer. The ring is a box-shadow rather than a
      thicker border so the cell never changes size and the panes never reflow. */
   .cell:focus-within {
-    border-color: var(--claude);
-    box-shadow: 0 0 0 1px var(--claude);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .divider {
     z-index: 2;

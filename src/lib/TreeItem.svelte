@@ -20,6 +20,14 @@
 
   const isFolder = $derived(node.kind === "folder")
   const terminals = $derived(node.kind === "workspace" ? node.rows * node.cols : 0)
+  const childCount = $derived(node.kind === "folder" ? countWorkspaces(node.children) : 0)
+
+  function countWorkspaces(nodes: Node[]): number {
+    return nodes.reduce(
+      (n, c) => n + (c.kind === "folder" ? countWorkspaces(c.children) : 1),
+      0
+    )
+  }
   const hint = $derived(dropHint?.nodeId === node.id ? dropHint : null)
   const status = $derived(node.kind === "workspace" ? statusFor(node.id) : "off")
 </script>
@@ -54,15 +62,13 @@
   onpointerdown={(e) => onpointerdownitem(node, e)}
 >
   {#if node.kind === "folder"}
-    <span class="chevron">{node.expanded ? "▾" : "▸"}</span>
-  {/if}
-  <span class="name">{node.name}</span>
-  {#if !isFolder}
+    <svg class="chevron" class:open={node.expanded} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    <svg class="folder" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+  {:else}
     <span class="dot {status}" title={t(`status.${status}`)}></span>
   {/if}
-  {#if !isFolder}
-    <span class="badge">{terminals}</span>
-  {/if}
+  <span class="name">{node.name}</span>
+  <span class="badge">{isFolder ? childCount : terminals}</span>
 </div>
 
 {#if node.kind === "folder" && node.expanded}
@@ -77,32 +83,41 @@
   .tree-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     /* min-height rather than height: the row is border-box, so a fixed height
        would swallow the vertical padding instead of letting the row breathe. */
-    min-height: 36px;
-    padding-block: 6px;
-    padding-right: 6px;
-    border-radius: 4px;
-    color: var(--text);
-    font-size: calc(13px * var(--font-scale, 1));
+    min-height: 34px;
+    padding-block: 5px;
+    padding-right: 8px;
+    border-radius: 7px;
+    color: var(--text-2);
+    font-size: calc(12.5px * var(--font-scale, 1));
+    font-weight: 500;
     cursor: pointer;
     user-select: none;
     touch-action: none;
   }
   .tree-item:hover {
-    background: color-mix(in srgb, var(--text) 8%, transparent);
+    background: color-mix(in srgb, var(--text-1) 6%, transparent);
+    color: var(--text-1);
   }
   .tree-item.active {
-    background: color-mix(in srgb, var(--accent) 26%, transparent);
+    background: var(--bg-elevated);
+    color: var(--text-1);
+    box-shadow: inset 2px 0 0 var(--accent);
   }
   .chevron {
-    width: 12px;
-    color: var(--text-dim);
-    font-size: calc(10px * var(--font-scale, 1));
+    flex-shrink: 0;
+    color: var(--text-3);
+    transform: rotate(-90deg);
+    transition: transform 120ms ease;
   }
-  .chevron.hidden {
-    visibility: hidden;
+  .chevron.open {
+    transform: none;
+  }
+  .folder {
+    flex-shrink: 0;
+    color: var(--text-2);
   }
   .name {
     flex: 1;
@@ -111,20 +126,26 @@
     text-overflow: ellipsis;
   }
   .dot {
-    width: 6px;
-    height: 6px;
+    flex-shrink: 0;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    background: var(--text-dim);
+    background: transparent;
+    border: 1.5px solid var(--text-3);
   }
   .dot.running {
     background: var(--ok);
+    border-color: var(--ok);
   }
   .dot.dead {
     background: var(--err);
+    border-color: var(--err);
   }
   .badge {
-    color: var(--text-dim);
-    font-size: calc(11px * var(--font-scale, 1));
+    flex-shrink: 0;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: calc(10.5px * var(--font-scale, 1));
   }
   .tree-item.dragging {
     opacity: 0.4;

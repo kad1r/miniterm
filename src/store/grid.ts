@@ -1,6 +1,6 @@
 import { toGridTemplate } from "./layout"
 
-export const DIVIDER_PX = 4
+export const DIVIDER_PX = 10
 
 export interface Cell {
   index: number

@@ -7,9 +7,11 @@
     sessions, toggleMaximize,
   } from "./store/sessions.svelte"
   import { MAX_TERMINALS } from "./store/layout"
-  import { fontAction } from "./store/font"
-  import { applyFontAction, initFontScale } from "./store/font.svelte"
-  import { initLocale, t } from "./i18n/locale.svelte"
+  import { fontAction, termFontSize } from "./store/font"
+  import { applyFontAction, fontScale, initFontScale } from "./store/font.svelte"
+  import { initTheme } from "./store/theme.svelte"
+  import { TERM_FONT_SIZE } from "./term/theme"
+  import { initLocale, locale, t } from "./i18n/locale.svelte"
   import {
     isHelpChord, isNewTerminalChord, isNewWorkspaceChord, isSettingsChord,
   } from "./term/shortcuts"
@@ -29,6 +31,7 @@
   onMount(async () => {
     initLocale()
     initFontScale()
+    initTheme()
     const exits = listenExits()
     await bootstrap()
     await exits
@@ -94,6 +97,32 @@
     const node = findNode(app.config.tree, id)
     return node && node.kind === "workspace" ? node : null
   }
+
+  // Names the current context in the header breadcrumb. Null on the settings
+  // view or when nothing is selected, so the crumb simply disappears.
+  const activeWs = $derived(
+    app.activeWorkspaceId ? workspaceById(app.activeWorkspaceId) : null,
+  )
+
+  // Bottom status bar figures for the active workspace: which shell it runs, how
+  // many panes hold a session and how many of those are still alive.
+  const activeSlot = $derived(
+    app.activeWorkspaceId ? sessions.byWorkspace[app.activeWorkspaceId] : null,
+  )
+  const sessionCount = $derived(
+    activeSlot ? activeSlot.ids.filter((x) => x !== null).length : 0,
+  )
+  const runningCount = $derived(
+    activeSlot
+      ? activeSlot.ids.filter((x, i) => x !== null && activeSlot.exits[i] === undefined).length
+      : 0,
+  )
+  const shellName = $derived.by(() => {
+    if (!activeWs) return ""
+    const wanted = activeWs.shellId ?? app.config.defaultShellId
+    return (app.shells.find((s) => s.id === wanted) ?? app.shells[0])?.name ?? ""
+  })
+  const fontPx = $derived(termFontSize(TERM_FONT_SIZE, fontScale.level))
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -102,12 +131,14 @@
   {#if !app.ready}
     <div class="boot">{t("app.loading")}</div>
   {:else}
+    <div class="body">
     <Sidebar
       onnew={() => (wizardOpen = true)}
       onaddterminal={(id) => (layoutDialog = { id, mode: "add" })}
       onchangelayout={(id) => (layoutDialog = { id, mode: "layout" })}
     />
     <main>
+      <div class="stage">
       {#if app.view === "settings"}
         <Settings />
       {:else if app.activeWorkspaceId === null}
@@ -149,7 +180,18 @@
           {/if}
         {/each}
       {/if}
+      </div>
+      <footer class="statusbar">
+        {#if activeWs}
+          <span class="sb-strong">{shellName}</span>
+          <span>{t("statusbar.sessions", { n: sessionCount })} · {t("statusbar.running", { n: runningCount })}</span>
+        {/if}
+        <div class="sb-spacer"></div>
+        <span>{fontPx} px</span>
+        <span class="sb-strong">{locale.current.toUpperCase()}</span>
+      </footer>
     </main>
+    </div>
     {#if wizardOpen}
       <Wizard onclose={() => (wizardOpen = false)} />
     {/if}
@@ -178,23 +220,35 @@
 <style>
   .shell {
     display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100%;
+    overflow: hidden;
+    background: var(--bg-app);
+  }
+  .body {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
     overflow: hidden;
   }
   main {
     flex: 1;
     min-width: 0;
-    position: relative;
-    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-app);
   }
-  /* Breathing room around the grid. It sits here rather than on `main` because
-     the layers are absolutely positioned, and `inset: 0` resolves against the
-     padding box — padding on the parent would not inset them at all. */
+  /* Holds the workspace layers (or settings). Positioned so the absolutely
+     positioned layers inset against it, leaving the status bar its own row. */
+  .stage {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
   .layer {
     position: absolute;
     inset: 0;
-    padding: 8px;
   }
   .layer.hidden {
     visibility: hidden;
@@ -208,6 +262,27 @@
     height: 100%;
     color: var(--text-dim);
     font-size: calc(13px * var(--font-scale, 1));
+  }
+  /* Thin bottom strip: shell + session tally on the left, font size and locale
+     on the right, all in the mono face like a real terminal status line. */
+  .statusbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 30px;
+    padding: 0 14px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-app);
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: calc(10.5px * var(--font-scale, 1));
+  }
+  .sb-strong {
+    color: var(--text-2);
+  }
+  .sb-spacer {
+    flex: 1 1 auto;
   }
   .toast {
     position: fixed;

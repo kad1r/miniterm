@@ -7,6 +7,32 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.9.0 — 2026-09-22
+
+### A new look, and a light theme
+
+miniterm has been reskinned end to end. A **light theme** joins the dark one, and
+you can switch between them from the toggle at the bottom of the sidebar — the
+choice is remembered between runs. Every terminal palette follows the switch
+live, without tearing down the running shells.
+
+The typeface is now **Geist** for the interface and **JetBrains Mono** for the
+terminals, both bundled with the build so nothing is fetched at runtime.
+
+### Sidebar carries the controls
+
+The sidebar gains a **search box** that filters your workspaces as you type, an
+accent **new-workspace** button, and status dots with a live terminal count on
+each row. Its footer holds the collapse, theme and settings controls, plus the
+running version.
+
+### A tidier window
+
+The old top bar is gone: the theme and settings toggles moved into the sidebar,
+so the terminals get the full height of the window. Panes are rounded, the
+focused pane is marked with an accent border, and a slim **status bar** along the
+bottom shows the shell, the session tally, the font size and the language.
+
 ## 0.8.0 — 2026-09-21
 
 ### Sidebar reordering works again

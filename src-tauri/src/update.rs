@@ -78,7 +78,13 @@ pub async fn download(app: &AppHandle, url: &str) -> Result<std::path::PathBuf, 
     if !is_allowed_host(url) {
         return Err("refusing to download a non-GitHub url".into());
     }
-    let file_name = url.rsplit('/').next().filter(|s| !s.is_empty()).unwrap_or("miniterm-setup.exe");
+    let raw = url.rsplit('/').next().filter(|s| !s.is_empty()).unwrap_or("miniterm-setup.exe");
+    // Strip any directory components / query junk that survived, and refuse traversal.
+    let file_name = std::path::Path::new(raw)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .filter(|n| !n.is_empty() && !n.contains(".."))
+        .unwrap_or("miniterm-setup.exe");
     let dest = std::env::temp_dir().join(file_name);
 
     let client = reqwest::Client::builder()
@@ -94,8 +100,17 @@ pub async fn download(app: &AppHandle, url: &str) -> Result<std::path::PathBuf, 
     let mut downloaded: u64 = 0;
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| e.to_string())?;
-        file.write_all(&chunk).map_err(|e| e.to_string())?;
+        let chunk = match chunk {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = std::fs::remove_file(&dest);
+                return Err(e.to_string());
+            }
+        };
+        if let Err(e) = file.write_all(&chunk) {
+            let _ = std::fs::remove_file(&dest);
+            return Err(e.to_string());
+        }
         downloaded += chunk.len() as u64;
         let _ = app.emit("update-progress", Progress { downloaded, total });
     }

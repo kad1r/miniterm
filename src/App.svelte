@@ -21,6 +21,8 @@
   import LayoutDialog from "./lib/LayoutDialog.svelte"
   import Shortcuts from "./lib/Shortcuts.svelte"
   import TerminalGrid from "./lib/TerminalGrid.svelte"
+  import UpdateBanner from "./lib/UpdateBanner.svelte"
+  import { runCheck } from "./store/update.svelte"
 
   let wizardOpen = $state(false)
   let helpOpen = $state(false)
@@ -34,6 +36,7 @@
     initTheme()
     const exits = listenExits()
     await bootstrap()
+    void runCheck(true)
     await exits
   })
 
@@ -131,6 +134,7 @@
   {#if !app.ready}
     <div class="boot">{t("app.loading")}</div>
   {:else}
+    <UpdateBanner />
     <div class="body">
     <Sidebar
       onnew={() => (wizardOpen = true)}

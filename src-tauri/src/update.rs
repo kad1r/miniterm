@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Asset {
@@ -41,6 +41,56 @@ pub fn is_allowed_host(url: &str) -> bool {
         },
         Err(_) => false,
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    pub current: String,
+    pub latest: String,
+    pub is_newer: bool,
+    pub download_url: String,
+    pub notes: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Release {
+    tag_name: String,
+    #[serde(default)]
+    body: String,
+    #[serde(default)]
+    assets: Vec<Asset>,
+}
+
+const LATEST_URL: &str = "https://api.github.com/repos/kad1r/miniterm/releases/latest";
+
+/// Query GitHub for the latest release and fold it against `current`.
+/// `Err` on any network/parse failure or when the release has no NSIS asset.
+pub async fn fetch_latest(current: &str) -> Result<UpdateInfo, String> {
+    let client = reqwest::Client::builder()
+        .user_agent(format!("miniterm/{current}"))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(LATEST_URL)
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("github returned {}", resp.status()));
+    }
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+    let rel: Release = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    let latest = strip_v(&rel.tag_name).to_string();
+    let asset = pick_setup_asset(&rel.assets).ok_or("no NSIS installer asset on latest release")?;
+    Ok(UpdateInfo {
+        current: current.to_string(),
+        latest: latest.clone(),
+        is_newer: is_newer(current, &latest),
+        download_url: asset.browser_download_url.clone(),
+        notes: rel.body,
+    })
 }
 
 #[cfg(test)]

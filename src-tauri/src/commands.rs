@@ -1,6 +1,7 @@
 use crate::config::{self, Config, LoadResult};
 use crate::pty::{SessionManager, SpawnOpts};
 use crate::shell::{self, ShellInfo};
+use crate::update::{self, UpdateInfo};
 use std::path::PathBuf;
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{AppHandle, Manager, State};
@@ -88,4 +89,10 @@ pub fn config_dir(app: &AppHandle) -> PathBuf {
     app.path()
         .app_config_dir()
         .expect("no app config dir available on this platform")
+}
+
+#[tauri::command]
+pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
+    let current = app.package_info().version.to_string();
+    update::fetch_latest(&current).await
 }

@@ -1,6 +1,7 @@
 pub mod config;
 pub mod pty;
 pub mod shell;
+pub mod update;
 
 #[cfg(not(test))]
 pub mod commands;

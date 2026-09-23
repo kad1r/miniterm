@@ -174,6 +174,18 @@ const EN = {
   "settings.about.notes": "What's in this version",
   "settings.about.noNotes": "This build ships no release notes for {version}.",
   "settings.about.source": "Project page",
+
+  "update.bannerAvailable": "New version {version} available",
+  "update.download": "Download & install",
+  "update.dismiss": "Dismiss",
+  "update.downloading": "Downloading… {percent}%",
+  "update.installReady": "Download complete.",
+  "update.installConfirm": "Close miniterm and install now?",
+  "update.installNow": "Close & install",
+  "update.checkButton": "Check for updates",
+  "update.checking": "Checking…",
+  "update.upToDate": "You're on the latest version.",
+  "update.failed": "Could not check for updates.",
 } as const
 
 const TR: Record<keyof typeof EN, string> = {
@@ -336,6 +348,18 @@ const TR: Record<keyof typeof EN, string> = {
   "settings.about.notes": "Bu sürümde neler var",
   "settings.about.noNotes": "Bu yapı {version} için sürüm notu içermiyor.",
   "settings.about.source": "Proje sayfası",
+
+  "update.bannerAvailable": "Yeni sürüm {version} mevcut",
+  "update.download": "İndir & kur",
+  "update.dismiss": "Kapat",
+  "update.downloading": "İndiriliyor… %{percent}",
+  "update.installReady": "İndirme tamamlandı.",
+  "update.installConfirm": "miniterm kapatılıp şimdi kurulsun mu?",
+  "update.installNow": "Kapat & kur",
+  "update.checkButton": "Güncellemeleri denetle",
+  "update.checking": "Denetleniyor…",
+  "update.upToDate": "En güncel sürümü kullanıyorsun.",
+  "update.failed": "Güncelleme denetlenemedi.",
 }
 
 export type MessageKey = keyof typeof EN

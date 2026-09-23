@@ -60,6 +60,7 @@ pub fn run() {
             commands::get_buffer,
             commands::check_update,
             commands::download_update,
+            commands::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running miniterm");

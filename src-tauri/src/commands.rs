@@ -102,3 +102,16 @@ pub async fn download_update(app: AppHandle, url: String) -> Result<String, Stri
     let path = update::download(&app, &url).await?;
     Ok(path.to_string_lossy().into_owned())
 }
+
+/// Launch the downloaded installer, then quit so NSIS can replace locked files.
+/// Called only after the user confirms the close-and-install prompt.
+#[tauri::command]
+pub fn install_update(app: AppHandle, path: String) -> Result<(), String> {
+    let p = std::path::PathBuf::from(&path);
+    if !p.is_file() {
+        return Err("installer file not found".into());
+    }
+    std::process::Command::new(&p).spawn().map_err(map_err)?;
+    app.exit(0);
+    Ok(())
+}

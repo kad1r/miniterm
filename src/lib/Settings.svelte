@@ -10,6 +10,7 @@
   import { DEFAULT_FONT_SCALE, MAX_FONT_SCALE, MIN_FONT_SCALE } from "../store/font"
   import { applyFontAction, fontScale, setFontScale } from "../store/font.svelte"
   import { setTheme, theme } from "../store/theme.svelte"
+  import { update, runCheck, runDownload, runInstall } from "../store/update.svelte"
   import { LOCALES, LOCALE_NAMES, type Locale } from "../i18n/messages"
   import { locale, setLocale, t } from "../i18n/locale.svelte"
 
@@ -18,6 +19,14 @@
   let editingDir = $state<DirAlias | null>(null)
 
   const REPO = "https://github.com/kad1r/miniterm"
+
+  async function checkForUpdates() {
+    await runCheck(false)
+  }
+  async function downloadAndInstall() {
+    const path = await runDownload()
+    if (path && confirm(t("update.installConfirm"))) await runInstall(path)
+  }
 
   // Parsed once at module-eval cost, not per tab switch: the file is a build
   // constant and cannot change while the app runs.
@@ -322,6 +331,28 @@
 
       <h3>{t("settings.about.source")}</h3>
       <p class="repo"><code>{REPO}</code></p>
+
+      <h3>{t("update.checkButton")}</h3>
+      <div class="update-check">
+        <button
+          onclick={checkForUpdates}
+          disabled={update.status === "checking" || update.status === "downloading"}
+        >
+          {update.status === "checking" ? t("update.checking") : t("update.checkButton")}
+        </button>
+        {#if update.status === "upToDate"}
+          <span class="hint">{t("update.upToDate")}</span>
+        {:else if update.status === "error"}
+          <span class="hint err">{t("update.failed")}</span>
+        {:else if update.status === "available"}
+          <span class="hint">{t("update.bannerAvailable", { version: update.info?.latest ?? "" })}</span>
+          <button onclick={downloadAndInstall}>{t("update.download")}</button>
+        {:else if update.status === "downloading"}
+          <span class="hint">{t("update.downloading", { percent: update.progress?.total ? Math.floor((update.progress.downloaded / update.progress.total) * 100) : 0 })}</span>
+        {:else if update.status === "ready"}
+          <span class="hint">{t("update.installReady")}</span>
+        {/if}
+      </div>
     {/if}
   </div>
 </section>
@@ -366,6 +397,18 @@
     margin: 0 0 14px;
     color: var(--text-dim);
     font-size: calc(12px * var(--font-scale, 1));
+  }
+  .update-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .update-check .hint {
+    margin: 0;
+  }
+  .update-check .hint.err {
+    color: var(--err);
   }
   h3 {
     margin: 22px 0 8px;

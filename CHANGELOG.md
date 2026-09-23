@@ -7,6 +7,26 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.10.0 — 2026-09-23
+
+### Stay up to date, from inside the app
+
+miniterm now **checks for updates on its own**. Every time it starts it quietly
+asks GitHub whether a newer release exists; if one does, a small **banner** slides
+in at the top of the window. Nothing interrupts you — when you are already on the
+latest build, or the check cannot reach GitHub, it stays silent.
+
+You can also check on demand from **Settings → About** with the new **Check for
+updates** button, which reports the result right there — up to date, a new version,
+or an error.
+
+### One click to install
+
+When an update is available, choosing **Download** fetches the new installer with a
+live progress readout. Once it is ready miniterm asks to **close and install**; on
+your confirmation it launches the installer and exits. The update is never forced
+and never runs behind your back — you decide when to download and when to install.
+
 ## 0.9.0 — 2026-09-22
 
 ### A new look, and a light theme

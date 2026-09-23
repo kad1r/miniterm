@@ -1,6 +1,35 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+
+export interface UpdateInfo {
+  current: string
+  latest: string
+  isNewer: boolean
+  downloadUrl: string
+  notes: string
+}
+
+export interface Progress {
+  downloaded: number
+  total: number | null
+}
+
+export function checkUpdate(): Promise<UpdateInfo> {
+  return invoke<UpdateInfo>("check_update")
+}
+
+export function downloadUpdate(url: string): Promise<string> {
+  return invoke<string>("download_update", { url })
+}
+
+export function installUpdate(path: string): Promise<void> {
+  return invoke<void>("install_update", { path })
+}
+
+export function onUpdateProgress(cb: (p: Progress) => void): Promise<() => void> {
+  return listen<Progress>("update-progress", (e) => cb(e.payload))
+}
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";

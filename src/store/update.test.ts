@@ -8,43 +8,44 @@ const ipc = vi.hoisted(() => ({
 }))
 vi.mock("../ipc", () => ipc)
 
-import { update, runCheck, dismiss } from "./update.svelte"
+import { initialState, runCheck, type UpdateState } from "./update"
 
 const info = (isNewer: boolean) => ({
   current: "0.9.0", latest: isNewer ? "0.10.0" : "0.9.0",
   isNewer, downloadUrl: "https://github.com/x.exe", notes: "notes",
 })
 
+let state: UpdateState
 beforeEach(() => {
   vi.clearAllMocks()
-  dismiss()
+  state = initialState()
 })
 
 describe("runCheck", () => {
   it("goes available when a newer release exists", async () => {
     ipc.checkUpdate.mockResolvedValue(info(true))
-    await runCheck(false)
-    expect(update.status).toBe("available")
-    expect(update.info?.latest).toBe("0.10.0")
+    await runCheck(state, false)
+    expect(state.status).toBe("available")
+    expect(state.info?.latest).toBe("0.10.0")
   })
 
   it("goes upToDate when current is latest", async () => {
     ipc.checkUpdate.mockResolvedValue(info(false))
-    await runCheck(false)
-    expect(update.status).toBe("upToDate")
+    await runCheck(state, false)
+    expect(state.status).toBe("upToDate")
   })
 
   it("stays idle on silent error", async () => {
     ipc.checkUpdate.mockRejectedValue(new Error("offline"))
-    await runCheck(true)
-    expect(update.status).toBe("idle")
-    expect(update.error).toBeNull()
+    await runCheck(state, true)
+    expect(state.status).toBe("idle")
+    expect(state.error).toBeNull()
   })
 
   it("records error on non-silent failure", async () => {
     ipc.checkUpdate.mockRejectedValue(new Error("offline"))
-    await runCheck(false)
-    expect(update.status).toBe("error")
-    expect(update.error).toBe("offline")
+    await runCheck(state, false)
+    expect(state.status).toBe("error")
+    expect(state.error).toBe("offline")
   })
 })

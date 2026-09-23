@@ -1,4 +1,7 @@
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
+use tauri::{AppHandle, Emitter};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Asset {
@@ -60,6 +63,44 @@ struct Release {
     body: String,
     #[serde(default)]
     assets: Vec<Asset>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Progress {
+    pub downloaded: u64,
+    pub total: Option<u64>,
+}
+
+/// Stream `url` to a temp file, emitting `update-progress` as bytes arrive.
+/// Rejects any non-GitHub host before opening a connection.
+pub async fn download(app: &AppHandle, url: &str) -> Result<std::path::PathBuf, String> {
+    if !is_allowed_host(url) {
+        return Err("refusing to download a non-GitHub url".into());
+    }
+    let file_name = url.rsplit('/').next().filter(|s| !s.is_empty()).unwrap_or("miniterm-setup.exe");
+    let dest = std::env::temp_dir().join(file_name);
+
+    let client = reqwest::Client::builder()
+        .user_agent("miniterm-updater")
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client.get(url).send().await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("download failed: {}", resp.status()));
+    }
+    let total = resp.content_length();
+    let mut file = std::fs::File::create(&dest).map_err(|e| e.to_string())?;
+    let mut downloaded: u64 = 0;
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| e.to_string())?;
+        file.write_all(&chunk).map_err(|e| e.to_string())?;
+        downloaded += chunk.len() as u64;
+        let _ = app.emit("update-progress", Progress { downloaded, total });
+    }
+    file.flush().map_err(|e| e.to_string())?;
+    Ok(dest)
 }
 
 const LATEST_URL: &str = "https://api.github.com/repos/kad1r/miniterm/releases/latest";

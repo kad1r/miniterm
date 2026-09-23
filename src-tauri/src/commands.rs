@@ -96,3 +96,9 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
     let current = app.package_info().version.to_string();
     update::fetch_latest(&current).await
 }
+
+#[tauri::command]
+pub async fn download_update(app: AppHandle, url: String) -> Result<String, String> {
+    let path = update::download(&app, &url).await?;
+    Ok(path.to_string_lossy().into_owned())
+}

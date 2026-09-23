@@ -1,6 +1,7 @@
 pub mod config;
 pub mod pty;
 pub mod shell;
+pub mod update;
 
 #[cfg(not(test))]
 pub mod commands;
@@ -57,6 +58,9 @@ pub fn run() {
             commands::attach_session,
             commands::detach_session,
             commands::get_buffer,
+            commands::check_update,
+            commands::download_update,
+            commands::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running miniterm");

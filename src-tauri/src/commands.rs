@@ -1,6 +1,7 @@
 use crate::config::{self, Config, LoadResult};
 use crate::pty::{SessionManager, SpawnOpts};
 use crate::shell::{self, ShellInfo};
+use crate::update::{self, UpdateInfo};
 use std::path::PathBuf;
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{AppHandle, Manager, State};
@@ -88,4 +89,29 @@ pub fn config_dir(app: &AppHandle) -> PathBuf {
     app.path()
         .app_config_dir()
         .expect("no app config dir available on this platform")
+}
+
+#[tauri::command]
+pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
+    let current = app.package_info().version.to_string();
+    update::fetch_latest(&current).await
+}
+
+#[tauri::command]
+pub async fn download_update(app: AppHandle, url: String) -> Result<String, String> {
+    let path = update::download(&app, &url).await?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// Launch the downloaded installer, then quit so NSIS can replace locked files.
+/// Called only after the user confirms the close-and-install prompt.
+#[tauri::command]
+pub fn install_update(app: AppHandle, path: String) -> Result<(), String> {
+    let p = std::path::PathBuf::from(&path);
+    if !p.is_file() {
+        return Err("installer file not found".into());
+    }
+    std::process::Command::new(&p).spawn().map_err(map_err)?;
+    app.exit(0);
+    Ok(())
 }

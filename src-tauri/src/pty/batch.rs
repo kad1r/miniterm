@@ -3,11 +3,11 @@ pub const FLUSH_INTERVAL_MS: u64 = 8;
 /// whole PTY read (up to 64 KB), so a single flush can carry ~96 KB.
 pub const FLUSH_BYTES: usize = 32_768;
 
-/// Biriken baytların IPC'ye gönderilip gönderilmeyeceği.
+/// Whether the accumulated bytes should be sent over IPC now.
 ///
-/// Tauri'nin varsayılan olay yolu her mesajı JSON'a çevirir; `npm install`
-/// gibi bir çıktı selinde bu tek başına CPU'yu yer. Toplama, saniyede
-/// binlerce mesajı ~125 mesaja indirir.
+/// Tauri's default event path turns every message into JSON; in an output
+/// flood like `npm install` that alone eats the CPU. Batching cuts thousands
+/// of messages a second down to ~125.
 pub fn should_flush(pending_len: usize, waited_ms: u64) -> bool {
     if pending_len == 0 {
         return false;

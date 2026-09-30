@@ -62,11 +62,19 @@ fn resolve(config_dir: &Path, workspace_id: &str, rel: &str) -> Result<PathBuf, 
     Ok(dir(config_dir, workspace_id)?.join(rel))
 }
 
+/// `roster.md` -> `roster.md.tmp`. The full name is kept, so `X.md` and `X.log`
+/// (an agent named "roster", say) never write through the same temp file.
+fn tmp_path(path: &Path) -> PathBuf {
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(".tmp");
+    path.with_file_name(name)
+}
+
 /// Replace a file's contents. Written to a temp file and renamed so a reader
 /// in another pane never sees a half-written log.
 pub fn write(config_dir: &Path, workspace_id: &str, rel: &str, content: &str) -> Result<(), String> {
     let path = resolve(config_dir, workspace_id, rel)?;
-    let tmp = path.with_extension("tmp");
+    let tmp = tmp_path(&path);
     {
         let mut f = fs::File::create(&tmp).map_err(|e| e.to_string())?;
         f.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
@@ -156,6 +164,13 @@ mod tests {
 
         remove_dir(&cfg, "ws1").unwrap();
         assert!(!d.exists());
+    }
+
+    #[test]
+    fn temp_files_are_distinct_per_extension() {
+        let d = Path::new("agents/w");
+        assert_ne!(tmp_path(&d.join("roster.md")), tmp_path(&d.join("roster.log")));
+        assert_eq!(tmp_path(&d.join("roster.md")), d.join("roster.md.tmp"));
     }
 
     #[test]

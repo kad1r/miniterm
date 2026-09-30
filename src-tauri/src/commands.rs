@@ -10,6 +10,9 @@ use tauri::{AppHandle, Manager, State};
 pub struct AppState {
     pub sessions: SessionManager,
     pub config_dir: PathBuf,
+    /// The installer `download_update` wrote. `install_update` launches this
+    /// file and nothing else, whatever path the frontend hands it.
+    pub downloaded_installer: std::sync::Mutex<Option<PathBuf>>,
 }
 
 fn map_err<E: std::fmt::Display>(e: E) -> String {
@@ -99,20 +102,34 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
 }
 
 #[tauri::command]
-pub async fn download_update(app: AppHandle, url: String) -> Result<String, String> {
+pub async fn download_update(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    url: String,
+) -> Result<String, String> {
     let path = update::download(&app, &url).await?;
+    *state.downloaded_installer.lock().unwrap_or_else(|e| e.into_inner()) = Some(path.clone());
     Ok(path.to_string_lossy().into_owned())
 }
 
 /// Launch the downloaded installer, then quit so NSIS can replace locked files.
-/// Called only after the user confirms the close-and-install prompt.
+/// Called only after the user confirms the close-and-install prompt. Only the
+/// file this process downloaded may be launched — never an arbitrary path.
 #[tauri::command]
-pub fn install_update(app: AppHandle, path: String) -> Result<(), String> {
-    let p = std::path::PathBuf::from(&path);
-    if !p.is_file() {
+pub fn install_update(app: AppHandle, state: State<'_, AppState>, path: String) -> Result<(), String> {
+    let expected = state
+        .downloaded_installer
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+        .ok_or("no installer has been downloaded")?;
+    if PathBuf::from(&path) != expected {
+        return Err("refusing to launch a file that was not downloaded by the updater".into());
+    }
+    if !expected.is_file() {
         return Err("installer file not found".into());
     }
-    std::process::Command::new(&p).spawn().map_err(map_err)?;
+    std::process::Command::new(&expected).spawn().map_err(map_err)?;
     app.exit(0);
     Ok(())
 }

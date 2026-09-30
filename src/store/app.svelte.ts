@@ -34,7 +34,7 @@ const saver = createSaver<Config>(async (config) => {
 const TOAST_TIMEOUT_MS = 3000;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Bilgi mesajları kendiliğinden kaybolur; hatalar kullanıcı kapatana kadar durur. */
+/** Info messages fade on their own; errors stay until the user dismisses them. */
 export function notify(text: string, tone: "info" | "error" = "info") {
   if (toastTimer !== null) clearTimeout(toastTimer);
   toastTimer = null;
@@ -50,9 +50,9 @@ export function dismissToast() {
   app.toast = null;
 }
 
-/** Config'i değiştirir ve debounce'lu diske yazmayı kuyruğa alır.
- *  Başlatma sırasında hata oluştuysa hiçbir şey yazmaz — boş config'i diske
- *  basmaktansa sessizce reddetmek tercih edilir. */
+/** Changes the config and queues a debounced write to disk.
+ *  Writes nothing if startup failed — refusing silently beats overwriting
+ *  the real file with an empty config. */
 export function commit(mutate: (config: Config) => Config) {
   if (app.loadFailed) return;
   app.config = mutate(app.config);

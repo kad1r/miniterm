@@ -90,7 +90,7 @@
     return () => window.removeEventListener("wheel", onWheel, { capture: true })
   })
 
-  // Seçili workspace değişince oturumları hazırla.
+  // Prepare the sessions whenever the selected workspace changes.
   $effect(() => {
     const id = app.activeWorkspaceId
     if (id) untrack(() => void activate(id))

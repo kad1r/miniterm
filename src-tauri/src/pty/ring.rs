@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 
 pub const RING_CAPACITY: usize = 262_144;
 
-/// Oturum çıktısının son `cap` baytını tutar.
-/// Kapasite aşıldığında baştan tam satırlar atılır; hiç satır sonu yoksa
-/// ham bayt kırpmaya düşer.
+/// Holds the last `cap` bytes of a session's output.
+/// Past capacity, whole lines are dropped from the front; with no newline at
+/// all it falls back to trimming raw bytes.
 pub struct RingBuffer {
     cap: usize,
     buf: VecDeque<u8>,
@@ -34,12 +34,12 @@ impl RingBuffer {
     fn trim(&mut self) {
         while self.buf.len() > self.cap {
             match self.buf.iter().position(|&b| b == b'\n') {
-                // Satır sonuna kadar (dahil) at; ama bu tek başına yetmezse
-                // döngü bir sonraki satırı da atar.
+                // Drop up to and including the newline; if that alone is not
+                // enough, the loop drops the next line too.
                 Some(nl) => {
                     self.buf.drain(..=nl);
                 }
-                // Hiç satır sonu yok: ham kırp.
+                // No newline at all: trim raw bytes.
                 None => {
                     let excess = self.buf.len() - self.cap;
                     self.buf.drain(..excess);
@@ -83,7 +83,7 @@ mod tests {
         let mut r = RingBuffer::with_capacity(20);
         r.push(b"aaaa\nbbbb\ncccc\ndddd\n");
         r.push(b"eeee\n");
-        // "aaaa\n" atılmalı; kalan tam satırlarla başlamalı
+        // "aaaa\n" must be dropped; the rest must start on a whole line
         let snap = r.snapshot();
         assert!(
             snap.starts_with(b"bbbb\n"),
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn falls_back_to_raw_trim_when_no_newline_exists() {
         let mut r = RingBuffer::with_capacity(8);
-        r.push(b"aaaaaaaaaaaaaaaa"); // 16 bayt, hiç newline yok
+        r.push(b"aaaaaaaaaaaaaaaa"); // 16 bytes, no newline
         assert_eq!(r.len(), 8);
         assert_eq!(r.snapshot(), b"aaaaaaaa");
     }

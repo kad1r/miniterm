@@ -6,7 +6,7 @@ export interface GridLayout {
   cols: number;
 }
 
-/** Terminal sayısının tüm çarpan çiftleri, satır sayısı artan sırada. */
+/** Every factor pair of the terminal count, by ascending row count. */
 export function layoutsFor(count: number): GridLayout[] {
   if (!Number.isInteger(count) || count < 1 || count > MAX_TERMINALS) return [];
   const out: GridLayout[] = [];
@@ -21,9 +21,9 @@ export function equalSizes(n: number): number[] {
 }
 
 /**
- * `dividerIndex` numaralı ayırıcıyı `deltaPx` kadar kaydırır: alan yalnız
- * `sizes[dividerIndex]` ile `sizes[dividerIndex + 1]` arasında el değiştirir,
- * böylece toplam 1 kalır ve diğer hücreler oynamaz.
+ * Moves divider `dividerIndex` by `deltaPx`: space changes hands only between
+ * `sizes[dividerIndex]` and `sizes[dividerIndex + 1]`, so the total stays 1
+ * and no other cell moves.
  */
 export function resizeFractions(
   sizes: number[],

@@ -21,7 +21,7 @@ export function commandPreview(shell: ShellInfo | null, command: string, locale:
     ? [shell.program, ...shell.args].join(" ")
     : translate(locale, "preview.noShell")
   const cmd = command.trim()
-  // Komut asla argüman olarak geçirilmez; etkileşimli shell'in stdin'ine yazılır (§6.1).
+  // The command is never passed as an argument; it is typed into the interactive shell's stdin (§6.1).
   return cmd === ""
     ? translate(locale, "preview.noCommand", { shell: shellPart })
     : translate(locale, "preview.withCommand", { shell: shellPart, command: cmd })

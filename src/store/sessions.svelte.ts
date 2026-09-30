@@ -47,7 +47,7 @@ export const sessions = $state({
   live: [] as string[],
 })
 
-/** sessionId -> hangi workspace. session-exit olayını yönlendirmek için gerekli.
+/** sessionId -> workspace. Needed to route the session-exit event.
  *  Deliberately not the cell index: closing, minimizing and restoring all move
  *  panes between cells, and a remembered index would go stale and paint the
  *  wrong pane dead. The position is looked up from the arrays when needed. */
@@ -137,9 +137,9 @@ export async function activate(workspaceId: string): Promise<void> {
   // A workspace with no shell must not consume one of the three LRU slots.
   const moved = touch(sessions.live, workspaceId, LIVE_LIMIT)
   sessions.live = moved.list
-  // Tahliye edilenlerin süreçleri yaşar; sadece xterm örnekleri kaldırılır.
+  // Evicted panes' processes live on; only their xterm instances go.
 
-  // Yerleşim değiştiyse fazla panelleri kapat, eksikleri aç.
+  // If the layout changed, close the surplus panes and open the missing ones.
   // This is how "add a terminal" lands: LayoutDialog writes the new rows/cols and
   // calls activate() again. Exits are carried forward so surviving dead panes keep
   // their status dots instead of resetting to "running".

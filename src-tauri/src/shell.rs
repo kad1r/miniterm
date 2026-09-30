@@ -16,11 +16,11 @@ pub struct ShellInfo {
     pub args: Vec<String>,
 }
 
-/// Windows adayları, tercih sırasıyla.
+/// Windows candidates, in order of preference.
 ///
-/// `wt.exe` kasıtlı olarak yoktur: Windows Terminal bir shell değil, shell
-/// barındıran bir pencere uygulamasıdır. Alt süreç olarak başlatılırsa kendi
-/// penceresini açar ve miniterm'in grid'inde hiç görünmez.
+/// `wt.exe` is deliberately absent: Windows Terminal is not a shell but a
+/// window app that hosts shells. Started as a child it opens its own window
+/// and never shows up in miniterm's grid.
 pub fn windows_candidates() -> Vec<ShellCandidate> {
     let program_files =
         std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".into());
@@ -60,7 +60,7 @@ pub fn windows_candidates() -> Vec<ShellCandidate> {
     ]
 }
 
-/// Unix adayları. `$SHELL` varsa başa alınır, ardından `/etc/shells`.
+/// Unix candidates. `$SHELL` goes first when set, then `/etc/shells`.
 pub fn unix_candidates(shell_env: Option<&str>, etc_shells: &str) -> Vec<ShellCandidate> {
     let mut programs: Vec<String> = Vec::new();
 

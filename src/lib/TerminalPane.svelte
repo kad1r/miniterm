@@ -64,13 +64,13 @@
   let noticeShown = false
   const encoder = new TextEncoder()
 
-  /** Yalnızca DOM ölçüsünü günceller; PTY'ye dokunmaz. Sürükleme sırasında güvenli. */
+  /** Updates the DOM geometry only; never touches the PTY. Safe mid-drag. */
   export function fit() {
     if (!term || !fitAddon || !host?.isConnected || host.clientWidth < 2) return
     fitAddon.fit()
   }
 
-  /** PTY boyutunu son fit()'e eşitler. Sürükleme bitince bir kez çağrılır. */
+  /** Matches the PTY size to the last fit(). Called once when a drag ends. */
   export function syncSize() {
     if (!term || attached === null) return
     void resizeSession(attached, term.cols, term.rows)
@@ -252,9 +252,9 @@
     }
   })
 
-  // Yazı ölçeği değişince punto, hücre sayısı ve PTY birlikte güncellenir.
-  // fontSize ataması xterm'i yeni hücre geometrisiyle baştan çizmeye zorlar;
-  // fit() sütun/satır sayısını, syncSize() de kabuğun kendi boyutunu düzeltir.
+  // When the font scale changes, font size, cell count and PTY update together.
+  // Assigning fontSize forces xterm to redraw with the new cell geometry;
+  // fit() fixes the column/row count and syncSize() the shell's own size.
   $effect(() => {
     const size = termFontSize(TERM_FONT_SIZE, fontScale.level)
     if (!term || term.options.fontSize === size) return
@@ -263,15 +263,16 @@
     syncSize()
   })
 
-  // Uygulama teması değişince xterm paletini canlı güncelle. Yeni bir terminal
-  // kurmak scrollback'i ve bağlı oturumu koparırdı; sadece options.theme atanır.
+  // When the app theme changes, update the xterm palette live. Building a new
+  // terminal would drop the scrollback and the attached session; only
+  // options.theme is assigned.
   $effect(() => {
     const palette = TERM_THEMES[theme.current]
     if (!term) return
     term.options.theme = palette
   })
 
-  // Süreç ölünce bilgi satırını bir kez bas.
+  // When the process dies, print the notice line once.
   $effect(() => {
     if (exitCode === undefined || noticeShown || !term) return
     noticeShown = true

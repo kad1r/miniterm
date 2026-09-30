@@ -10,8 +10,8 @@ export interface Saver<T> {
 }
 
 /**
- * Debounce'lu yazıcı. Ard arda gelen değişiklikler tek bir yazmada birleşir;
- * yalnız en son değer diske gider.
+ * Debounced writer. Back-to-back changes merge into a single write; only
+ * the latest value reaches the disk.
  */
 export function createSaver<T>(save: (value: T) => Promise<void>, delayMs: number): Saver<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;

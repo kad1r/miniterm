@@ -83,7 +83,6 @@ struct Session {
     /// Used by the initial-command thread only.
     #[allow(dead_code)]
     saw_output: Arc<(Mutex<bool>, Condvar)>,
-    alive: Arc<AtomicBool>,
     sink: Arc<Mutex<Option<OutputSink>>>,
     /// Latched true by the first `attach()`. Until then the reader thread answers
     /// the shell's cursor-position requests itself — see the DSR note on the
@@ -392,7 +391,6 @@ impl SessionManager {
                 killer,
                 buffer,
                 saw_output,
-                alive,
                 sink,
                 attached_ever,
             },
@@ -610,7 +608,7 @@ mod tests {
 
         wait_for(&mgr, id, "marker_42", Duration::from_secs(10));
 
-        // Asıl mesele: ilk komut bittikten sonra shell hâlâ komut alabiliyor olmalı.
+        // The point: after the initial command, the shell must still accept commands.
         mgr.write(id, b"echo still_alive\r").unwrap();
         wait_for(&mgr, id, "still_alive", Duration::from_secs(10));
         mgr.kill(id).unwrap();
@@ -808,7 +806,7 @@ mod tests {
         mgr.write(id, b"echo after_detach\r").unwrap();
         wait_for(&mgr, id, "after_detach", Duration::from_secs(10));
 
-        // Ring buffer doldu ama sink hiçbir şey görmedi.
+        // The ring buffer filled up but the sink saw nothing.
         let streamed = String::from_utf8_lossy(&got.lock().unwrap()).to_string();
         assert!(!streamed.contains("after_detach"), "sink got: {streamed}");
         mgr.kill(id).unwrap();

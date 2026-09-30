@@ -43,7 +43,7 @@
   let panes = $state<(TerminalPane | null)[]>([])
   const shell = $derived(shellKind(shellFor(workspace)?.program))
 
-  // Sürükleme sırasındaki geçici boyutlar; bırakınca onsizes ile kalıcılaşır.
+  // Transient sizes while dragging; persisted through onsizes on release.
   let liveRows = $state<number[] | null>(null)
   let liveCols = $state<number[] | null>(null)
 
@@ -178,7 +178,7 @@
     ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
     const axis = drag.axis
     drag = null
-    // PTY'yi yalnızca burada eşitle — sürükleme boyunca değil.
+    // Sync the PTY only here — never during the drag.
     if (axis === "col" && liveCols) onsizes({ colSizes: liveCols })
     if (axis === "row" && liveRows) onsizes({ rowSizes: liveRows })
     liveCols = null
@@ -296,7 +296,7 @@
     })
   })
 
-  // Pencere yeniden boyutlanınca 100 ms sonra bir kez eşitle.
+  // When the window resizes, sync once, 100 ms later.
   let resizeTimer: ReturnType<typeof setTimeout> | undefined
   function onWindowResize() {
     clearTimeout(resizeTimer)

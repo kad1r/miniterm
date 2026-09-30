@@ -34,7 +34,7 @@ function workspace(id: string, rows = 1, cols = 1): Workspace {
   };
 }
 
-/** f1 > f2 > w1 ; kökte ayrıca w2 */
+/** f1 > f2 > w1 ; plus w2 at the root */
 function sample(): Node[] {
   return [folder("f1", [folder("f2", [workspace("w1")])]), workspace("w2")];
 }
@@ -107,9 +107,9 @@ describe("canDrop", () => {
       folder("f1", [folder("f2", [folder("f3", [folder("f4", [folder("f5")])])])]),
       folder("g1", [workspace("gw")]),
     ];
-    // g1'in yüksekliği 2; f5'in içine düşerse 6. seviyeye taşar
+    // g1 is 2 levels tall; dropped into f5 it would reach level 6
     expect(canDrop(deep, "g1", { type: "into", folderId: "f5" })).toBe(false);
-    // Tek başına bir workspace 5. seviyeye sığar
+    // A lone workspace fits at level 5
     expect(canDrop(deep, "gw", { type: "into", folderId: "f4" })).toBe(true);
   });
 

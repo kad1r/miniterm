@@ -1,6 +1,11 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { open } from "@tauri-apps/plugin-dialog";
+import type { Config, LoadResult, ShellInfo } from "../store/types";
+import { closeSequence } from "./close";
 
 export interface UpdateInfo {
   current: string
@@ -30,11 +35,6 @@ export function installUpdate(path: string): Promise<void> {
 export function onUpdateProgress(cb: (p: Progress) => void): Promise<() => void> {
   return listen<Progress>("update-progress", (e) => cb(e.payload))
 }
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { open } from "@tauri-apps/plugin-dialog";
-import type { Config, LoadResult, ShellInfo } from "../store/types";
-import { closeSequence } from "./close";
 
 /** Active channels keyed by session id. One entry per id at most. */
 const _channels = new Map<number, Channel<ArrayBuffer | Uint8Array | number[]>>();
@@ -114,11 +114,11 @@ export function killSession(id: number): Promise<void> {
   return invoke<void>("kill_session", { id });
 }
 
-/** Kanal `InvokeResponseBody::Raw` taşır; JSON serileştirme yoktur.
+/** The channel carries `InvokeResponseBody::Raw`; there is no JSON encoding.
  *
- * Aynı id için ikinci kez çağrılırsa eski kanalın onmessage'ı no-op'a
- * yönlendirilir; böylece Rust'ın detach sonrası geç gönderebileceği tek
- * mesaj ne eski callback'e ulaşır ne de hata fırlatır.
+ * Called a second time for the same id, the old channel's onmessage is
+ * pointed at a no-op, so the one late message Rust may still send after a
+ * detach neither reaches the stale callback nor throws.
  */
 export async function attachSession(id: number, onData: (bytes: Uint8Array) => void): Promise<void> {
   // Silence any previously registered channel for this id before replacing it.

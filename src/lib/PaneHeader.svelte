@@ -44,6 +44,20 @@
     el.focus()
     el.select()
   }
+
+  /** Keys typed while renaming belong to the box alone. Bound natively on the
+   *  input: Svelte delegates `onkeydown` to the app root, so a stopPropagation
+   *  there runs only after the grid's own keydown listener has already seen the
+   *  event — and Ctrl+Shift+W would close the pane mid-rename. */
+  function renameKeys(el: HTMLInputElement) {
+    const onKey = (e: KeyboardEvent) => {
+      e.stopPropagation()
+      if (e.key === "Enter") finishRename(true)
+      else if (e.key === "Escape") finishRename(false)
+    }
+    el.addEventListener("keydown", onKey)
+    return { destroy: () => el.removeEventListener("keydown", onKey) }
+  }
 </script>
 
 <div class="pane-header">
@@ -55,11 +69,7 @@
       maxlength="24"
       bind:value={draft}
       use:autofocus
-      onkeydown={(e) => {
-        e.stopPropagation()
-        if (e.key === "Enter") finishRename(true)
-        else if (e.key === "Escape") finishRename(false)
-      }}
+      use:renameKeys
       onblur={() => finishRename(true)}
     />
   {:else}

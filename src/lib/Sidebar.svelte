@@ -6,6 +6,8 @@
   import type { Node } from "../store/types"
   import TreeItem from "./TreeItem.svelte"
   import ContextMenu from "./ContextMenu.svelte"
+  import Pomodoro from "./Pomodoro.svelte"
+  import PomodoroRow from "./PomodoroRow.svelte"
   import { closeSubtree, statusOf, sessions } from "../store/sessions.svelte"
   import { locale, t } from "../i18n/locale.svelte"
   import { appVersion } from "../ipc"
@@ -284,6 +286,8 @@
   </div>
   {/if}
 
+  <PomodoroRow {collapsed} />
+
   <footer>
     <button
       class="icon"
@@ -320,6 +324,7 @@
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line><circle cx="10" cy="7" r="2.2"></circle><circle cx="16" cy="17" r="2.2"></circle></svg>
     </button>
+    <Pomodoro />
     {#if !collapsed}
       <div class="footer-spacer"></div>
       <span class="version">v{version}</span>

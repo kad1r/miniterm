@@ -186,6 +186,21 @@ const EN = {
   "update.checking": "Checking…",
   "update.upToDate": "You're on the latest version.",
   "update.failed": "Could not check for updates.",
+
+  "pomodoro.title": "Pomodoro",
+  "pomodoro.open": "Pomodoro timer",
+  "pomodoro.pick": "How long do you want to focus?",
+  "pomodoro.custom": "Custom (min)",
+  "pomodoro.minutes": "{n} min",
+  "pomodoro.hours": "{n} h",
+  "pomodoro.start": "Start",
+  "pomodoro.pause": "Pause",
+  "pomodoro.resume": "Resume",
+  "pomodoro.reset": "Reset",
+  "pomodoro.paused": "Paused",
+  "pomodoro.focus": "Focus",
+  "pomodoro.finished": "Done",
+  "pomodoro.done": "Pomodoro complete — time for a break!",
 } as const
 
 const TR: Record<keyof typeof EN, string> = {
@@ -360,6 +375,21 @@ const TR: Record<keyof typeof EN, string> = {
   "update.checking": "Denetleniyor…",
   "update.upToDate": "En güncel sürümü kullanıyorsun.",
   "update.failed": "Güncelleme denetlenemedi.",
+
+  "pomodoro.title": "Pomodoro",
+  "pomodoro.open": "Pomodoro zamanlayıcı",
+  "pomodoro.pick": "Ne kadar süre odaklanmak istiyorsun?",
+  "pomodoro.custom": "Özel (dk)",
+  "pomodoro.minutes": "{n} dk",
+  "pomodoro.hours": "{n} sa",
+  "pomodoro.start": "Başlat",
+  "pomodoro.pause": "Durdur",
+  "pomodoro.resume": "Devam",
+  "pomodoro.reset": "Sıfırla",
+  "pomodoro.paused": "Duraklatıldı",
+  "pomodoro.focus": "Odak",
+  "pomodoro.finished": "Tamamlandı",
+  "pomodoro.done": "Pomodoro tamamlandı — mola zamanı!",
 }
 
 export type MessageKey = keyof typeof EN

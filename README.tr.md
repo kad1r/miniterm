@@ -15,7 +15,7 @@ Windows · macOS · Linux — Tauri 2 + Svelte 5 + xterm.js
 
 </div>
 
-![Dört Claude Code oturumu 2×2 ızgarada; odaklanmış panel turuncu çerçeveli](docs/screenshots/workspace-grid.png)
+![2×2 bir workspace — iki Claude Code agent'ı, bir Gemini agent'ı ve bir kabuk, her panelin başlığında agent adı; odaklanmış panel turuncu çerçeveli](docs/screenshots/workspace-grid.png)
 
 ---
 
@@ -66,6 +66,19 @@ döndüğünüzde çıktı olduğu yerden sürer.
   kromu değil yalnız terminal ölçeklenir
 - `F2` seçili workspace'i yeniden adlandırır
 
+**Agent'lar**
+- Her panel bir **agent adı** alır; başlıkta çip olarak görünür ve tüm
+  workspace'ler arasında benzersizdir — önce Yunan tanrıları (Zeus, Hera,
+  Athena…), sonra İskandinav (Odin, Thor, Loki…). Çipe çift tıklayıp
+  yeniden adlandırabilirsiniz
+- Her workspace'in ortak bir klasörü vardır: `roster.md` (kimler var, nasıl
+  birlikte çalışılır), her panelin son çıktısını tutan `<Ad>.log` ve mesajlar
+  için `inbox/<Ad>.md` — böylece bir agent diğerinin ne yaptığını okuyabilir ve
+  ona iş devredebilir
+- Panel başlığındaki **@** düğmesi prompt'a tek satırlık bir tanıtım yazar,
+  Enter'a basmadan. Her kabuk `MINITERM_AGENT`, `MINITERM_WORKSPACE` ve
+  `MINITERM_AGENTS_DIR` tanımlı olarak açılır
+
 **Arayüz**
 - **Koyu ve açık tema**; kenar çubuğunun altındaki anahtardan geçilir, açılışlar
   arasında hatırlanır. Her terminal paleti anahtarı canlı izler, çalışan kabuklar
@@ -76,6 +89,9 @@ döndüğünüzde çıktı olduğu yerden sürer.
   terminaller pencerenin tüm yüksekliğini alır. Alttaki ince **durum çubuğu**
   kabuğu, oturum sayısını, yazı boyutunu ve dili gösterir
 - Paneller yuvarlatılmış; odaklanmış panel vurgu renkli bir kenarla işaretlenir
+- Kenar çubuğunun altındaki kum saati düğmesinde bir **pomodoro zamanlayıcı**
+- Açılışta ve Ayarlar → Hakkında'dan GitHub'da yeni sürüm olup olmadığına bakar;
+  güncelleme uygulamanın içinden indirilip kurulur
 - WebGL renderer; bağlam kaybında sessizce canvas'a düşer
 - **Geist** (arayüz) ve **JetBrains Mono** (terminaller) gömülü gelir, sistem
   fontlarına bağımlı değildir
@@ -143,6 +159,16 @@ kalır.
 
 **Oluştur**'a bastığınızda ızgara kurulur, her terminal kendi komutuyla açılır.
 
+## Pomodoro
+
+Kenar çubuğunun altındaki kum saati bir odak zamanlayıcısı açar: 25 dk, 45 dk,
+1 sa ya da kendi sürenizi seçin, sonra başlatın, duraklatın ya da sıfırlayın.
+Çalışırken alt kısmın üstüne sabitlenen bir satır kalan süreyi gösterir; satırın
+kenarı süre ilerledikçe kırmızıdan yeşile doğru çizilir. Bitişi kısa bir zil
+sesi ve bildirim haber verir.
+
+![Oturum ortasında pomodoro paneli ve kenar çubuğundaki sabit geri sayım satırı](docs/screenshots/pomodoro.png)
+
 ## Ayarlar
 
 **AI araçları** — bir terminalin açılabileceği komutlar. Önizleme, komutun
@@ -163,6 +189,11 @@ Kabuklar diskten taranarak bulunur, elle yol girmek gerekmez.
 büyütür; kutular ve boşluklar sabit kalır.
 
 ![Dil ve yazı boyutu sekmesi](docs/screenshots/settings-appearance.png)
+
+**Hakkında** — kurulu sürüm, o sürümdeki değişiklikler ve güncellemeleri
+denetleyen bir düğme.
+
+![Sürüm notlarıyla Hakkında sekmesi](docs/screenshots/settings-about.png)
 
 ## Mimari
 

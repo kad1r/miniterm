@@ -7,6 +7,44 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.11.0 — 2026-09-30
+
+### Named agents that can see each other
+
+Every terminal now has an **agent name**, shown as a chip in its header. Names are
+**unique across all workspaces** — Greek gods first (Zeus, Hera, Athena…), then Norse
+gods (Odin, Thor, Loki…) — so "Athena" always means exactly one pane. Double-click
+the chip to rename it; a name already in use anywhere is refused.
+
+Agents in the same workspace can now **work together**. Each workspace keeps a
+shared folder with a `roster.md` (who is here, which tool, whether it is running),
+a `<Name>.log` per agent with the recent output of its terminal, refreshed every
+few seconds, and an `inbox/<Name>.md` for messages. Ask one agent what another is
+doing and it can read that agent's log; ask it to hand something over and it
+leaves a note in the other's inbox.
+
+The new **@** button in a pane's header types a one-line introduction into the
+agent's prompt — its name, its teammates and where the shared folder is — without
+pressing Enter, so you can read it before sending. Every terminal also starts with
+`MINITERM_AGENT`, `MINITERM_WORKSPACE` and `MINITERM_AGENTS_DIR` set.
+
+### A pomodoro timer in the sidebar
+
+A new **hourglass** button at the bottom of the sidebar opens a pomodoro timer. Pick
+**25 min**, **45 min**, **1 h** or type your own length, then start, pause or reset.
+Once it runs, an animated hourglass and a large countdown take over the panel.
+
+While a session is on, a row pinned above the footer shows the time left. Its border
+is **drawn in as time passes**, shifting from red through orange and amber toward
+green, and closes into a full green outline when the session ends — along with a
+short chime and a notification. The timer keeps real time even when the window is
+in the background.
+
+### Roomier sidebar
+
+Workspace rows in the sidebar are a little taller, so the list is easier to scan
+and to hit.
+
 ## 0.10.0 — 2026-09-23
 
 ### Stay up to date, from inside the app

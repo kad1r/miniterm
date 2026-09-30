@@ -7,6 +7,34 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.11.2 — 2026-09-30
+
+### Security
+
+- **Dropping a file is safe in every shell.** A dropped path used to be wrapped in
+  double quotes, which PowerShell and Git Bash still expand — a file named
+  `a $(Start-Process calc).txt` would run that command once you pressed Enter. Paths
+  are now quoted the way the pane's own shell reads them: single quotes for
+  PowerShell and bash, double quotes only for cmd.
+- The updater only ever launches the installer it downloaded itself, and follows
+  redirects to GitHub hosts only.
+
+### Faster with many workspaces open
+
+- Terminals in hidden workspaces now release their **WebGL** renderer and take it
+  back when you return. With many workspaces open, panes used to run past the
+  WebView's limit and silently fall back to a much slower renderer.
+
+### Fixes
+
+- Pressing a pane shortcut such as `Ctrl+Shift+W` while renaming an agent no longer
+  closes the pane.
+- An agent named "roster" no longer collides with the shared `roster.md` file.
+
+### Under the hood
+
+- Tauri 2.12 and updated Svelte and Vite.
+
 ## 0.11.1 — 2026-09-30
 
 ### Fixes

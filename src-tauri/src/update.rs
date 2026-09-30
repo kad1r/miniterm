@@ -46,6 +46,29 @@ pub fn is_allowed_host(url: &str) -> bool {
     }
 }
 
+/// Redirects are followed only to allowlisted hosts. GitHub answers an asset
+/// URL with a redirect to its CDN, so the check has to hold on every hop, not
+/// just on the URL the frontend passed in.
+const MAX_REDIRECTS: usize = 10;
+
+fn redirect_allowed(url: &str, hops: usize) -> bool {
+    hops < MAX_REDIRECTS && is_allowed_host(url)
+}
+
+fn http_client(user_agent: String) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .user_agent(user_agent)
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if redirect_allowed(attempt.url().as_str(), attempt.previous().len()) {
+                attempt.follow()
+            } else {
+                attempt.error("redirect to a non-GitHub host")
+            }
+        }))
+        .build()
+        .map_err(|e| e.to_string())
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
@@ -87,10 +110,7 @@ pub async fn download(app: &AppHandle, url: &str) -> Result<std::path::PathBuf, 
         .unwrap_or("miniterm-setup.exe");
     let dest = std::env::temp_dir().join(file_name);
 
-    let client = reqwest::Client::builder()
-        .user_agent("miniterm-updater")
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = http_client("miniterm-updater".into())?;
     let resp = client.get(url).send().await.map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         return Err(format!("download failed: {}", resp.status()));
@@ -123,10 +143,7 @@ const LATEST_URL: &str = "https://api.github.com/repos/kad1r/miniterm/releases/l
 /// Query GitHub for the latest release and fold it against `current`.
 /// `Err` on any network/parse failure or when the release has no NSIS asset.
 pub async fn fetch_latest(current: &str) -> Result<UpdateInfo, String> {
-    let client = reqwest::Client::builder()
-        .user_agent(format!("miniterm/{current}"))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = http_client(format!("miniterm/{current}"))?;
     let resp = client
         .get(LATEST_URL)
         .header("Accept", "application/vnd.github+json")
@@ -202,5 +219,12 @@ mod tests {
         assert!(!is_allowed_host("https://evil.com/x.exe"));
         assert!(!is_allowed_host("https://github.com.evil.com/x.exe"));
         assert!(!is_allowed_host("not a url"));
+    }
+
+    #[test]
+    fn redirects_stay_on_github_and_are_bounded() {
+        assert!(redirect_allowed("https://release-assets.githubusercontent.com/x.exe", 0));
+        assert!(!redirect_allowed("https://evil.com/x.exe", 0));
+        assert!(!redirect_allowed("https://github.com/x.exe", MAX_REDIRECTS));
     }
 }

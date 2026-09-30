@@ -31,6 +31,7 @@ pub fn run() {
             let state = AppState {
                 sessions: pty::SessionManager::new(),
                 config_dir: commands::config_dir(&handle),
+                downloaded_installer: std::sync::Mutex::new(None),
             };
 
             let emit_handle = handle.clone();

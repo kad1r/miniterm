@@ -12,6 +12,7 @@
   import { basename } from "../store/tree"
   import { t } from "../i18n/locale.svelte"
   import TerminalPane from "./TerminalPane.svelte"
+  import PaneHeader from "./PaneHeader.svelte"
   import { app } from "../store/app.svelte"
   import { logText, namesFor } from "../store/agents"
   import { toolsFor } from "../store/panes"
@@ -60,26 +61,6 @@
 
   // Every pane is an agent with a name, unique within the workspace.
   const names = $derived(namesFor(workspace, app.config.tree))
-  let editing = $state<number | null>(null)
-  let draft = $state("")
-
-  function startRename(index: number) {
-    editing = index
-    draft = names[index]
-  }
-
-  function finishRename(save: boolean) {
-    if (editing === null) return
-    const index = editing
-    editing = null
-    if (save) renameAgent(workspace, index, draft)
-    panes[index]?.focus()
-  }
-
-  function autofocus(el: HTMLInputElement) {
-    el.focus()
-    el.select()
-  }
 
   // Keep the shared roster.md in step with who is here and whether they run.
   // Only the active grid has live session ids to report on.
@@ -350,102 +331,26 @@
       data-index={cell.index}
       style="grid-column:{cell.col * 2 + 1}; grid-row:{cell.row * 2 + 1}"
     >
-      <div class="pane-header">
-        <span class="pane-dot" class:dead={exitCodes[cell.index] !== undefined}></span>
-        {#if editing === cell.index}
-          <input
-            class="agent-input"
-            aria-label={t("agents.renameLabel")}
-            maxlength="24"
-            bind:value={draft}
-            use:autofocus
-            onkeydown={(e) => {
-              e.stopPropagation()
-              if (e.key === "Enter") finishRename(true)
-              else if (e.key === "Escape") finishRename(false)
-            }}
-            onblur={() => finishRename(true)}
-          />
-        {:else}
-          <button
-            class="agent"
-            type="button"
-            title={t("agents.renameHint", { name: names[cell.index] })}
-            ondblclick={() => startRename(cell.index)}
-          >
-            {names[cell.index]}
-          </button>
-        {/if}
-        <div class="pane-loc" title={workspace.path}>
-          <span class="pane-name">{folderName}</span>
-          {#if workspace.path}<span class="pane-path">{workspace.path}</span>{/if}
-        </div>
-        <button
-          class="pane-btn intro"
-          type="button"
-          title={t("agents.introduce", { name: names[cell.index] })}
-          aria-label={t("agents.introduce", { name: names[cell.index] })}
-          disabled={sessionIds[cell.index] == null || exitCodes[cell.index] !== undefined}
-          onclick={() => {
-            const id = sessionIds[cell.index]
-            if (id == null) return
-            void introduceAgent(workspace, cell.index, id).then(() => panes[cell.index]?.focus())
-          }}
-        >
-          <svg viewBox="0 0 12 12" aria-hidden="true">
-            <circle cx="6" cy="6" r="2" />
-            <path d="M8 6v.8a1.4 1.4 0 0 0 2.8 0V6A4.8 4.8 0 1 0 8.4 10" />
-          </svg>
-        </button>
-        {#if closable}
-          <div class="pane-actions">
-          <button
-            class="pane-btn"
-            type="button"
-            title={t("grid.minimizePane", { n: cell.index + 1 })}
-            aria-label={t("grid.minimizePane", { n: cell.index + 1 })}
-            onclick={() => onminimize(cell.index)}
-          >
-            <svg viewBox="0 0 12 12" aria-hidden="true">
-              <path d="M3 8h6" />
-            </svg>
-          </button>
-          <button
-            class="pane-btn"
-            type="button"
-            title={maximized === cell.index
-              ? t("grid.unmaximizePane")
-              : t("grid.maximizePane", { n: cell.index + 1 })}
-            aria-label={maximized === cell.index
-              ? t("grid.unmaximizePane")
-              : t("grid.maximizePane", { n: cell.index + 1 })}
-            aria-pressed={maximized === cell.index}
-            onclick={() => onmaximize(cell.index)}
-          >
-            {#if maximized === cell.index}
-              <svg viewBox="0 0 12 12" aria-hidden="true">
-                <path d="M5 5h4v4H5zM3 7V3h4" />
-              </svg>
-            {:else}
-              <svg viewBox="0 0 12 12" aria-hidden="true">
-                <path d="M3 3h6v6H3z" />
-              </svg>
-            {/if}
-          </button>
-          <button
-            class="pane-btn danger"
-            type="button"
-            title={t("grid.closePane", { n: cell.index + 1 })}
-            aria-label={t("grid.closePane", { n: cell.index + 1 })}
-            onclick={() => onclose(cell.index)}
-          >
-            <svg viewBox="0 0 12 12" aria-hidden="true">
-              <path d="M3 3l6 6M9 3l-6 6" />
-            </svg>
-          </button>
-          </div>
-        {/if}
-      </div>
+      <PaneHeader
+        index={cell.index}
+        name={names[cell.index]}
+        {folderName}
+        path={workspace.path}
+        dead={exitCodes[cell.index] !== undefined}
+        {closable}
+        maximized={maximized === cell.index}
+        canIntroduce={sessionIds[cell.index] != null && exitCodes[cell.index] === undefined}
+        onrename={(draft) => renameAgent(workspace, cell.index, draft)}
+        onrenamedone={() => panes[cell.index]?.focus()}
+        onintroduce={() => {
+          const id = sessionIds[cell.index]
+          if (id == null) return
+          void introduceAgent(workspace, cell.index, id).then(() => panes[cell.index]?.focus())
+        }}
+        onminimize={() => onminimize(cell.index)}
+        onmaximize={() => onmaximize(cell.index)}
+        onclose={() => onclose(cell.index)}
+      />
       <div class="pane-wrap">
         <TerminalPane
           bind:this={panes[cell.index]}
@@ -573,118 +478,6 @@
        that lands on a sliver of border from stealing focus. */
     pointer-events: none;
   }
-  /* A real header bar above the shell, not an overlay — the buttons can never
-     sit on top of terminal text now, so typing no longer collides with them. */
-  .pane-header {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 32px;
-    padding: 0 6px 0 10px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-elevated);
-  }
-  .pane-dot {
-    flex: 0 0 auto;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--ok);
-  }
-  .pane-dot.dead {
-    background: var(--err);
-  }
-  .agent {
-    flex: 0 0 auto;
-    max-width: 40%;
-    padding: 1px 8px;
-    overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    color: var(--accent);
-    font: inherit;
-    font-size: calc(11px * var(--font-scale, 1));
-    font-weight: 600;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    cursor: text;
-  }
-  .agent-input {
-    flex: 0 0 auto;
-    width: 120px;
-    padding: 1px 8px;
-    border: 1px solid var(--accent);
-    border-radius: 999px;
-    background: var(--bg-elevated);
-    color: var(--text-1);
-    font: inherit;
-    font-size: calc(11px * var(--font-scale, 1));
-    font-weight: 600;
-    outline: none;
-    box-shadow: var(--focus-ring);
-  }
-  .pane-loc {
-    flex: 1;
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .pane-name {
-    flex: 0 0 auto;
-    color: var(--text-1);
-    font-size: calc(11.5px * var(--font-scale, 1));
-    font-weight: 600;
-  }
-  .pane-path {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--text-3);
-    font-family: var(--font-mono);
-    font-size: calc(10.5px * var(--font-scale, 1));
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  .pane-actions {
-    flex: 0 0 auto;
-    display: flex;
-    gap: 2px;
-  }
-  .pane-btn {
-    display: grid;
-    place-items: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: none;
-    color: var(--text-2);
-    cursor: pointer;
-  }
-  .pane-btn:hover,
-  .pane-btn:focus-visible {
-    background: color-mix(in srgb, var(--text-1) 10%, transparent);
-    color: var(--text-1);
-    outline: none;
-  }
-  .pane-btn:disabled {
-    opacity: 0.35;
-    cursor: default;
-    background: none;
-  }
-  .pane-btn.danger:hover,
-  .pane-btn.danger:focus-visible {
-    background: var(--err);
-    color: #fff;
-  }
-  .pane-btn[aria-pressed="true"] {
-    color: var(--accent);
-  }
-  .pane-btn svg,
   .chip svg {
     width: 12px;
     height: 12px;

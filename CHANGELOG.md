@@ -7,6 +7,13 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.11.1 — 2026-09-30
+
+### Fixes
+
+- The example path in the new-workspace wizard and in Settings → Directories now
+  reads `C:\projects\api` instead of showing every backslash twice.
+
 ## 0.11.0 — 2026-09-30
 
 ### Named agents that can see each other

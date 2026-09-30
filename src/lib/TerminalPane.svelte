@@ -16,16 +16,25 @@
     isMinimizePaneChord,
   } from "../term/pane"
   import { isAppShortcut } from "../term/shortcuts"
-  import { dropText } from "../term/paths"
+  import { dropText, type ShellKind } from "../term/paths"
   import { locale } from "../i18n/locale.svelte"
   import { TERM_FONT, TERM_FONT_SIZE, TERM_THEMES } from "../term/theme"
   import { fontAction, termFontSize } from "../store/font"
   import { fontScale } from "../store/font.svelte"
   import { theme } from "../store/theme.svelte"
 
-  let { sessionId, exitCode = undefined, onrestart, onsnapshot }: {
+  let {
+    sessionId, exitCode = undefined, active = true, shell = "posix", onrestart, onsnapshot,
+  }: {
     sessionId: number | null
     exitCode?: number | null | undefined
+    /** False while the pane's workspace is a hidden layer. The WebGL renderer
+     *  is only held while visible: WebView2 keeps ~16 live WebGL contexts, and
+     *  one per mounted pane across every open workspace runs past that. */
+    active?: boolean
+    /** The pane's shell family, so a dropped path is quoted the way that
+     *  shell reads it. */
+    shell?: ShellKind
     onrestart?: () => void
     /** Plain-text tail of the screen, delivered at most every SNAPSHOT_MS and
      *  only after new output — feeds the agent's shared `<Name>.log`. */
@@ -82,7 +91,7 @@
     if (!term || attached === null || exitCode !== undefined) return
     const hit = document.elementFromPoint(drop.x, drop.y)
     if (!hit || !host.contains(hit)) return
-    const text = dropText(drop.paths)
+    const text = dropText(drop.paths, shell)
     if (!text) return
     term.focus()
     void writeSession(attached, encoder.encode(text))
@@ -132,13 +141,6 @@
     fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
     term.open(host)
-    try {
-      const webgl = new WebglAddon()
-      webgl.onContextLoss(() => webgl.dispose())
-      term.loadAddon(webgl)
-    } catch {
-      // WebGL yoksa xterm canvas/DOM renderer'a düşer; hata değil.
-    }
     fit()
 
     term.onData((data) => {
@@ -168,6 +170,7 @@
       unlistenDrop?.()
       clearInterval(snapTimer)
       ro.disconnect()
+      disableWebgl()
       if (attached !== null) void detachSession(attached).catch(() => {})
       term?.dispose()
       term = null
@@ -176,7 +179,38 @@
     }
   })
 
-  // sessionId değişince: eskiden ayrıl, ring buffer'ı bas, yenisine bağlan.
+  let webgl: WebglAddon | null = null
+
+  function enableWebgl() {
+    if (webgl || !term) return
+    try {
+      const addon = new WebglAddon()
+      addon.onContextLoss(() => {
+        addon.dispose()
+        if (webgl === addon) webgl = null
+      })
+      term.loadAddon(addon)
+      webgl = addon
+    } catch {
+      // Without WebGL xterm falls back to its DOM renderer; not an error.
+    }
+  }
+
+  function disableWebgl() {
+    webgl?.dispose()
+    webgl = null
+  }
+
+  // Hold a WebGL context only while the pane is on screen; a hidden layer
+  // renders nothing, and the DOM renderer keeps its buffer intact meanwhile.
+  $effect(() => {
+    const visible = active
+    if (!term) return
+    if (visible) enableWebgl()
+    else disableWebgl()
+  })
+
+  // On a sessionId change: detach from the old one, replay the ring buffer, attach the new one.
   $effect(() => {
     const id = sessionId
     if (!term) return

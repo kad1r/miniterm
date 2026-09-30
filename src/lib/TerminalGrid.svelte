@@ -7,7 +7,8 @@
     isClosePaneChord, isFocusNextPaneChord, isFocusPrevPaneChord, isMaximizePaneChord,
     isMinimizePaneChord,
   } from "../term/pane"
-  import type { MinimizedPane } from "../store/sessions.svelte"
+  import { shellFor, type MinimizedPane } from "../store/sessions.svelte"
+  import { shellKind } from "../term/paths"
   import { basename } from "../store/tree"
   import { t } from "../i18n/locale.svelte"
   import TerminalPane from "./TerminalPane.svelte"
@@ -40,6 +41,7 @@
 
   let container: HTMLDivElement
   let panes = $state<(TerminalPane | null)[]>([])
+  const shell = $derived(shellKind(shellFor(workspace)?.program))
 
   // Sürükleme sırasındaki geçici boyutlar; bırakınca onsizes ile kalıcılaşır.
   let liveRows = $state<number[] | null>(null)
@@ -449,6 +451,8 @@
           bind:this={panes[cell.index]}
           sessionId={sessionIds[cell.index] ?? null}
           exitCode={exitCodes[cell.index]}
+          {active}
+          {shell}
           onrestart={() => onrestart(cell.index)}
           onsnapshot={(lines) => {
             const name = names[cell.index]

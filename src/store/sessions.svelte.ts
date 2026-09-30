@@ -58,7 +58,7 @@ function workspaceById(id: string): Workspace | null {
   return node && node.kind === "workspace" ? node : null
 }
 
-function shellFor(ws: Workspace): ShellInfo | null {
+export function shellFor(ws: Workspace): ShellInfo | null {
   const wanted = ws.shellId ?? app.config.defaultShellId
   return app.shells.find((s) => s.id === wanted) ?? app.shells[0] ?? null
 }

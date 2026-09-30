@@ -94,7 +94,7 @@
       <section>
         <p class="q">{t("wizard.dir")}</p>
         <div class="row">
-          <input class="path" bind:value={draft.path} placeholder="C:\\projects\\api" />
+          <input class="path" bind:value={draft.path} placeholder="C:\projects\api" />
           <button class="ghost" onclick={browse}>{t("settings.browse")}</button>
         </div>
 

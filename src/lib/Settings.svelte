@@ -199,7 +199,7 @@
           <label>
             {t("settings.dirs.path")}
             <span class="row">
-              <input bind:value={dir.path} placeholder="C:\\projects\\api" />
+              <input bind:value={dir.path} placeholder="C:\projects\api" />
               <button class="ghost" onclick={browseDir}>{t("settings.browse")}</button>
             </span>
           </label>

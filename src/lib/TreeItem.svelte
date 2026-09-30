@@ -86,8 +86,8 @@
     gap: 8px;
     /* min-height rather than height: the row is border-box, so a fixed height
        would swallow the vertical padding instead of letting the row breathe. */
-    min-height: 34px;
-    padding-block: 5px;
+    min-height: 40px;
+    padding-block: 8px;
     padding-right: 8px;
     border-radius: 7px;
     color: var(--text-2);
@@ -101,10 +101,19 @@
     background: color-mix(in srgb, var(--text-1) 6%, transparent);
     color: var(--text-1);
   }
+  /* Accent-tinted fill: --bg-elevated alone is barely distinguishable from the
+     sidebar background in either theme. */
   .tree-item.active {
-    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
     color: var(--text-1);
-    box-shadow: inset 2px 0 0 var(--accent);
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .tree-item.active:hover {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .tree-item.active .badge {
+    color: var(--accent);
   }
   .chevron {
     flex-shrink: 0;

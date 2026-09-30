@@ -15,7 +15,7 @@ Windows · macOS · Linux — Tauri 2 + Svelte 5 + xterm.js
 
 </div>
 
-![Four Claude Code sessions in a 2×2 grid; the focused pane has an orange frame](docs/screenshots/workspace-grid.png)
+![A 2×2 workspace — two Claude Code agents, a Gemini agent and a shell, each pane tagged with its agent name; the focused pane has an orange frame](docs/screenshots/workspace-grid.png)
 
 ---
 
@@ -65,6 +65,18 @@ where it left off when you come back.
   terminal scales, not the window chrome
 - `F2` renames the selected workspace
 
+**Agents**
+- Every pane gets an **agent name**, shown as a chip in its header and unique
+  across all workspaces — Greek gods first (Zeus, Hera, Athena…), then Norse
+  (Odin, Thor, Loki…). Double-click the chip to rename
+- Each workspace keeps a shared folder: `roster.md` (who is here and how to
+  collaborate), a `<Name>.log` with the recent output of each pane, and
+  `inbox/<Name>.md` for messages — so one agent can read what another is doing
+  and hand work over
+- The **@** button in a pane header types a one-line introduction into the
+  prompt, without pressing Enter. Every shell starts with `MINITERM_AGENT`,
+  `MINITERM_WORKSPACE` and `MINITERM_AGENTS_DIR` set
+
 **Interface**
 - **Dark and light themes**; toggle at the bottom of the sidebar, remembered
   between runs. Every terminal palette follows the switch live, without tearing
@@ -75,6 +87,9 @@ where it left off when you come back.
   terminals get the full height of the window. A slim **status bar** along the
   bottom shows the shell, the session tally, the font size and the language
 - Panes are rounded; the focused pane is marked with an accent border
+- A **pomodoro timer** behind the hourglass button in the sidebar footer
+- Checks GitHub for a newer release on start and from Settings → About; an
+  update is downloaded and installed from inside the app
 - WebGL renderer; falls back to canvas silently on context loss
 - **Geist** (interface) and **JetBrains Mono** (terminals) ship embedded, no
   dependency on system fonts
@@ -141,6 +156,15 @@ panes being added — the ones already running keep what they were started with.
 
 Hit **Create** and the grid is built, each terminal opening with its own command.
 
+## Pomodoro
+
+The hourglass at the bottom of the sidebar opens a focus timer: pick 25 min,
+45 min, 1 h or your own length, then start, pause or reset. While it runs, a row
+pinned above the footer shows the time left and its border is drawn in as time
+passes, shifting from red toward green. A chime and a notification mark the end.
+
+![The pomodoro panel mid-session, with the pinned countdown row in the sidebar](docs/screenshots/pomodoro.png)
+
 ## Settings
 
 **AI tools** — the commands a terminal can be opened with. The preview shows that
@@ -162,6 +186,11 @@ shell. Shells are discovered by scanning the disk; no need to type a path.
 terminals together; boxes and spacing stay fixed.
 
 ![The language and font size tab](docs/screenshots/settings-appearance.png)
+
+**About** — the installed version, what changed in it, and a button that checks
+for updates.
+
+![The about tab with the release notes](docs/screenshots/settings-about.png)
 
 ## Architecture
 

@@ -1,3 +1,4 @@
+use crate::agents;
 use crate::config::{self, Config, LoadResult};
 use crate::pty::{SessionManager, SpawnOpts};
 use crate::shell::{self, ShellInfo};
@@ -114,4 +115,44 @@ pub fn install_update(app: AppHandle, path: String) -> Result<(), String> {
     std::process::Command::new(&p).spawn().map_err(map_err)?;
     app.exit(0);
     Ok(())
+}
+
+/// The workspace's shared agent folder (created on demand), as an absolute path.
+#[tauri::command]
+pub fn agents_dir(state: State<'_, AppState>, workspace_id: String) -> Result<String, String> {
+    agents::dir(&state.config_dir, &workspace_id).map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn write_agent_file(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    name: String,
+    content: String,
+) -> Result<(), String> {
+    agents::write(&state.config_dir, &workspace_id, &name, &content)
+}
+
+#[tauri::command]
+pub fn rename_agent_file(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    agents::rename(&state.config_dir, &workspace_id, &from, &to)
+}
+
+#[tauri::command]
+pub fn remove_agent_file(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    name: String,
+) -> Result<(), String> {
+    agents::remove(&state.config_dir, &workspace_id, &name)
+}
+
+#[tauri::command]
+pub fn remove_agents_dir(state: State<'_, AppState>, workspace_id: String) -> Result<(), String> {
+    agents::remove_dir(&state.config_dir, &workspace_id)
 }

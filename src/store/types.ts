@@ -24,6 +24,9 @@ export interface Workspace {
    *  in panes.ts rather than directly: a config written before this field existed
    *  carries an empty list, and the list has to track the grid's size. */
   paneTools: (string | null)[];
+  /** Per-cell agent name, in cell order. Optional because an older config has
+   *  none; read it through `namesFor()` in agents.ts, which fills the gaps. */
+  paneNames?: (string | null)[];
 }
 
 export type Node = Folder | Workspace;

@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod config;
 pub mod pty;
 pub mod shell;
@@ -61,6 +62,11 @@ pub fn run() {
             commands::check_update,
             commands::download_update,
             commands::install_update,
+            commands::agents_dir,
+            commands::write_agent_file,
+            commands::rename_agent_file,
+            commands::remove_agent_file,
+            commands::remove_agents_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running miniterm");

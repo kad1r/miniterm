@@ -11,6 +11,12 @@
   import { basename } from "../store/tree"
   import { t } from "../i18n/locale.svelte"
   import TerminalPane from "./TerminalPane.svelte"
+  import { app } from "../store/app.svelte"
+  import { logText, namesFor } from "../store/agents"
+  import { toolsFor } from "../store/panes"
+  import {
+    introduceAgent, renameAgent, syncRoster, toolLabel, writeAgentLog,
+  } from "../store/agents.svelte"
 
   let {
     workspace, active, sessionIds, exitCodes, focusedIndex, minimized, maximized,
@@ -49,6 +55,49 @@
   // Every pane in a workspace shares its directory, so the header names it: the
   // folder for a quick read, the full path alongside for the exact location.
   const folderName = $derived(basename(workspace.path) || workspace.name)
+
+  // Every pane is an agent with a name, unique within the workspace.
+  const names = $derived(namesFor(workspace, app.config.tree))
+  let editing = $state<number | null>(null)
+  let draft = $state("")
+
+  function startRename(index: number) {
+    editing = index
+    draft = names[index]
+  }
+
+  function finishRename(save: boolean) {
+    if (editing === null) return
+    const index = editing
+    editing = null
+    if (save) renameAgent(workspace, index, draft)
+    panes[index]?.focus()
+  }
+
+  function autofocus(el: HTMLInputElement) {
+    el.focus()
+    el.select()
+  }
+
+  // Keep the shared roster.md in step with who is here and whether they run.
+  // Only the active grid has live session ids to report on.
+  $effect(() => {
+    if (!active) return
+    const tools = toolsFor(workspace)
+    const agents = [
+      ...names.map((name, i) => ({
+        name,
+        tool: toolLabel(tools[i] ?? null),
+        status: (exitCodes[i] !== undefined
+          ? "exited"
+          : sessionIds[i] == null ? "starting" : "running") as "exited" | "starting" | "running",
+      })),
+      ...minimized
+        .filter((m) => m.name)
+        .map((m) => ({ name: m.name as string, tool: toolLabel(m.toolId), status: "minimized" as const })),
+    ]
+    void syncRoster(workspace, agents).catch(() => {})
+  })
 
   /** Ctrl+Shift+W/Z/M, caught as they bubble out of the focused pane. TerminalPane
    *  hands the chords back untouched, so `e.target` is still xterm's textarea and
@@ -301,10 +350,51 @@
     >
       <div class="pane-header">
         <span class="pane-dot" class:dead={exitCodes[cell.index] !== undefined}></span>
+        {#if editing === cell.index}
+          <input
+            class="agent-input"
+            aria-label={t("agents.renameLabel")}
+            maxlength="24"
+            bind:value={draft}
+            use:autofocus
+            onkeydown={(e) => {
+              e.stopPropagation()
+              if (e.key === "Enter") finishRename(true)
+              else if (e.key === "Escape") finishRename(false)
+            }}
+            onblur={() => finishRename(true)}
+          />
+        {:else}
+          <button
+            class="agent"
+            type="button"
+            title={t("agents.renameHint", { name: names[cell.index] })}
+            ondblclick={() => startRename(cell.index)}
+          >
+            {names[cell.index]}
+          </button>
+        {/if}
         <div class="pane-loc" title={workspace.path}>
           <span class="pane-name">{folderName}</span>
           {#if workspace.path}<span class="pane-path">{workspace.path}</span>{/if}
         </div>
+        <button
+          class="pane-btn intro"
+          type="button"
+          title={t("agents.introduce", { name: names[cell.index] })}
+          aria-label={t("agents.introduce", { name: names[cell.index] })}
+          disabled={sessionIds[cell.index] == null || exitCodes[cell.index] !== undefined}
+          onclick={() => {
+            const id = sessionIds[cell.index]
+            if (id == null) return
+            void introduceAgent(workspace, cell.index, id).then(() => panes[cell.index]?.focus())
+          }}
+        >
+          <svg viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="2" />
+            <path d="M8 6v.8a1.4 1.4 0 0 0 2.8 0V6A4.8 4.8 0 1 0 8.4 10" />
+          </svg>
+        </button>
         {#if closable}
           <div class="pane-actions">
           <button
@@ -360,6 +450,10 @@
           sessionId={sessionIds[cell.index] ?? null}
           exitCode={exitCodes[cell.index]}
           onrestart={() => onrestart(cell.index)}
+          onsnapshot={(lines) => {
+            const name = names[cell.index]
+            if (name) writeAgentLog(workspace.id, name, logText(name, lines, new Date()))
+          }}
         />
       </div>
     </div>
@@ -417,7 +511,7 @@
         onclick={() => onrestore(i)}
       >
         <span class="dot" class:dead={item.exit !== undefined}></span>
-        <span>{t("grid.minimizedPane", { n: i + 1 })}</span>
+        <span>{item.name ?? t("grid.minimizedPane", { n: i + 1 })}</span>
         <svg viewBox="0 0 12 12" aria-hidden="true">
           <path d="M3 7l3-3 3 3" />
         </svg>
@@ -497,6 +591,36 @@
   .pane-dot.dead {
     background: var(--err);
   }
+  .agent {
+    flex: 0 0 auto;
+    max-width: 40%;
+    padding: 1px 8px;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    font: inherit;
+    font-size: calc(11px * var(--font-scale, 1));
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: text;
+  }
+  .agent-input {
+    flex: 0 0 auto;
+    width: 120px;
+    padding: 1px 8px;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    background: var(--bg-elevated);
+    color: var(--text-1);
+    font: inherit;
+    font-size: calc(11px * var(--font-scale, 1));
+    font-weight: 600;
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
   .pane-loc {
     flex: 1;
     display: flex;
@@ -542,6 +666,11 @@
     background: color-mix(in srgb, var(--text-1) 10%, transparent);
     color: var(--text-1);
     outline: none;
+  }
+  .pane-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+    background: none;
   }
   .pane-btn.danger:hover,
   .pane-btn.danger:focus-visible {

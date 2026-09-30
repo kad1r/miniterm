@@ -2,6 +2,7 @@ import * as ipc from "../ipc";
 import { t } from "../i18n/locale.svelte";
 import { createSaver, SAVE_DEBOUNCE_MS } from "./persist";
 import type { Config, ShellInfo } from "./types";
+import { clearPaneNames, NAMES_RESET_KEY } from "./agents";
 
 const emptyConfig: Config = {
   version: 1,
@@ -58,11 +59,32 @@ export function commit(mutate: (config: Config) => Config) {
   saver.schedule(app.config);
 }
 
+/** One-off: drop the agent names pinned by the old per-workspace pool so every
+ *  pane is handed a fresh, app-wide unique god name. Runs before any workspace
+ *  is activated, so no shell is spawned with a name that is about to change. */
+function resetAgentNamesOnce() {
+  if (typeof localStorage === "undefined") return;
+  try {
+    if (localStorage.getItem(NAMES_RESET_KEY)) return;
+    const { tree, cleared } = clearPaneNames(app.config.tree);
+    if (cleared.length > 0) {
+      app.config = { ...app.config, tree };
+      saver.schedule(app.config);
+      // Their logs and inboxes are named after the old agents.
+      for (const id of cleared) void ipc.removeAgentsDir(id).catch(() => {});
+    }
+    localStorage.setItem(NAMES_RESET_KEY, "1");
+  } catch {
+    // Storage blocked: skip the reset rather than repeat it every start.
+  }
+}
+
 export async function bootstrap() {
   try {
     const [result, shells] = await Promise.all([ipc.loadConfig(), ipc.detectShells()]);
     app.config = result.config;
     app.shells = shells;
+    resetAgentNamesOnce();
     if (result.status.kind === "recovered") {
       notify(t("app.recovered", { backup: result.status.backup }), "error");
     }

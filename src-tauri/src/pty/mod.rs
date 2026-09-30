@@ -32,6 +32,11 @@ pub struct SpawnOpts {
     pub initial_command: Option<String>,
     pub cols: u16,
     pub rows: u16,
+    /// Extra environment for the child, on top of the app's own. Carries the
+    /// agent identity (MINITERM_AGENT and friends) so a tool running in the
+    /// pane can find out who it is and where its teammates' files live.
+    #[serde(default)]
+    pub env: Vec<(String, String)>,
 }
 
 #[derive(Debug)]
@@ -140,6 +145,9 @@ impl SessionManager {
             cmd.arg(a);
         }
         cmd.cwd(&opts.cwd);
+        for (k, v) in &opts.env {
+            cmd.env(k, v);
+        }
 
         let child = pair
             .slave
@@ -575,6 +583,7 @@ mod tests {
                 initial_command: None,
                 cols: 80,
                 rows: 24,
+                env: Vec::new(),
             })
             .expect("spawn failed");
 
@@ -595,6 +604,7 @@ mod tests {
                 initial_command: Some("echo marker_42".to_string()),
                 cols: 80,
                 rows: 24,
+                env: Vec::new(),
             })
             .expect("spawn failed");
 
@@ -627,6 +637,7 @@ mod tests {
                 initial_command: Some("echo marker_dsr".to_string()),
                 cols: 80,
                 rows: 24,
+                env: Vec::new(),
             })
             .expect("spawn failed");
 
@@ -663,6 +674,7 @@ mod tests {
                 initial_command: Some("exit 3".to_string()),
                 cols: 80,
                 rows: 24,
+                env: Vec::new(),
             })
             .unwrap();
 
@@ -704,6 +716,7 @@ mod tests {
                 initial_command: None,
                 cols: 80,
                 rows: 24,
+                env: Vec::new(),
             })
             .unwrap();
 
@@ -726,6 +739,7 @@ mod tests {
                 initial_command: None,
                 cols: 80,
                 rows: 24,
+                env: Vec::new(),
             })
             .unwrap();
 
@@ -762,6 +776,7 @@ mod tests {
                 initial_command: None,
                 cols: 80,
                 rows: 24,
+                env: Vec::new(),
             })
             .unwrap();
 

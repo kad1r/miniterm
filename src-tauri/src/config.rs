@@ -50,6 +50,11 @@ pub enum Node {
         /// list, and the frontend fills it from `ai_tool_id`.
         #[serde(default)]
         pane_tools: Vec<Option<String>>,
+        /// Per-cell agent name, same shape and same no-version-bump reasoning
+        /// as `pane_tools`: an older config arrives with an empty list and the
+        /// frontend assigns default names per read.
+        #[serde(default)]
+        pane_names: Vec<Option<String>>,
     },
 }
 
@@ -212,6 +217,7 @@ fn clamp_nodes(nodes: Vec<Node>, depth: usize, changed: &mut bool) -> Vec<Node> 
                 mut row_sizes,
                 mut col_sizes,
                 pane_tools,
+                pane_names,
             } => {
                 // Clamp each dimension to [1, MAX_DIM].
                 let rows_orig = rows;
@@ -260,6 +266,7 @@ fn clamp_nodes(nodes: Vec<Node>, depth: usize, changed: &mut bool) -> Vec<Node> 
                     // per read. Touching it here would set `changed`, which
                     // means a `.bak` and a "recovered" warning for everyone.
                     pane_tools,
+                    pane_names,
                 }
             }
         })
@@ -328,6 +335,7 @@ mod tests {
             row_sizes: vec![0.5, 0.5],
             col_sizes: vec![0.5, 0.5],
             pane_tools: vec![Some("t1".into()), None, Some("t2".into()), None],
+            pane_names: vec![Some("Atlas".into())],
         });
         save(&d, &c).unwrap();
 
@@ -434,6 +442,7 @@ mod tests {
             row_sizes,
             col_sizes,
             pane_tools: Vec::new(),
+            pane_names: Vec::new(),
         }
     }
 
@@ -508,6 +517,7 @@ mod tests {
                     row_sizes: vec![1.0],
                     col_sizes: vec![1.0],
                     pane_tools: Vec::new(),
+                    pane_names: Vec::new(),
                 }]
             } else {
                 vec![Node::Folder {

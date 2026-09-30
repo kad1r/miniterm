@@ -46,6 +46,8 @@ export interface SpawnOpts {
   initialCommand: string | null;
   cols: number;
   rows: number;
+  /** Extra environment variables as [name, value] pairs. */
+  env?: [string, string][];
 }
 
 export function loadConfig(): Promise<LoadResult> {
@@ -76,6 +78,28 @@ export async function pickDirectory(): Promise<string | null> {
 
 export function spawnSession(opts: SpawnOpts): Promise<number> {
   return invoke<number>("spawn_session", { opts });
+}
+
+/** The workspace's shared agent folder (roster, logs, inboxes), created on demand. */
+export function agentsDir(workspaceId: string): Promise<string> {
+  return invoke<string>("agents_dir", { workspaceId });
+}
+
+/** `name` is `<stem>.md|.log` or `inbox/<stem>.md`; the backend refuses anything else. */
+export function writeAgentFile(workspaceId: string, name: string, content: string): Promise<void> {
+  return invoke<void>("write_agent_file", { workspaceId, name, content });
+}
+
+export function renameAgentFile(workspaceId: string, from: string, to: string): Promise<void> {
+  return invoke<void>("rename_agent_file", { workspaceId, from, to });
+}
+
+export function removeAgentFile(workspaceId: string, name: string): Promise<void> {
+  return invoke<void>("remove_agent_file", { workspaceId, name });
+}
+
+export function removeAgentsDir(workspaceId: string): Promise<void> {
+  return invoke<void>("remove_agents_dir", { workspaceId });
 }
 
 export function writeSession(id: number, data: Uint8Array): Promise<void> {

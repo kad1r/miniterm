@@ -5,10 +5,12 @@ import { defaultLayoutFor, relayout, terminalCount } from "./relayout"
 import { MAX_TERMINALS } from "./layout"
 import { focusAfterClose, maximizedAfterClose } from "./focus"
 import { touch, LIVE_LIMIT } from "./lru"
-import { killSession, onSessionExit, spawnSession } from "../ipc"
+import { killSession, onSessionExit, removeAgentsDir, spawnSession } from "../ipc"
 import type { Node, ShellInfo, Workspace } from "./types"
 import { toolsFor } from "./panes"
 import { paneStatus } from "./status"
+import { namesFor, sameNames } from "./agents"
+import { dropAgentLog, ensureAgentsDir } from "./agents.svelte"
 
 export type PaneStatus = "off" | "running" | "dead"
 
@@ -21,6 +23,8 @@ export interface MinimizedPane {
   /** The AI tool of the cell it came from, carried down so restoring puts it
    *  back the way it was instead of silently turning into a bare shell. */
   toolId: string | null
+  /** The agent name, carried down for the same reason as the tool. */
+  name: string | null
 }
 
 interface WorkspaceSessions {
@@ -68,8 +72,24 @@ function commandFor(ws: Workspace, index: number): string | null {
   return app.config.aiTools.find((t) => t.id === toolId)?.command ?? null
 }
 
+/** Who the pane's process is. A tool running inside can read these to learn
+ *  its own name and where the shared roster, logs and inboxes live. */
+async function agentEnv(ws: Workspace, index: number): Promise<[string, string][]> {
+  const env: [string, string][] = [
+    ["MINITERM_AGENT", namesFor(ws, app.config.tree)[index] ?? ""],
+    ["MINITERM_WORKSPACE", ws.name],
+  ]
+  try {
+    env.push(["MINITERM_AGENTS_DIR", await ensureAgentsDir(ws.id)])
+  } catch {
+    // No shared folder is no reason to refuse a terminal.
+  }
+  return env
+}
+
 async function spawnOne(ws: Workspace, shell: ShellInfo, index: number): Promise<number | null> {
   try {
+    const env = await agentEnv(ws, index)
     const id = await spawnSession({
       cwd: ws.path,
       program: shell.program,
@@ -77,6 +97,7 @@ async function spawnOne(ws: Workspace, shell: ShellInfo, index: number): Promise
       initialCommand: commandFor(ws, index),
       cols: 80,
       rows: 24,
+      env,
     })
     owner.set(id, ws.id)
     return id
@@ -103,6 +124,13 @@ export async function activate(workspaceId: string): Promise<void> {
   if (!shell) {
     notify(t("sessions.noShell"), "error")
     return
+  }
+
+  // Pin the agent names before spawning. Resolved names depend on position, so
+  // leaving them implicit would rename a pane the moment a neighbour closes.
+  const names = namesFor(ws, app.config.tree)
+  if (!sameNames(ws.paneNames, names)) {
+    commit((c) => ({ ...c, tree: updateWorkspace(c.tree, workspaceId, { paneNames: names }) }))
   }
 
   // Move into the LRU only after confirming we have a shell to spawn.
@@ -204,10 +232,12 @@ function pullPane(workspaceId: string, index: number): MinimizedPane | null {
   // rather than inheriting its neighbour's.
   const paneTools = toolsFor(ws)
   const [toolId] = paneTools.splice(index, 1)
+  const paneNames = namesFor(ws, app.config.tree)
+  const [name] = paneNames.splice(index, 1)
 
-  const patch = { ...relayout(ws, defaultLayoutFor(ws, count - 1)), paneTools }
+  const patch = { ...relayout(ws, defaultLayoutFor(ws, count - 1)), paneTools, paneNames }
   commit((c) => ({ ...c, tree: updateWorkspace(c.tree, workspaceId, patch) }))
-  return { id: id ?? null, exit, toolId: toolId ?? null }
+  return { id: id ?? null, exit, toolId: toolId ?? null, name: name ?? null }
 }
 
 /** Close one pane. The last pane stays: a workspace with no terminal has nothing
@@ -215,6 +245,7 @@ function pullPane(workspaceId: string, index: number): MinimizedPane | null {
 export async function closePane(workspaceId: string, index: number): Promise<void> {
   const pulled = pullPane(workspaceId, index)
   if (!pulled) return
+  if (pulled.name) dropAgentLog(workspaceId, pulled.name)
   if (pulled.id !== null) {
     owner.delete(pulled.id)
     await killSession(pulled.id).catch(() => {})
@@ -253,8 +284,11 @@ export function restorePane(workspaceId: string, stripIndex: number): boolean {
   // It comes back as the last cell, so its tool goes on the end. The shell is
   // still the one that was spawned; this only keeps the config in step with it.
   const paneTools = [...toolsFor(ws), entry.toolId]
+  // Its old name may have been handed to a new pane meanwhile; resolving then
+  // gives it a fresh one rather than a duplicate.
+  const paneNames = [...namesFor(ws, app.config.tree), entry.name]
 
-  const patch = { ...relayout(ws, defaultLayoutFor(ws, count + 1)), paneTools }
+  const patch = { ...relayout(ws, defaultLayoutFor(ws, count + 1)), paneTools, paneNames }
   commit((c) => ({ ...c, tree: updateWorkspace(c.tree, workspaceId, patch) }))
   return true
 }
@@ -277,6 +311,8 @@ export async function closeSubtree(node: Node): Promise<void> {
   // Remove from LRU before the slot check: a workspace deleted before it ever
   // spawned (no slot) would otherwise remain in live and cap the app at two grids.
   sessions.live = sessions.live.filter((x) => x !== node.id)
+  // Deleting the workspace takes its shared agent folder with it.
+  void removeAgentsDir(node.id).catch(() => {})
   const slot = sessions.byWorkspace[node.id]
   if (!slot) return
   // Minimized terminals are off the grid but their shells and ring buffers are

@@ -133,6 +133,11 @@ const EN = {
   "grid.minimizedStrip": "Minimized terminals",
   "grid.restorePane": "Reopen minimized terminal {n}",
   "grid.minimizedPane": "Terminal {n}",
+  "agents.renameHint": "{name} — double-click to rename",
+  "agents.renameLabel": "Agent name",
+  "agents.nameTaken": "Another agent already has that name",
+  "agents.nameEmpty": "Use letters, digits, - or _",
+  "agents.introduce": "Introduce {name}: type its name and team into the prompt",
   "grid.gridFull": "The grid is full ({max} terminals) — close one first",
 
   "sessions.spawnFailed": "Could not open terminal ({path}): {error}",
@@ -322,6 +327,11 @@ const TR: Record<keyof typeof EN, string> = {
   "grid.minimizedStrip": "Küçültülmüş terminaller",
   "grid.restorePane": "{n}. küçültülmüş terminali geri aç",
   "grid.minimizedPane": "Terminal {n}",
+  "agents.renameHint": "{name} — yeniden adlandırmak için çift tıkla",
+  "agents.renameLabel": "Ajan adı",
+  "agents.nameTaken": "Bu isim başka bir ajanda kullanılıyor",
+  "agents.nameEmpty": "Harf, rakam, - veya _ kullan",
+  "agents.introduce": "Ajanı tanıt ({name}): adını ve ekibini komut satırına yaz",
   "grid.gridFull": "Izgara dolu ({max} terminal) — önce birini kapat",
 
   "sessions.spawnFailed": "Terminal açılamadı ({path}): {error}",

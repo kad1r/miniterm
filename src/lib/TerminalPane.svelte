@@ -23,11 +23,30 @@
   import { fontScale } from "../store/font.svelte"
   import { theme } from "../store/theme.svelte"
 
-  let { sessionId, exitCode = undefined, onrestart }: {
+  let { sessionId, exitCode = undefined, onrestart, onsnapshot }: {
     sessionId: number | null
     exitCode?: number | null | undefined
     onrestart?: () => void
+    /** Plain-text tail of the screen, delivered at most every SNAPSHOT_MS and
+     *  only after new output — feeds the agent's shared `<Name>.log`. */
+    onsnapshot?: (lines: string[]) => void
   } = $props()
+
+  const SNAPSHOT_MS = 2000
+  const SNAPSHOT_LINES = 300
+  // Set by every write, cleared by the snapshot: an idle pane costs nothing.
+  let dirty = false
+
+  function snapshot() {
+    if (!dirty || !term || !onsnapshot) return
+    dirty = false
+    const buf = term.buffer.active
+    const lines: string[] = []
+    for (let i = Math.max(0, buf.length - SNAPSHOT_LINES); i < buf.length; i++) {
+      lines.push(buf.getLine(i)?.translateToString(true) ?? "")
+    }
+    onsnapshot(lines)
+  }
 
   let host: HTMLDivElement
   let term: Terminal | null = null
@@ -133,6 +152,9 @@
     const ro = new ResizeObserver(() => fit())
     ro.observe(host)
 
+    term.onWriteParsed(() => (dirty = true))
+    const snapTimer = setInterval(snapshot, SNAPSHOT_MS)
+
     // The listener registration is async, so a pane unmounted before it lands
     // must still be able to cancel it.
     let unlistenDrop: (() => void) | null = null
@@ -144,6 +166,7 @@
     return () => {
       dropCancelled = true
       unlistenDrop?.()
+      clearInterval(snapTimer)
       ro.disconnect()
       if (attached !== null) void detachSession(attached).catch(() => {})
       term?.dispose()

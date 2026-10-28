@@ -53,7 +53,8 @@ where it left off when you come back.
 - Output is held in a 256 KB ring buffer per session on the Rust side; on return
   the screen is redrawn from that buffer
 - When a process dies the pane dims and prints an info line — Enter restarts it
-- The dot in the sidebar shows status: running / exited / stopped
+- The dot in the sidebar shows status: running / exited / stopped, and for
+  agents also waiting / done-but-unseen / working (see **Agents**)
 
 **Native terminal behaviour**
 - `Ctrl+C` copies when there is a selection, otherwise sends SIGINT — copying
@@ -179,7 +180,9 @@ passes, shifting from red toward green. A chime and a notification mark the end.
 ## Settings
 
 **AI tools** — the commands a terminal can be opened with. The preview shows that
-the command is typed into the shell rather than passed as an argument.
+the command is typed into the shell rather than passed as an argument. Below the
+list, **Agent status** installs or removes the Claude Code hook and turns the
+Windows notification and taskbar flash on or off.
 
 ![The AI tools tab](docs/screenshots/settings-ai-tools.png)
 
@@ -212,7 +215,8 @@ src/
   i18n/     TR/EN message table; a missing key is a compile error
   ipc/      Tauri command wrappers
   lib/      Svelte 5 components (runes)
-src-tauri/  Rust backend — PTY lifecycle, ring buffer, config I/O
+src-tauri/  Rust backend — PTY lifecycle, ring buffer, config I/O, agent-status
+            watcher, Claude Code hook install
 ```
 
 Business logic lives in pure modules outside Svelte; components only bind. That

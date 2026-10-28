@@ -54,7 +54,8 @@ döndüğünüzde çıktı olduğu yerden sürer.
 - Çıktı Rust tarafında oturum başına 256 KB'lık ring buffer'da tutulur; geri
   dönüldüğünde ekran bu tampondan yeniden çizilir
 - Bir süreç ölünce panel kararır ve bilgi satırı basılır — Enter yeniden başlatır
-- Kenar çubuğundaki nokta durumu gösterir: çalışıyor / kapandı / durdu
+- Kenar çubuğundaki nokta durumu gösterir: çalışıyor / kapandı / durdu; agent'lar
+  için ayrıca bekliyor / bitti ama bakılmadı / çalışıyor (bkz. **Agent'lar**)
 
 **Native terminal davranışı**
 - `Ctrl+C` seçim varsa kopyalar, yoksa SIGINT gönderir — kopyalama seçimi
@@ -183,7 +184,9 @@ sesi ve bildirim haber verir.
 ## Ayarlar
 
 **AI araçları** — bir terminalin açılabileceği komutlar. Önizleme, komutun
-argüman olarak değil kabuğa yazılarak çalıştırıldığını gösterir.
+argüman olarak değil kabuğa yazılarak çalıştırıldığını gösterir. Listenin altındaki
+**Ajan durumu** bölümü Claude Code hook'unu kurar veya kaldırır; Windows bildirimini
+ve görev çubuğu yanıp sönmesini açıp kapatır.
 
 ![AI araçları sekmesi](docs/screenshots/settings-ai-tools.png)
 
@@ -215,7 +218,8 @@ src/
   i18n/     TR/EN metin tablosu; eksik anahtar derleme hatası verir
   ipc/      Tauri komut sarmalayıcıları
   lib/      Svelte 5 bileşenleri (runes)
-src-tauri/  Rust arka uç — PTY yaşam döngüsü, ring buffer, config G/Ç
+src-tauri/  Rust arka uç — PTY yaşam döngüsü, ring buffer, config G/Ç, ajan durumu
+            izleyicisi, Claude Code hook kurulumu
 ```
 
 İş mantığı Svelte'den ayrı saf modüllerde durur; bileşenler yalnız bağlar. Bu

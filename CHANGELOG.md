@@ -7,6 +7,13 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.12.1 — 2026-10-28
+
+### Interface
+
+- Workspace rows in the sidebar are a little taller, so the list is easier to scan
+  and to hit with the mouse.
+
 ## 0.12.0 — 2026-10-28
 
 ### Agent status

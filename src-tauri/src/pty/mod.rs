@@ -6,6 +6,7 @@ use ring::{RingBuffer, RING_CAPACITY};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
@@ -88,6 +89,9 @@ struct Session {
     /// the shell's cursor-position requests itself — see the DSR note on the
     /// reader thread.
     attached_ever: Arc<AtomicBool>,
+    /// Milliseconds since the manager's `epoch` at which the last output chunk
+    /// arrived. Feeds the active/idle hint for agents that send no hook events.
+    last_output: Arc<AtomicU64>,
 }
 
 pub struct SessionManager {
@@ -96,6 +100,10 @@ pub struct SessionManager {
     /// Wrapped in Arc so watcher threads can clone the Arc and read the
     /// handler at exit time rather than at spawn time (Fix 6).
     on_exit: Arc<Mutex<Option<ExitHandler>>>,
+    /// Where agent hooks append their events, handed to every shell as
+    /// MINITERM_STATUS_DIR. None (tests, or before setup) means no variable.
+    status_dir: Mutex<Option<PathBuf>>,
+    epoch: Instant,
 }
 
 impl Default for SessionManager {
@@ -122,7 +130,25 @@ impl SessionManager {
             next_id: AtomicU64::new(1),
             sessions: Mutex::new(HashMap::new()),
             on_exit: Arc::new(Mutex::new(None)),
+            status_dir: Mutex::new(None),
+            epoch: Instant::now(),
         }
+    }
+
+    pub fn set_status_dir(&self, dir: PathBuf) {
+        *lock_recover(self.status_dir.lock()) = Some(dir);
+    }
+
+    /// Every live session with the time since its last output chunk.
+    pub fn output_ages(&self) -> Vec<(SessionId, Duration)> {
+        let now = self.epoch.elapsed().as_millis() as u64;
+        lock_recover(self.sessions.lock())
+            .iter()
+            .map(|(id, s)| {
+                let at = s.last_output.load(Ordering::Relaxed);
+                (*id, Duration::from_millis(now.saturating_sub(at)))
+            })
+            .collect()
     }
 
     pub fn set_exit_handler(&self, f: impl Fn(SessionId, Option<i32>) + Send + Sync + 'static) {
@@ -147,6 +173,16 @@ impl SessionManager {
         for (k, v) in &opts.env {
             cmd.env(k, v);
         }
+        // Taken before the child starts so the shell can be told its own id;
+        // hooks key their status file by it (agent names can change mid-run,
+        // an environment cannot follow).
+        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
+        if let Some(dir) = lock_recover(self.status_dir.lock()).as_ref() {
+            cmd.env("MINITERM_SESSION_ID", id.to_string());
+            // Forward slashes: hooks run under Git Bash on Windows, and both it
+            // and PowerShell accept C:/… where a backslash would need escaping.
+            cmd.env("MINITERM_STATUS_DIR", dir.to_string_lossy().replace('\\', "/"));
+        }
 
         let child = pair
             .slave
@@ -167,7 +203,6 @@ impl SessionManager {
             .take_writer()
             .map_err(|e| PtyError::Io(e.to_string()))?;
 
-        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let buffer = Arc::new(Mutex::new(RingBuffer::with_capacity(RING_CAPACITY)));
         let writer = Arc::new(Mutex::new(writer));
         #[cfg(windows)]
@@ -182,6 +217,7 @@ impl SessionManager {
         let saw_output = Arc::new((Mutex::new(false), Condvar::new()));
         let alive = Arc::new(AtomicBool::new(true));
         let attached_ever = Arc::new(AtomicBool::new(false));
+        let last_output = Arc::new(AtomicU64::new(0));
 
         let sink: Arc<Mutex<Option<OutputSink>>> = Arc::new(Mutex::new(None));
         // sync_channel caps the in-flight queue at 64 chunks (~4 MB ceiling).
@@ -217,6 +253,8 @@ impl SessionManager {
             let alive = Arc::clone(&alive);
             let writer_for_cpr = Arc::clone(&writer);
             let attached_ever_for_cpr = Arc::clone(&attached_ever);
+            let last_output = Arc::clone(&last_output);
+            let epoch = self.epoch;
             // Move tx into the reader thread directly — the sole Sender.  Its
             // drop when this thread exits disconnects the channel, which is one
             // shutdown signal for the collector.  Do not clone it anywhere else;
@@ -241,6 +279,7 @@ impl SessionManager {
                                 }
                             }
                             lock_recover(buffer.lock()).push(slice);
+                            last_output.store(epoch.elapsed().as_millis() as u64, Ordering::Relaxed);
                             // try_send, not send: a blocking send here would
                             // stall the PTY drain loop, reintroducing the Task 5
                             // freeze class.  Dropping is safe — the ring buffer
@@ -393,6 +432,7 @@ impl SessionManager {
                 saw_output,
                 sink,
                 attached_ever,
+                last_output,
             },
         );
 

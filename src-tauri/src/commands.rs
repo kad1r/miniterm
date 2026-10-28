@@ -1,4 +1,5 @@
 use crate::agents;
+use crate::claude_hooks;
 use crate::config::{self, Config, LoadResult};
 use crate::pty::{SessionManager, SpawnOpts};
 use crate::shell::{self, ShellInfo};
@@ -172,4 +173,45 @@ pub fn remove_agent_file(
 #[tauri::command]
 pub fn remove_agents_dir(state: State<'_, AppState>, workspace_id: String) -> Result<(), String> {
     agents::remove_dir(&state.config_dir, &workspace_id)
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeHookState {
+    installed: bool,
+    path: String,
+    command: String,
+    events: Vec<&'static str>,
+}
+
+fn claude_settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path().home_dir().map(|h| claude_hooks::settings_path(&h)).map_err(map_err)
+}
+
+/// Whether the status hook is in ~/.claude/settings.json, plus exactly what an
+/// install would add — the confirm dialog shows this before anything is written.
+#[tauri::command]
+pub fn claude_hook_state(app: AppHandle) -> Result<ClaudeHookState, String> {
+    let path = claude_settings_path(&app)?;
+    let installed = claude_hooks::read(&path).is_ok_and(|s| claude_hooks::is_installed(&s));
+    Ok(ClaudeHookState {
+        installed,
+        path: path.to_string_lossy().into_owned(),
+        command: claude_hooks::COMMAND.to_string(),
+        events: claude_hooks::EVENTS.to_vec(),
+    })
+}
+
+#[tauri::command]
+pub fn install_claude_hook(app: AppHandle) -> Result<(), String> {
+    let path = claude_settings_path(&app)?;
+    let settings = claude_hooks::install(claude_hooks::read(&path)?)?;
+    claude_hooks::write(&path, &settings)
+}
+
+#[tauri::command]
+pub fn uninstall_claude_hook(app: AppHandle) -> Result<(), String> {
+    let path = claude_settings_path(&app)?;
+    let settings = claude_hooks::uninstall(claude_hooks::read(&path)?);
+    claude_hooks::write(&path, &settings)
 }

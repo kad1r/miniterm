@@ -1,11 +1,13 @@
 <script lang="ts">
   import { t } from "../i18n/locale.svelte"
+  import type { AgentInfo } from "../store/agentStatus"
 
   /** The bar above one terminal: status dot, agent chip (double-click to
    *  rename), the workspace location, the @ introduction button and — when the
    *  grid has more than one pane — minimize, maximize and close. */
   let {
-    index, name, folderName, path, dead, closable, maximized, canIntroduce,
+    index, name, folderName, path, dead, agent, hasTool = false, closable, maximized,
+    canIntroduce,
     onrename, onrenamedone, onintroduce, onminimize, onmaximize, onclose,
   }: {
     index: number
@@ -13,6 +15,10 @@
     folderName: string
     path: string
     dead: boolean
+    agent?: AgentInfo
+    /** The active/idle hint only means something when an AI tool runs here;
+     *  for a bare shell it would just flicker with every command. */
+    hasTool?: boolean
     closable: boolean
     maximized: boolean
     canIntroduce: boolean
@@ -24,6 +30,12 @@
     onmaximize: () => void
     onclose: () => void
   } = $props()
+
+  const shownState = $derived(
+    dead || !agent ? null
+    : agent.state === "active" || agent.state === "idle" ? (hasTool ? agent.state : null)
+    : agent.state,
+  )
 
   let editing = $state(false)
   let draft = $state("")
@@ -61,7 +73,7 @@
 </script>
 
 <div class="pane-header">
-  <span class="pane-dot" class:dead></span>
+  <span class="pane-dot {shownState ?? ''}" class:dead></span>
   {#if editing}
     <input
       class="agent-input"
@@ -81,6 +93,12 @@
     >
       {name}
     </button>
+  {/if}
+  {#if shownState}
+    <span class="state {shownState}" class:unread={agent?.unread}>
+      {t(`agentState.${shownState}`)}{#if agent && agent.subagents > 0}
+        · {t("agentState.subagents", { n: agent.subagents })}{/if}
+    </span>
   {/if}
   <div class="pane-loc" title={path}>
     <span class="pane-name">{folderName}</span>
@@ -167,6 +185,34 @@
   }
   .pane-dot.dead {
     background: var(--err);
+  }
+  .pane-dot.waiting {
+    background: var(--warn);
+  }
+  .pane-dot.working,
+  .pane-dot.active {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--ok);
+  }
+  .pane-dot.idle {
+    background: var(--text-3);
+  }
+  .state {
+    flex: 0 0 auto;
+    color: var(--text-3);
+    font-size: calc(10.5px * var(--font-scale, 1));
+    white-space: nowrap;
+  }
+  .state.working {
+    color: var(--ok);
+  }
+  .state.waiting {
+    color: var(--warn);
+    font-weight: 600;
+  }
+  .state.done.unread {
+    color: var(--accent);
+    font-weight: 600;
   }
   .agent {
     flex: 0 0 auto;

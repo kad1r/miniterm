@@ -417,6 +417,15 @@
   .dot.dead {
     background: var(--err);
   }
+  .dot.waiting {
+    background: var(--warn);
+  }
+  .dot.unread {
+    background: var(--accent);
+  }
+  .dot.working {
+    box-shadow: inset 0 0 0 1.5px var(--ok);
+  }
   .dot.off {
     background: var(--text-3);
     opacity: 0.5;

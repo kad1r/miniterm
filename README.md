@@ -53,7 +53,8 @@ where it left off when you come back.
 - Output is held in a 256 KB ring buffer per session on the Rust side; on return
   the screen is redrawn from that buffer
 - When a process dies the pane dims and prints an info line — Enter restarts it
-- The dot in the sidebar shows status: running / exited / stopped
+- The dot in the sidebar shows status: running / exited / stopped, and for
+  agents also waiting / done-but-unseen / working (see **Agents**)
 
 **Native terminal behaviour**
 - `Ctrl+C` copies when there is a selection, otherwise sends SIGINT — copying
@@ -76,6 +77,17 @@ where it left off when you come back.
 - The **@** button in a pane header types a one-line introduction into the
   prompt, without pressing Enter. Every shell starts with `MINITERM_AGENT`,
   `MINITERM_WORKSPACE` and `MINITERM_AGENTS_DIR` set
+- **Agent status:** each pane shows whether its agent is *working*, *waiting for
+  you* or *done*, with the number of running subagents. The sidebar dot follows
+  the most urgent pane — waiting (amber), finished but not seen yet (accent),
+  working (green ring) — and the pane that needs you gets an amber outline until
+  you click into it. Claude Code reports this through a hook you install from
+  Settings → AI tools; miniterm shows what it adds to `~/.claude/settings.json`,
+  backs the file up first and writes only after you confirm. Other tools get an
+  active / idle hint from their output
+- When an agent in a hidden workspace, or while miniterm is in the background,
+  needs you or finishes, a **Windows notification** pops up and the taskbar
+  button flashes. Both can be turned off under Settings → AI tools
 
 **Interface**
 - **Dark and light themes**; toggle at the bottom of the sidebar, remembered
@@ -168,7 +180,9 @@ passes, shifting from red toward green. A chime and a notification mark the end.
 ## Settings
 
 **AI tools** — the commands a terminal can be opened with. The preview shows that
-the command is typed into the shell rather than passed as an argument.
+the command is typed into the shell rather than passed as an argument. Below the
+list, **Agent status** installs or removes the Claude Code hook and turns the
+Windows notification and taskbar flash on or off.
 
 ![The AI tools tab](docs/screenshots/settings-ai-tools.png)
 
@@ -201,7 +215,8 @@ src/
   i18n/     TR/EN message table; a missing key is a compile error
   ipc/      Tauri command wrappers
   lib/      Svelte 5 components (runes)
-src-tauri/  Rust backend — PTY lifecycle, ring buffer, config I/O
+src-tauri/  Rust backend — PTY lifecycle, ring buffer, config I/O, agent-status
+            watcher, Claude Code hook install
 ```
 
 Business logic lives in pure modules outside Svelte; components only bind. That

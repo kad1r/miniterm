@@ -4,7 +4,10 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import { UserAttentionType } from "@tauri-apps/api/window";
 import type { Config, LoadResult, ShellInfo } from "../store/types";
+import type { AgentUpdate } from "../store/agentStatus";
 import { closeSequence } from "./close";
 
 export interface UpdateInfo {
@@ -153,6 +156,42 @@ export function onSessionExit(
   cb: (e: { id: number; code: number | null }) => void,
 ): Promise<() => void> {
   return listen<{ id: number; code: number | null }>("session-exit", (e) => cb(e.payload));
+}
+
+export function onAgentStatus(cb: (u: AgentUpdate) => void): Promise<() => void> {
+  return listen<AgentUpdate>("agent-status", (e) => cb(e.payload));
+}
+
+export interface ClaudeHookState {
+  installed: boolean;
+  path: string;
+  /** Exactly what an install adds, shown in the confirm dialog first. */
+  command: string;
+  events: string[];
+}
+
+export function claudeHookState(): Promise<ClaudeHookState> {
+  return invoke<ClaudeHookState>("claude_hook_state");
+}
+
+export function installClaudeHook(): Promise<void> {
+  return invoke<void>("install_claude_hook");
+}
+
+export function uninstallClaudeHook(): Promise<void> {
+  return invoke<void>("uninstall_claude_hook");
+}
+
+/** Windows toast. Silently does nothing if notifications are not allowed. */
+export async function desktopNotify(title: string, body: string): Promise<void> {
+  let granted = await isPermissionGranted();
+  if (!granted) granted = (await requestPermission()) === "granted";
+  if (granted) sendNotification({ title, body });
+}
+
+/** Taskbar button flash until the window gets focus. */
+export function flashTaskbar(): Promise<void> {
+  return getCurrentWebviewWindow().requestUserAttention(UserAttentionType.Informational);
 }
 
 /**

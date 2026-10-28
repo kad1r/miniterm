@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Node } from "../store/types"
   import type { DropZone } from "../store/dnd"
+  import type { PaneStatus } from "../store/sessions.svelte"
   import { t } from "../i18n/locale.svelte"
   import Self from "./TreeItem.svelte"
 
@@ -15,7 +16,7 @@
     ontoggle: (node: Node) => void
     oncontext: (node: Node, x: number, y: number) => void
     onpointerdownitem: (node: Node, e: PointerEvent) => void
-    statusFor: (nodeId: string) => "off" | "running" | "dead"
+    statusFor: (nodeId: string) => PaneStatus
   } = $props()
 
   const isFolder = $derived(node.kind === "folder")
@@ -149,6 +150,19 @@
   .dot.dead {
     background: var(--err);
     border-color: var(--err);
+  }
+  /* Agent states. Static on purpose — a pulsing dot per row would keep the
+     compositor busy for as long as an agent works. */
+  .dot.waiting {
+    background: var(--warn);
+    border-color: var(--warn);
+  }
+  .dot.unread {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .dot.working {
+    border-color: var(--ok);
   }
   .badge {
     flex-shrink: 0;

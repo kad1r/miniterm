@@ -5,14 +5,19 @@ import { defaultLayoutFor, relayout, terminalCount } from "./relayout"
 import { MAX_TERMINALS } from "./layout"
 import { focusAfterClose, maximizedAfterClose } from "./focus"
 import { touch, LIVE_LIMIT } from "./lru"
-import { killSession, onSessionExit, removeAgentsDir, spawnSession } from "../ipc"
+import {
+  desktopNotify, flashTaskbar, killSession, onAgentStatus, onSessionExit, removeAgentsDir,
+  spawnSession,
+} from "../ipc"
 import type { Node, ShellInfo, Workspace } from "./types"
 import { toolsFor } from "./panes"
 import { paneStatus } from "./status"
 import { namesFor, sameNames } from "./agents"
 import { dropAgentLog, ensureAgentsDir } from "./agents.svelte"
+import { alertFor, applyUpdate, createLimiter, rollup, type AgentInfo } from "./agentStatus"
+import { alerts } from "./alerts.svelte"
 
-export type PaneStatus = "off" | "running" | "dead"
+export type PaneStatus = "off" | "running" | "dead" | "waiting" | "unread" | "working"
 
 /** A terminal that was sent to the strip below the grid: off the grid, still
  *  running. It keeps its own exit code because a minimized shell can die while
@@ -45,6 +50,9 @@ interface WorkspaceSessions {
 export const sessions = $state({
   byWorkspace: {} as Record<string, WorkspaceSessions>,
   live: [] as string[],
+  /** Agent status per session id, from the `agent-status` event. Keyed by id
+   *  rather than by cell for the same reason `owner` is. */
+  agents: {} as Record<number, AgentInfo>,
 })
 
 /** sessionId -> workspace. Needed to route the session-exit event.
@@ -335,14 +343,74 @@ export function rememberFocus(workspaceId: string, index: number): void {
   const slot = sessions.byWorkspace[workspaceId]
   if (!slot || index < 0 || index >= slot.ids.length) return
   slot.focused = index
+  markRead(slot.ids[index])
+}
+
+function markRead(id: number | null | undefined) {
+  const info = id == null ? undefined : sessions.agents[id]
+  if (info?.unread) info.unread = false
+}
+
+/** The window came back into focus: whatever the focused pane of the visible
+ *  workspace reported meanwhile has now been seen. */
+export function markVisibleRead(): void {
+  const wsId = app.activeWorkspaceId
+  const slot = wsId === null ? undefined : sessions.byWorkspace[wsId]
+  if (slot && app.view === "workspace") markRead(slot.ids[slot.focused])
+}
+
+export function agentOf(id: number | null | undefined): AgentInfo | undefined {
+  return id == null ? undefined : sessions.agents[id]
 }
 
 export function statusOf(workspaceId: string): PaneStatus {
-  return paneStatus(sessions.byWorkspace[workspaceId])
+  const slot = sessions.byWorkspace[workspaceId]
+  const ids = slot ? [...slot.ids, ...slot.minimized.map((m) => m.id)] : []
+  return paneStatus(slot, rollup(ids.map(agentOf)))
+}
+
+/** Where a session sits and whether the user is looking at it right now. */
+function locate(id: number): { ws: Workspace; cell: number; seen: boolean } | null {
+  const wsId = owner.get(id)
+  const slot = wsId === undefined ? undefined : sessions.byWorkspace[wsId]
+  const ws = wsId === undefined ? null : workspaceById(wsId)
+  if (!slot || !ws) return null
+  const cell = slot.ids.indexOf(id)
+  const seen =
+    cell !== -1 &&
+    cell === slot.focused &&
+    wsId === app.activeWorkspaceId &&
+    app.view === "workspace" &&
+    typeof document !== "undefined" &&
+    document.hasFocus()
+  return { ws, cell, seen }
+}
+
+const allowAlert = createLimiter(10_000)
+
+export async function listenAgentStatus(): Promise<void> {
+  await onAgentStatus((u) => {
+    const where = locate(u.id)
+    if (!where) return
+    const prev = sessions.agents[u.id]
+    const alert = alertFor(prev, u, where.seen)
+    sessions.agents[u.id] = applyUpdate(prev, u, where.seen)
+    if (!alert || !allowAlert(u.id, Date.now())) return
+    if (alerts.flash) void flashTaskbar().catch(() => {})
+    if (alerts.toast) {
+      const strip = sessions.byWorkspace[where.ws.id]?.minimized.find((m) => m.id === u.id)
+      const name = where.cell !== -1 ? namesFor(where.ws, app.config.tree)[where.cell] : strip?.name
+      const title = t(alert === "waiting" ? "alerts.waiting" : "alerts.done", { name: name ?? "" })
+      void desktopNotify(title, where.ws.name).catch(() => {})
+    }
+  })
 }
 
 export async function listenExits(): Promise<void> {
   await onSessionExit(({ id, code }) => {
+    // Before the owner check: a closed or restarted pane has already lost its
+    // owner entry, but its agent status still has to go.
+    delete sessions.agents[id]
     const workspaceId = owner.get(id)
     if (workspaceId === undefined) return
     owner.delete(id)

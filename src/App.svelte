@@ -3,8 +3,8 @@
   import { app, bootstrap, commit, dismissToast, notify } from "./store/app.svelte"
   import { findNode, updateWorkspace } from "./store/tree"
   import {
-    activate, closePane, listenExits, minimizePane, rememberFocus, restart, restorePane,
-    sessions, toggleMaximize,
+    activate, closePane, listenAgentStatus, listenExits, markVisibleRead, minimizePane,
+    rememberFocus, restart, restorePane, sessions, toggleMaximize,
   } from "./store/sessions.svelte"
   import { MAX_TERMINALS } from "./store/layout"
   import { fontAction, termFontSize } from "./store/font"
@@ -35,9 +35,10 @@
     initFontScale()
     initTheme()
     const exits = listenExits()
+    const agents = listenAgentStatus()
     await bootstrap()
     void runCheck(true)
-    await exits
+    await Promise.all([exits, agents])
   })
 
   /** Ctrl/Cmd +, − and 0. Handled at the window rather than per-component so it
@@ -128,7 +129,7 @@
   const fontPx = $derived(termFontSize(TERM_FONT_SIZE, fontScale.level))
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown} onfocus={markVisibleRead} />
 
 <div class="shell">
   {#if !app.ready}

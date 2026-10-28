@@ -37,4 +37,10 @@ describe("paneStatus", () => {
       "dead",
     )
   })
+
+  it("ranks the agent summary below dead and above running", () => {
+    expect(paneStatus({ ids: [1], exits: [undefined] }, "waiting")).toBe("waiting")
+    expect(paneStatus({ ids: [1, 2], exits: [undefined, 0] }, "waiting")).toBe("dead")
+    expect(paneStatus({ ids: [null], exits: [undefined] }, "working")).toBe("off")
+  })
 })

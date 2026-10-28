@@ -108,4 +108,25 @@ describe("PaneHeader", () => {
     const { target } = render({ closable: false })
     expect(target.querySelector(".pane-actions")).toBeNull()
   })
+
+  it("shows the agent state with its subagent count", () => {
+    const { target } = render({ agent: { state: "working", subagents: 2, unread: false } })
+    const chip = target.querySelector(".state")!
+    expect(chip.classList.contains("working")).toBe(true)
+    expect(chip.textContent!.replace(/\s+/g, " ").trim()).toMatch(/2/)
+  })
+
+  it("hides the active/idle hint on a bare shell", () => {
+    const agent = { state: "active", subagents: 0, unread: false }
+    expect(render({ agent }).target.querySelector(".state")).toBeNull()
+    unmount(app!)
+    app = null
+    expect(render({ agent, hasTool: true }).target.querySelector(".state.active")).not.toBeNull()
+  })
+
+  it("shows no state on a dead pane", () => {
+    const { target } = render({ dead: true, agent: { state: "done", subagents: 0, unread: true } })
+    expect(target.querySelector(".state")).toBeNull()
+  })
 })
+

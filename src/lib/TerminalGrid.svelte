@@ -7,7 +7,7 @@
     isClosePaneChord, isFocusNextPaneChord, isFocusPrevPaneChord, isMaximizePaneChord,
     isMinimizePaneChord,
   } from "../term/pane"
-  import { shellFor, type MinimizedPane } from "../store/sessions.svelte"
+  import { agentOf, shellFor, type MinimizedPane } from "../store/sessions.svelte"
   import { shellKind } from "../term/paths"
   import { basename } from "../store/tree"
   import { t } from "../i18n/locale.svelte"
@@ -324,8 +324,10 @@
          grid-template-rows:{templateWithDividers(rowSizes)}"
 >
   {#each grid as cell (cell.index)}
+    {@const agent = agentOf(sessionIds[cell.index])}
     <div
       class="cell"
+      class:attention={agent?.state === "waiting" || agent?.unread}
       class:max={maximized === cell.index}
       class:covered={maximized !== null && maximized !== cell.index}
       data-index={cell.index}
@@ -337,6 +339,8 @@
         {folderName}
         path={workspace.path}
         dead={exitCodes[cell.index] !== undefined}
+        {agent}
+        hasTool={toolsFor(workspace)[cell.index] != null}
         {closable}
         maximized={maximized === cell.index}
         canIntroduce={sessionIds[cell.index] != null && exitCodes[cell.index] === undefined}
@@ -522,6 +526,13 @@
   }
   .dot.dead {
     background: var(--err);
+  }
+  /* An agent asked something or finished while nobody was looking. Amber, not
+     the accent, so it never reads as keyboard focus; declared before the focus
+     rule so the focused pane always shows as focused. */
+  .cell.attention {
+    border-color: var(--warn);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 18%, transparent);
   }
   /* Which terminal takes the keystrokes. :focus-within needs no state of its
      own — xterm's textarea lives inside the cell, so the browser's own notion

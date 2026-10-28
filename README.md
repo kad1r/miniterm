@@ -76,6 +76,17 @@ where it left off when you come back.
 - The **@** button in a pane header types a one-line introduction into the
   prompt, without pressing Enter. Every shell starts with `MINITERM_AGENT`,
   `MINITERM_WORKSPACE` and `MINITERM_AGENTS_DIR` set
+- **Agent status:** each pane shows whether its agent is *working*, *waiting for
+  you* or *done*, with the number of running subagents. The sidebar dot follows
+  the most urgent pane — waiting (amber), finished but not seen yet (accent),
+  working (green ring) — and the pane that needs you gets an amber outline until
+  you click into it. Claude Code reports this through a hook you install from
+  Settings → AI tools; miniterm shows what it adds to `~/.claude/settings.json`,
+  backs the file up first and writes only after you confirm. Other tools get an
+  active / idle hint from their output
+- When an agent in a hidden workspace, or while miniterm is in the background,
+  needs you or finishes, a **Windows notification** pops up and the taskbar
+  button flashes. Both can be turned off under Settings → AI tools
 
 **Interface**
 - **Dark and light themes**; toggle at the bottom of the sidebar, remembered

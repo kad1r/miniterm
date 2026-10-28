@@ -11,6 +11,7 @@
   import { LOCALES, LOCALE_NAMES, type Locale } from "../i18n/messages"
   import { locale, setLocale, t } from "../i18n/locale.svelte"
   import SettingsAbout from "./SettingsAbout.svelte"
+  import SettingsAgents from "./SettingsAgents.svelte"
 
   let tab = $state<"tools" | "dirs" | "terminal" | "appearance" | "about">("tools")
   let editingTool = $state<AiTool | null>(null)
@@ -150,6 +151,8 @@
       {:else}
         <button class="ghost add" onclick={newTool}>{t("settings.tools.add")}</button>
       {/if}
+
+      <SettingsAgents />
 
     {:else if tab === "dirs"}
       {#each app.config.directories as dir (dir.id)}

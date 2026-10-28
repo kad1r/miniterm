@@ -7,6 +7,23 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## Unreleased
+
+### Agent status
+
+- **See which agent needs you.** Every pane shows whether its agent is working,
+  waiting for you or done, with the number of subagents still running. The sidebar
+  dot follows the most urgent pane, and a pane that asked something or finished
+  while you were elsewhere keeps an amber outline until you click into it.
+- **Windows notification and taskbar flash** when an agent in a hidden workspace,
+  or while miniterm is in the background, needs you or finishes. Both can be
+  switched off under Settings → AI tools.
+- Claude Code reports its state through a hook installed from Settings → AI tools.
+  miniterm shows exactly what it adds to `~/.claude/settings.json`, keeps your own
+  settings and hooks, saves a backup first and writes nothing until you confirm.
+  The hook does nothing in Claude sessions started outside miniterm. Other tools get
+  an active / idle hint from their output.
+
 ## 0.11.2 — 2026-09-30
 
 ### Security

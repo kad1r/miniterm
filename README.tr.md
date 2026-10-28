@@ -78,6 +78,17 @@ döndüğünüzde çıktı olduğu yerden sürer.
 - Panel başlığındaki **@** düğmesi prompt'a tek satırlık bir tanıtım yazar,
   Enter'a basmadan. Her kabuk `MINITERM_AGENT`, `MINITERM_WORKSPACE` ve
   `MINITERM_AGENTS_DIR` tanımlı olarak açılır
+- **Ajan durumu:** her panel, agent'ının *çalıştığını*, *seni beklediğini* veya
+  *bitirdiğini* ve çalışan alt ajan sayısını gösterir. Kenar çubuğundaki nokta en
+  acil paneli izler — bekliyor (amber), bitti ama bakılmadı (vurgu rengi),
+  çalışıyor (yeşil halka) — ve seni bekleyen panel, içine tıklayana kadar amber
+  bir çerçeve alır. Claude Code bunu Ayarlar → AI araçları'ndan kurulan bir hook
+  ile bildirir; miniterm `~/.claude/settings.json` dosyasına ne ekleyeceğini
+  gösterir, önce dosyayı yedekler ve ancak onaylayınca yazar. Diğer araçlar
+  çıktılarına göre aktif / boşta ipucu alır
+- Gizli bir workspace'teki ya da miniterm arka plandayken bir agent seni
+  beklediğinde veya bitirdiğinde **Windows bildirimi** çıkar ve görev çubuğu
+  düğmesi yanıp söner. İkisi de Ayarlar → AI araçları'ndan kapatılabilir
 
 **Arayüz**
 - **Koyu ve açık tema**; kenar çubuğunun altındaki anahtardan geçilir, açılışlar

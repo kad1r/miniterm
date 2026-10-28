@@ -7,6 +7,8 @@
     "core:default",
     "core:app:allow-version",
     "core:window:allow-destroy",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "core:window:allow-request-user-attention",
+    "notification:default"
   ]
 }

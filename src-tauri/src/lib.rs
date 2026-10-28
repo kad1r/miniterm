@@ -1,4 +1,6 @@
+pub mod agent_status;
 pub mod agents;
+pub mod claude_hooks;
 pub mod config;
 pub mod pty;
 pub mod shell;
@@ -26,6 +28,7 @@ struct SessionExit {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let handle = app.handle().clone();
             let state = AppState {
@@ -39,7 +42,30 @@ pub fn run() {
                 let _ = emit_handle.emit("session-exit", SessionExit { id, code });
             });
 
+            // No folder means no hook variables in the shells and no watcher:
+            // agent status is a nicety, never a reason to refuse to start.
+            let status_dir = state.config_dir.join("status");
+            let watch = agent_status::reset_dir(&status_dir).is_ok();
+            if watch {
+                state.sessions.set_status_dir(status_dir.clone());
+            }
+
             app.manage(state);
+
+            if watch {
+                let handle = handle.clone();
+                std::thread::spawn(move || {
+                    let mut watcher = agent_status::Watcher::default();
+                    loop {
+                        std::thread::sleep(agent_status::TICK);
+                        let Some(state) = handle.try_state::<AppState>() else { continue };
+                        let ages = state.sessions.output_ages();
+                        for update in watcher.tick(&status_dir, &ages) {
+                            let _ = handle.emit("agent-status", update);
+                        }
+                    }
+                });
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -68,6 +94,9 @@ pub fn run() {
             commands::rename_agent_file,
             commands::remove_agent_file,
             commands::remove_agents_dir,
+            commands::claude_hook_state,
+            commands::install_claude_hook,
+            commands::uninstall_claude_hook,
         ])
         .run(tauri::generate_context!())
         .expect("error while running miniterm");

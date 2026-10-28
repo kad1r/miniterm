@@ -87,8 +87,8 @@
     gap: 8px;
     /* min-height rather than height: the row is border-box, so a fixed height
        would swallow the vertical padding instead of letting the row breathe. */
-    min-height: 40px;
-    padding-block: 8px;
+    min-height: 46px;
+    padding-block: 11px;
     padding-right: 8px;
     border-radius: 7px;
     color: var(--text-2);

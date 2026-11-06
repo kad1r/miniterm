@@ -10,6 +10,7 @@
   } from "../ipc"
   import { clipboardAction } from "../term/clipboard"
   import { win32KeySequence } from "../term/win32"
+  import { attachKittyKeyboard } from "../term/kitty"
   import { exitNotice } from "../term/exit"
   import {
     isClosePaneChord, isFocusNextPaneChord, isFocusPrevPaneChord, isMaximizePaneChord,
@@ -61,6 +62,7 @@
   let term: Terminal | null = null
   let fitAddon: FitAddon | null = null
   let attached: number | null = null
+  let kitty: ReturnType<typeof attachKittyKeyboard> | null = null
   let noticeShown = false
   const encoder = new TextEncoder()
 
@@ -129,6 +131,22 @@
         if (clip === "copy") setTimeout(() => term?.clearSelection(), 0)
         return false
       }
+      // An application that turned on the kitty keyboard protocol gets Esc and
+      // modified keys as CSI u, which ConPTY passes through untouched. That
+      // also covers Ctrl+Enter and friends, so it comes before win32 mode.
+      // The keypress/input that would follow is cancelled, or AltGr-like
+      // chords would also arrive as text.
+      if (!e.isComposing && e.keyCode !== 229 && kitty && exitCode === undefined) {
+        const seq = kitty.encode({
+          key: e.key, code: e.code, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey,
+          altKey: e.altKey, metaKey: e.metaKey, altGraph: e.getModifierState("AltGraph"),
+        })
+        if (seq !== null) {
+          e.preventDefault()
+          term?.input(seq, true)
+          return false
+        }
+      }
       // Chords whose modifier a plain VT stream would drop — Ctrl+Enter and
       // friends — go to ConPTY as full key events instead of xterm's encoding.
       const win32 = win32KeySequence(e)
@@ -142,6 +160,10 @@
     term.loadAddon(fitAddon)
     term.open(host)
     fit()
+    // Protocol replies are terminal reports, so they take the same onData path
+    // as xterm's own (DA, DSR): dropped while no session is attached, which
+    // keeps a history replay from answering queries a second time.
+    kitty = attachKittyKeyboard(term, (data) => term?.input(data, false))
 
     term.onData((data) => {
       if (exitCode !== undefined) {
@@ -172,6 +194,8 @@
       ro.disconnect()
       disableWebgl()
       if (attached !== null) void detachSession(attached).catch(() => {})
+      kitty?.dispose()
+      kitty = null
       term?.dispose()
       term = null
       fitAddon = null
@@ -225,6 +249,8 @@
       const history = await getBuffer(id)
       if (cancelled || !term) return
       term.reset()
+      // The history replayed below re-runs any push the application made.
+      kitty?.state.reset()
       noticeShown = false
       // Fresh decoder per attach to avoid partial multi-byte state from a previous stream.
       const histDecoder = new TextDecoder()
@@ -276,6 +302,8 @@
   $effect(() => {
     if (exitCode === undefined || noticeShown || !term) return
     noticeShown = true
+    // Whatever the dead process asked for no longer applies.
+    kitty?.state.reset()
     term.write(exitNotice(exitCode ?? null, locale.current))
   })
 </script>

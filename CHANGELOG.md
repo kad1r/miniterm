@@ -7,6 +7,16 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.12.2 — 2026-11-06
+
+### Terminal
+
+- **Esc works every time in Claude Code.** miniterm now speaks the kitty keyboard
+  protocol, like Windows Terminal 1.25. Programs that ask for it get Esc as an
+  unambiguous key instead of a bare escape byte they had to guess at, which is why
+  Esc used to be ignored now and then. Shift+Enter, Ctrl+Enter and Ctrl/Alt
+  chords are sent the same way. AltGr typing is unaffected.
+
 ## 0.12.1 — 2026-10-28
 
 ### Interface

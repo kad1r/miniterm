@@ -91,15 +91,26 @@ döndüğünüzde çıktı olduğu yerden sürer.
   beklediğinde veya bitirdiğinde **Windows bildirimi** çıkar ve görev çubuğu
   düğmesi yanıp söner. İkisi de Ayarlar → AI araçları'ndan kapatılabilir
 
+**Görev panosu**
+- Her workspace'in kendi **kanban panosu** vardır — başlangıçta Yapılacak, Devam
+  Ediyor, Test ve Tamamlandı; bölüm eklenir, yeniden adlandırılır, sıralanır,
+  rengi değiştirilir ve silinir
+- Kartlarda başlık, not, **etiketler** ve **bitiş tarihi** bulunur; bölümler
+  arasında ve bölüm içinde sürüklenerek taşınır
+- Pano açıkken terminaller arkada çalışmaya devam eder (bkz. **Görev panosu**)
+
 **Arayüz**
 - **Koyu ve açık tema**; kenar çubuğunun altındaki anahtardan geçilir, açılışlar
   arasında hatırlanır. Her terminal paleti anahtarı canlı izler, çalışan kabuklar
   yıkılmadan
 - Türkçe ve İngilizce; ilk açılışta sistem diline göre seçilir, Ayarlar →
   Görünüm'den değiştirilir
-- Üst bar yok — tema ve ayar kontrolleri kenar çubuğunun altında durur, böylece
-  terminaller pencerenin tüm yüksekliğini alır. Alttaki ince **durum çubuğu**
-  kabuğu, oturum sayısını, yazı boyutunu ve dili gösterir
+- Standart Windows başlık çubuğu yerine **kendi başlık çubuğu**: kenar çubuğuyla
+  aynı renkte ince bir şerit; üzerinde etkin workspace'in adı, görev panosu
+  düğmesi ve pencere düğmeleri bulunur. Sürükleme, çift tıkla büyütme ve kenara
+  yaslama işletim sistemine bırakılır, yani yerel başlık çubuğundaki gibi çalışır
+- Tema ve ayar kontrolleri kenar çubuğunun altında durur. Alttaki ince **durum
+  çubuğu** kabuğu, oturum sayısını, yazı boyutunu ve dili gösterir
 - Paneller yuvarlatılmış; odaklanmış panel vurgu renkli bir kenarla işaretlenir
 - Kenar çubuğunun altındaki kum saati düğmesinde bir **pomodoro zamanlayıcı**
 - Açılışta ve Ayarlar → Hakkında'dan GitHub'da yeni sürüm olup olmadığına bakar;
@@ -170,6 +181,27 @@ aynı seçim eklenen paneller için sunulur — çalışmakta olanlar açıldık
 kalır.
 
 **Oluştur**'a bastığınızda ızgara kurulur, her terminal kendi komutuyla açılır.
+
+## Görev panosu
+
+Başlık çubuğundaki pano simgesi, etkin workspace'i terminalleri ile görev panosu
+arasında değiştirir; kenar çubuğunda bir workspace'e sağ tıklamak da aynı seçeneği
+sunar. Pano açıkken başka bir workspace seçildiğinde onun panosu gösterilir.
+
+- **Bölümler** Yapılacak, Devam Ediyor, Test ve Tamamlandı olarak başlar. **Bölüm
+  ekle** yenisini ekler; bölümün **⋯** menüsü yeniden adlandırır, sola ya da sağa
+  taşır veya siler. Silinen bölümün kartları atılmaz, yandaki bölüme taşınır.
+  Bölüm adının yanındaki nokta rengini sırayla değiştirir
+- **Kartlar** bölümün altından eklenir — başlığı yazıp Enter'a basın, sıradakini
+  yazın. Karta tıklayınca başlığı ve notu düzenlenir ya da kart silinir
+- **Etiketler** kart düzenleyicide yazılır, Enter ya da virgülle onaylanır; panoda
+  kullanılmış etiketler tek tıkla eklenecek öneriler olarak çıkar. Etiketin rengi
+  adından gelir, yani aynı etiket her yerde aynı görünür
+- **Bitiş tarihi** kartta bir rozet olarak görünür: tarih geçtiyse kırmızı, bugün
+  ya da iki gün içindeyse sarı
+
+Pano, workspace'iyle birlikte config dosyasında saklanır ve yalnızca workspace
+silindiğinde gider.
 
 ## Pomodoro
 

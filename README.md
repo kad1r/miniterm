@@ -89,15 +89,26 @@ where it left off when you come back.
   needs you or finishes, a **Windows notification** pops up and the taskbar
   button flashes. Both can be turned off under Settings → AI tools
 
+**Task board**
+- Every workspace has its own **kanban board** — To Do, In Progress, Test and
+  Done to start with; add, rename, reorder, recolour and delete columns
+- Cards carry a title, notes, **tags** and a **due date**; drag them between
+  columns and within one
+- Terminals keep running underneath while the board is open (see **Task board**)
+
 **Interface**
 - **Dark and light themes**; toggle at the bottom of the sidebar, remembered
   between runs. Every terminal palette follows the switch live, without tearing
   down the running shells
 - Turkish and English; picked from the system language on first run, changed
   under Settings → Appearance
-- No top bar — the theme and settings controls live in the sidebar footer, so
-  terminals get the full height of the window. A slim **status bar** along the
-  bottom shows the shell, the session tally, the font size and the language
+- **Its own title bar** instead of the stock Windows one: a slim strip in the
+  sidebar's colour with the active workspace's name, the task-board toggle and
+  the window buttons. Dragging, double-click maximise and edge snapping are
+  handed to the OS, so they behave as on a native title bar
+- The theme and settings controls live in the sidebar footer. A slim **status
+  bar** along the bottom shows the shell, the session tally, the font size and
+  the language
 - Panes are rounded; the focused pane is marked with an accent border
 - A **pomodoro timer** behind the hourglass button in the sidebar footer
 - Checks GitHub for a newer release on start and from Settings → About; an
@@ -167,6 +178,28 @@ only that pane changes. "Add a terminal" later offers the same choice for the
 panes being added — the ones already running keep what they were started with.
 
 Hit **Create** and the grid is built, each terminal opening with its own command.
+
+## Task board
+
+The board icon in the title bar switches the active workspace between its
+terminals and its task board; right-clicking a workspace in the sidebar offers
+the same. While the board is open, picking another workspace shows that one's
+board.
+
+- **Columns** start as To Do, In Progress, Test and Done. **Add column** appends
+  one; a column's **⋯** menu renames it, moves it left or right, or deletes it.
+  Deleting a column moves its cards to the neighbouring column rather than
+  discarding them. The dot beside a column's name cycles its colour
+- **Cards** are added from the bottom of a column — type a title, press Enter,
+  type the next. Click a card to edit its title and notes or to delete it
+- **Tags** are typed into the card editor and confirmed with Enter or a comma;
+  tags already used on the board are offered as one-click suggestions. A tag's
+  colour comes from its name, so the same tag looks the same everywhere
+- A **due date** shows as a chip on the card: red once it has passed, amber when
+  it is today or within two days
+
+The board is stored with its workspace in the config file and goes away only
+when the workspace is deleted.
 
 ## Pomodoro
 

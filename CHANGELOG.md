@@ -7,6 +7,30 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.13.0 — 2026-11-19
+
+### Task board
+
+- **A kanban board for every workspace.** Open it from the board icon in the title
+  bar or by right-clicking a workspace. It starts with To Do, In Progress, Test and
+  Done; add your own columns, rename, reorder, recolour or delete them. Deleting a
+  column moves its cards to the neighbouring one.
+- **Cards with tags and due dates.** Add cards from the bottom of a column, drag
+  them between columns, and click one to edit its title, notes, tags and due date.
+  A due date turns amber when it is close and red once it has passed.
+- Terminals keep running while the board is open and are exactly as you left them
+  when you switch back.
+
+### Interface
+
+- **miniterm draws its own title bar.** The stock Windows bar is replaced by a slim
+  strip in the sidebar's colour that shows the active workspace's name. Dragging,
+  double-click maximise and snapping to screen edges work as before.
+- **The new-workspace window fits its contents.** A long directory path used to push
+  the right-hand column out of view; columns now shrink, wrap long paths and stack
+  when there is no room for both.
+- Cancel and Create sit side by side in the new-workspace and layout windows.
+
 ## 0.12.2 — 2026-11-06
 
 ### Terminal

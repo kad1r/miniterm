@@ -7,6 +7,14 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.14.0 — 2026-11-19
+
+### Shortcuts
+
+- **Ctrl+1 … Ctrl+9 switch workspaces.** The number is the workspace's position in
+  the sidebar, counting those inside folders. It works with focus in a terminal
+  too, and while the task board is open it shows that workspace's board.
+
 ## 0.13.0 — 2026-11-19
 
 ### Task board

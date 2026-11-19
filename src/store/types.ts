@@ -27,6 +27,34 @@ export interface Workspace {
   /** Per-cell agent name, in cell order. Optional because an older config has
    *  none; read it through `namesFor()` in agents.ts, which fills the gaps. */
   paneNames?: (string | null)[];
+  /** The workspace's task board. Absent until the first card or column change;
+   *  read it through `boardOf()` in board.ts, which supplies the default columns. */
+  board?: Board;
+}
+
+export interface BoardCard {
+  id: string;
+  title: string;
+  note: string;
+  /** Free-text labels; a tag's colour is derived from its name. */
+  tags: string[];
+  /** Calendar day as `YYYY-MM-DD`, with no time or zone attached. */
+  due: string | null;
+}
+
+export interface BoardColumn {
+  id: string;
+  name: string;
+  /** A key from `PALETTE` in board.ts. Absent on columns that never had theirs
+   *  changed; those take one by position. */
+  color?: string;
+  /** In display order, top to bottom. */
+  cards: BoardCard[];
+}
+
+export interface Board {
+  /** In display order, left to right. Never empty once stored. */
+  columns: BoardColumn[];
 }
 
 export type Node = Folder | Workspace;

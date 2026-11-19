@@ -21,6 +21,8 @@
   import LayoutDialog from "./lib/LayoutDialog.svelte"
   import Shortcuts from "./lib/Shortcuts.svelte"
   import TerminalGrid from "./lib/TerminalGrid.svelte"
+  import TitleBar from "./lib/TitleBar.svelte"
+  import Board from "./lib/Board.svelte"
   import UpdateBanner from "./lib/UpdateBanner.svelte"
   import { runCheck } from "./store/update.svelte"
 
@@ -132,6 +134,11 @@
 <svelte:window onkeydown={onKeydown} onfocus={markVisibleRead} />
 
 <div class="shell">
+  <TitleBar
+    title={app.view === "settings" ? "" : (activeWs?.name ?? "")}
+    board={activeWs && app.view !== "settings" ? app.view === "board" : null}
+    onboard={() => (app.view = app.view === "board" ? "workspace" : "board")}
+  />
   {#if !app.ready}
     <div class="boot">{t("app.loading")}</div>
   {:else}
@@ -149,12 +156,14 @@
       {:else if app.activeWorkspaceId === null}
         <div class="placeholder">{t("app.placeholder")}</div>
       {:else}
+        <!-- The terminals stay mounted under the board: tearing them down
+             would mean replaying every scrollback on the way back. -->
         {#each [...sessions.live].sort() as wsId (wsId)}
           {@const ws = workspaceById(wsId)}
           {#if ws}
             {@const active = wsId === app.activeWorkspaceId}
             {@const slot = sessions.byWorkspace[wsId]}
-            <div class="layer" class:hidden={!active}>
+            <div class="layer" class:hidden={!active || app.view === "board"}>
               <TerminalGrid
                 workspace={ws}
                 {active}
@@ -184,6 +193,14 @@
             </div>
           {/if}
         {/each}
+        {#if app.view === "board" && activeWs}
+          <div class="layer">
+            <!-- Keyed so a half-typed card never follows the user to another workspace. -->
+            {#key activeWs.id}
+              <Board workspace={activeWs} />
+            {/key}
+          </div>
+        {/if}
       {/if}
       </div>
       <footer class="statusbar">

@@ -85,6 +85,17 @@
 
   function select(node: Node) {
     app.activeWorkspaceId = node.id
+    // Picking another workspace while on the board shows that one's board.
+    if (app.view !== "board") app.view = "workspace"
+  }
+
+  function openBoard(node: Node) {
+    app.activeWorkspaceId = node.id
+    app.view = "board"
+  }
+
+  function openTerminals(node: Node) {
+    app.activeWorkspaceId = node.id
     app.view = "workspace"
   }
 
@@ -343,6 +354,11 @@
         ? [
             { label: t("sidebar.addTerminal"), action: () => onaddterminal(target.id) },
             { label: t("sidebar.changeLayout"), action: () => onchangelayout(target.id) },
+            // The entry is the way back as well as the way in: on the board
+            // it offers that workspace's terminals instead.
+            app.view === "board"
+              ? { label: t("sidebar.openTerminals"), action: () => openTerminals(target) }
+              : { label: t("sidebar.openBoard"), action: () => openBoard(target) },
           ]
         : []),
       { label: t("sidebar.rename"), action: () => renameNode(target) },

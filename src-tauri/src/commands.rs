@@ -175,6 +175,29 @@ pub fn remove_agents_dir(state: State<'_, AppState>, workspace_id: String) -> Re
     agents::remove_dir(&state.config_dir, &workspace_id)
 }
 
+/// Tint the native title bar to match the app theme. `dark` picks the caption
+/// button glyph set (light glyphs on a dark bar and the reverse); the three
+/// colours are `#rrggbb` straight from the CSS tokens.
+#[tauri::command]
+pub fn set_window_chrome(
+    window: tauri::WebviewWindow,
+    dark: bool,
+    caption: String,
+    text: String,
+    border: String,
+) -> Result<(), String> {
+    let theme = if dark { tauri::Theme::Dark } else { tauri::Theme::Light };
+    window.set_theme(Some(theme)).map_err(map_err)?;
+    #[cfg(windows)]
+    {
+        let hwnd = window.hwnd().map_err(map_err)?;
+        crate::chrome::apply(hwnd.0 as *mut std::ffi::c_void, &caption, &text, &border)?;
+    }
+    #[cfg(not(windows))]
+    let _ = (caption, text, border);
+    Ok(())
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClaudeHookState {

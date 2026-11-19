@@ -1,5 +1,6 @@
 pub mod agent_status;
 pub mod agents;
+pub mod chrome;
 pub mod claude_hooks;
 pub mod config;
 pub mod pty;
@@ -97,6 +98,7 @@ pub fn run() {
             commands::claude_hook_state,
             commands::install_claude_hook,
             commands::uninstall_claude_hook,
+            commands::set_window_chrome,
         ])
         .run(tauri::generate_context!())
         .expect("error while running miniterm");

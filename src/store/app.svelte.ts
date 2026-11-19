@@ -17,7 +17,7 @@ export const app = $state({
   config: emptyConfig as Config,
   shells: [] as ShellInfo[],
   activeWorkspaceId: null as string | null,
-  view: "workspace" as "workspace" | "settings",
+  view: "workspace" as "workspace" | "settings" | "board",
   ready: false,
   loadFailed: false,
   toast: null as { text: string; tone: "info" | "error" } | null,

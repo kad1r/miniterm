@@ -1,3 +1,4 @@
+import { setWindowChrome } from "../ipc"
 import type { ThemeName } from "../term/theme"
 
 /** UI colour scheme (dark/light). Kept out of `config.json` on purpose: it is a
@@ -27,6 +28,22 @@ function publish(name: ThemeName) {
   // keeps the default path attribute-free and matches the design's token table.
   if (name === "light") document.documentElement.setAttribute("data-theme", "light")
   else document.documentElement.removeAttribute("data-theme")
+  tintTitleBar(name)
+}
+
+/** Carry the sidebar surface up into the native title bar so the window reads as
+ *  one piece. The colours are read back from the tokens just published rather
+ *  than repeated here, so styles.css stays the only place they are defined.
+ *  Failure is fine: Windows 10 cannot recolour the caption and keeps its own. */
+function tintTitleBar(name: ThemeName) {
+  const tokens = getComputedStyle(document.documentElement)
+  const token = (prop: string) => tokens.getPropertyValue(prop).trim()
+  setWindowChrome({
+    dark: name === "dark",
+    caption: token("--bg-sidebar"),
+    text: token("--text-2"),
+    border: token("--border"),
+  }).catch(() => {})
 }
 
 export function setTheme(name: ThemeName) {

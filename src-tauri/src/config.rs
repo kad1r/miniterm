@@ -55,6 +55,11 @@ pub enum Node {
         /// frontend assigns default names per read.
         #[serde(default)]
         pane_names: Vec<Option<String>>,
+        /// The workspace's task board, stored exactly as the frontend wrote it.
+        /// Opaque on purpose: the backend never reads it, so a new card field
+        /// needs no change here, and an older config simply has none.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        board: Option<serde_json::Value>,
     },
 }
 
@@ -218,6 +223,7 @@ fn clamp_nodes(nodes: Vec<Node>, depth: usize, changed: &mut bool) -> Vec<Node> 
                 mut col_sizes,
                 pane_tools,
                 pane_names,
+                board,
             } => {
                 // Clamp each dimension to [1, MAX_DIM].
                 let rows_orig = rows;
@@ -267,6 +273,7 @@ fn clamp_nodes(nodes: Vec<Node>, depth: usize, changed: &mut bool) -> Vec<Node> 
                     // means a `.bak` and a "recovered" warning for everyone.
                     pane_tools,
                     pane_names,
+                    board,
                 }
             }
         })
@@ -336,6 +343,7 @@ mod tests {
             col_sizes: vec![0.5, 0.5],
             pane_tools: vec![Some("t1".into()), None, Some("t2".into()), None],
             pane_names: vec![Some("Atlas".into())],
+            board: Some(serde_json::json!({ "columns": [{ "id": "todo", "name": "To Do", "cards": [] }] })),
         });
         save(&d, &c).unwrap();
 
@@ -345,11 +353,12 @@ mod tests {
         assert_eq!(r.config.recent_dirs, vec!["/tmp/x".to_string()]);
         assert_eq!(r.config.tree.len(), 1);
         match &r.config.tree[0] {
-            Node::Workspace { pane_tools, .. } => {
+            Node::Workspace { pane_tools, board, .. } => {
                 assert_eq!(
                     pane_tools,
                     &vec![Some("t1".to_string()), None, Some("t2".to_string()), None]
                 );
+                assert_eq!(board.as_ref().unwrap()["columns"][0]["name"], "To Do");
             }
             _ => panic!("expected a workspace"),
         }
@@ -385,9 +394,15 @@ mod tests {
         let r = load(&d, "ignored".into());
         assert!(matches!(r.status, LoadStatus::Loaded));
         match &r.config.tree[0] {
-            Node::Workspace { pane_tools, .. } => assert!(pane_tools.is_empty()),
+            Node::Workspace { pane_tools, board, .. } => {
+                assert!(pane_tools.is_empty());
+                assert!(board.is_none());
+            }
             _ => panic!("expected a workspace"),
         }
+        // A workspace with no board must not grow a `"board": null` on save.
+        save(&d, &r.config).unwrap();
+        assert!(!fs::read_to_string(d.join(FILE_NAME)).unwrap().contains("board"));
     }
 
     #[test]
@@ -443,6 +458,7 @@ mod tests {
             col_sizes,
             pane_tools: Vec::new(),
             pane_names: Vec::new(),
+            board: None,
         }
     }
 
@@ -518,6 +534,7 @@ mod tests {
                     col_sizes: vec![1.0],
                     pane_tools: Vec::new(),
                     pane_names: Vec::new(),
+                    board: None,
                 }]
             } else {
                 vec![Node::Folder {

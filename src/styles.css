@@ -24,6 +24,18 @@
   --warn: #dda63b;
   --err: #e0776c;
 
+  /* Task board accents (column stripes, tag chips). Keys match PALETTE in
+     store/board.ts; each is used as text on a ~15% tint of itself, so the
+     light theme's set is darker to keep that readable. */
+  --board-blue: #6b9bf5;
+  --board-amber: #e0a93c;
+  --board-purple: #a98bf0;
+  --board-green: #4ec48a;
+  --board-red: #e8776c;
+  --board-teal: #3fbfb0;
+  --board-pink: #e77fb8;
+  --board-orange: #f0935a;
+
   /* Corner radii the design uses: controls 6/8, cards/panes 10, dialogs 14. */
   --radius-sm: 6px;
   --radius: 8px;
@@ -40,7 +52,6 @@
      Windows) and would otherwise shadow every face after it. */
   --font-mono: "JetBrains Mono Variable", "Cascadia Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
   --font-ui: "Geist Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
-
   /* ── Backward-compat aliases ──
      Older component styles still say --bg / --bg-raised / --text / --text-dim /
      --claude. Map them onto the new tokens so both spellings stay in step and a
@@ -68,6 +79,15 @@
   --ok: #17795a;
   --warn: #a4700c;
   --err: #b03a2e;
+
+  --board-blue: #2f5fd0;
+  --board-amber: #a4700c;
+  --board-purple: #7446c9;
+  --board-green: #17795a;
+  --board-red: #b03a2e;
+  --board-teal: #0f7f76;
+  --board-pink: #b83280;
+  --board-orange: #c2552e;
 }
 
 * { box-sizing: border-box; }

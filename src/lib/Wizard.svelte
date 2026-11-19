@@ -189,8 +189,8 @@
     </div>
 
     <footer>
-      <button class="ghost" onclick={onclose}>{t("settings.cancel")}</button>
       <span class="spacer"></span>
+      <button class="ghost" onclick={onclose}>{t("settings.cancel")}</button>
       <button class="primary" disabled={!canCreate} onclick={finish}>{t("wizard.create")}</button>
     </footer>
   </div>
@@ -202,10 +202,11 @@
     border: none;
     border-radius: 10px;
     background: transparent;
-    max-height: 80vh;
-    /* Wide enough for two columns on a normal window, still bounded by the
-       viewport so a narrow window gets the single-column layout below. */
-    width: min(920px, 92vw);
+    max-height: 90vh;
+    /* Wide enough for two columns, and grows with the UI font scale so zooming
+       in does not squeeze the same content into the same pixels. Still bounded
+       by the viewport: a window too narrow gets the columns stacked instead. */
+    width: min(calc(920px * var(--font-scale, 1)), 92vw);
     max-width: 92vw;
   }
   dialog::backdrop {
@@ -215,7 +216,7 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-height: 80vh;
+    max-height: 90vh;
     background: var(--bg-raised);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -233,14 +234,26 @@
     font-size: calc(15px * var(--font-scale, 1));
     font-weight: 600;
   }
+  /* Two columns that wrap into one when there is no room for both. A wrapping
+     flex row rather than a grid with a width breakpoint: the room a column
+     needs depends on the font scale, which a media query cannot see.
+     `min-width: 0` matters as much as the wrap — without it a column refuses
+     to get narrower than its longest unbreakable string (a deep directory
+     path) and pushes its neighbour out of the dialog. */
   .body {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 28px;
-    align-items: start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px 28px;
+    align-items: flex-start;
     flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     padding: 16px 18px;
+  }
+  .col {
+    flex: 1 1 calc(320px * var(--font-scale, 1));
+    min-width: 0;
   }
   /* Separators carry the grouping the step counter used to. Scoped to a column
      so the two columns do not draw a rule across each other's boundary. */
@@ -248,18 +261,6 @@
     margin-top: 18px;
     padding-top: 18px;
     border-top: 1px solid var(--border);
-  }
-  /* Below this width two columns leave each one too narrow for a directory
-     path, so everything stacks and the column break becomes another rule. */
-  @media (max-width: 820px) {
-    .body {
-      grid-template-columns: 1fr;
-    }
-    .col + .col {
-      margin-top: 18px;
-      padding-top: 18px;
-      border-top: 1px solid var(--border);
-    }
   }
   .q {
     margin: 0 0 12px;
@@ -275,11 +276,16 @@
   }
   .row {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
+  }
+  .row .ghost {
+    flex: none;
   }
   .path,
   select {
-    flex: 1;
+    flex: 1 1 calc(140px * var(--font-scale, 1));
+    min-width: 0;
     width: 100%;
     padding: 8px 10px;
     border: 1px solid var(--border);
@@ -322,6 +328,8 @@
     font-size: calc(13px * var(--font-scale, 1));
     text-align: left;
     cursor: pointer;
+    /* Paths and commands have no spaces to break at. */
+    overflow-wrap: anywhere;
   }
   .recent {
     flex-direction: column;

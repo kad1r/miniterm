@@ -182,6 +182,66 @@ export function uninstallClaudeHook(): Promise<void> {
   return invoke<void>("uninstall_claude_hook");
 }
 
+export interface WindowChrome {
+  /** Selects the caption button glyph set. */
+  dark: boolean;
+  /** `#rrggbb` each. */
+  caption: string;
+  text: string;
+  border: string;
+}
+
+/** Tint the native title bar. Rejects on Windows 10, which cannot recolour it. */
+export function setWindowChrome(chrome: WindowChrome): Promise<void> {
+  return invoke<void>("set_window_chrome", { ...chrome });
+}
+
+export function minimizeWindow(): Promise<void> {
+  return getCurrentWebviewWindow().minimize();
+}
+
+export function toggleMaximizeWindow(): Promise<void> {
+  return getCurrentWebviewWindow().toggleMaximize();
+}
+
+/** Goes through CloseRequested, so the flush registered by `onCloseRequested` runs. */
+export function closeWindow(): Promise<void> {
+  return getCurrentWebviewWindow().close();
+}
+
+/**
+ * Report the maximised state now and whenever it flips.
+ *
+ * Resize events arrive in a burst while an edge is dragged; one query is kept
+ * in flight at a time and a single trailing one catches the final state, so a
+ * drag costs a handful of IPC calls instead of one per event.
+ */
+export async function onMaximizedChange(cb: (maximized: boolean) => void): Promise<() => void> {
+  const win = getCurrentWebviewWindow();
+  let last: boolean | null = null;
+  let busy = false;
+  let again = false;
+  const query = async () => {
+    if (busy) {
+      again = true;
+      return;
+    }
+    busy = true;
+    try {
+      do {
+        again = false;
+        const now = await win.isMaximized();
+        if (now !== last) cb((last = now));
+      } while (again);
+    } finally {
+      busy = false;
+    }
+  };
+  const unlisten = await win.onResized(() => void query());
+  void query();
+  return unlisten;
+}
+
 /** Windows toast. Silently does nothing if notifications are not allowed. */
 export async function desktopNotify(title: string, body: string): Promise<void> {
   let granted = await isPermissionGranted();

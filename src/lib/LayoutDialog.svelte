@@ -118,8 +118,8 @@
     </div>
 
     <footer>
-      <button class="ghost" onclick={onclose}>{t("settings.cancel")}</button>
       <span class="spacer"></span>
+      <button class="ghost" onclick={onclose}>{t("settings.cancel")}</button>
       <button class="primary" disabled={atLimit || !changed} onclick={apply}>
         {t(mode === "add" ? "layout.apply" : "layout.applyLayout")}
       </button>

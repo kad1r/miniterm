@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte"
   import { app, bootstrap, commit, dismissToast, notify } from "./store/app.svelte"
-  import { findNode, updateWorkspace } from "./store/tree"
+  import { findNode, updateWorkspace, workspacesInOrder } from "./store/tree"
   import {
     activate, closePane, listenAgentStatus, listenExits, markVisibleRead, minimizePane,
     rememberFocus, restart, restorePane, sessions, toggleMaximize,
@@ -13,7 +13,7 @@
   import { TERM_FONT_SIZE } from "./term/theme"
   import { initLocale, locale, t } from "./i18n/locale.svelte"
   import {
-    isHelpChord, isNewTerminalChord, isNewWorkspaceChord, isSettingsChord,
+    isHelpChord, isNewTerminalChord, isNewWorkspaceChord, isSettingsChord, workspaceIndexChord,
   } from "./term/shortcuts"
   import Sidebar from "./lib/Sidebar.svelte"
   import Settings from "./lib/Settings.svelte"
@@ -66,6 +66,19 @@
     if (isNewWorkspaceChord(e)) {
       e.preventDefault()
       wizardOpen = true
+      return
+    }
+    const position = workspaceIndexChord(e)
+    if (position !== null) {
+      // Swallowed even when there is no workspace at that position, so the
+      // chord never reaches the shell on some presses and not on others.
+      e.preventDefault()
+      const target = workspacesInOrder(app.config.tree)[position]
+      if (target) {
+        app.activeWorkspaceId = target.id
+        // Same rule as clicking in the sidebar: the board stays the board.
+        if (app.view !== "board") app.view = "workspace"
+      }
       return
     }
     // Adding a terminal needs a workspace to add it to; with none selected the

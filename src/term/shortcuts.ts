@@ -40,9 +40,21 @@ export function isHelpChord(e: Chord): boolean {
   return !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key === "F1"
 }
 
+/** Ctrl/Cmd+1 … Ctrl/Cmd+9 — jump to the workspace at that position in the
+ *  sidebar. Returns the zero-based position, or null when the chord is not one
+ *  of these. Ctrl+0 is left out: it resets the text size. */
+export function workspaceIndexChord(e: Chord): number | null {
+  if (!ctrlOrMeta(e) || e.shiftKey || e.altKey) return null
+  return /^[1-9]$/.test(e.key) ? Number(e.key) - 1 : null
+}
+
 /** True for any chord the window owns, so TerminalPane can let it escape xterm. */
 export function isAppShortcut(e: Chord): boolean {
   return (
-    isNewWorkspaceChord(e) || isNewTerminalChord(e) || isSettingsChord(e) || isHelpChord(e)
+    isNewWorkspaceChord(e) ||
+    isNewTerminalChord(e) ||
+    isSettingsChord(e) ||
+    isHelpChord(e) ||
+    workspaceIndexChord(e) !== null
   )
 }

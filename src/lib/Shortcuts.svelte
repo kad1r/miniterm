@@ -18,6 +18,7 @@
       rows: [
         { keys: ["Ctrl", "Shift", "N"], label: "shortcuts.newWorkspace" },
         { keys: ["Ctrl", "Shift", "T"], label: "shortcuts.newTerminal" },
+        { keys: ["Ctrl", "1…9"], label: "shortcuts.switchWorkspace" },
         { keys: ["F2"], label: "shortcuts.rename" },
       ],
     },

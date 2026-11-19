@@ -66,6 +66,7 @@ döndüğünüzde çıktı olduğu yerden sürer.
 - `Ctrl` + `+` / `−` / `0` ve `Ctrl` + tekerlek yazı boyutunu değiştirir; pencere
   kromu değil yalnız terminal ölçeklenir
 - `F2` seçili workspace'i yeniden adlandırır
+- `Ctrl+1` … `Ctrl+9` kenar çubuğunda o sıradaki workspace'e geçer
 
 **Agent'lar**
 - Her panel bir **agent adı** alır; başlıkta çip olarak görünür ve tüm

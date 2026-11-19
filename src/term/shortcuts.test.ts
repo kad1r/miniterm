@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   isAppShortcut, isHelpChord, isNewTerminalChord, isNewWorkspaceChord, isSettingsChord,
+  workspaceIndexChord,
 } from "./shortcuts"
 
 const key = (over: Partial<Parameters<typeof isAppShortcut>[0]>) => ({
@@ -52,6 +53,29 @@ describe("isHelpChord", () => {
 
   it("does not fire with a modifier", () => {
     expect(isHelpChord(key({ key: "F1", ctrlKey: true }))).toBe(false)
+  })
+})
+
+describe("workspaceIndexChord", () => {
+  it("maps Ctrl+1 … Ctrl+9 to zero-based positions", () => {
+    expect(workspaceIndexChord(key({ key: "1", ctrlKey: true }))).toBe(0)
+    expect(workspaceIndexChord(key({ key: "9", ctrlKey: true }))).toBe(8)
+    expect(workspaceIndexChord(key({ key: "3", metaKey: true }))).toBe(2)
+  })
+
+  it("leaves Ctrl+0 to the text-size reset", () => {
+    expect(workspaceIndexChord(key({ key: "0", ctrlKey: true }))).toBe(null)
+  })
+
+  it("ignores a bare digit and digits with Shift or Alt", () => {
+    expect(workspaceIndexChord(key({ key: "1" }))).toBe(null)
+    expect(workspaceIndexChord(key({ key: "1", ctrlKey: true, shiftKey: true }))).toBe(null)
+    expect(workspaceIndexChord(key({ key: "1", ctrlKey: true, altKey: true }))).toBe(null)
+  })
+
+  it("counts as an app shortcut so the terminal hands it back", () => {
+    expect(isAppShortcut(key({ key: "2", ctrlKey: true }))).toBe(true)
+    expect(isAppShortcut(key({ key: "2" }))).toBe(false)
   })
 })
 

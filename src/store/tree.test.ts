@@ -12,6 +12,7 @@ import {
   rename,
   setExpanded,
   updateWorkspace,
+  workspacesInOrder,
 } from "./tree";
 
 function folder(id: string, children: Node[] = []): Folder {
@@ -176,5 +177,17 @@ describe("countTerminals", () => {
   it("sums rows * cols across a subtree", () => {
     const tree = folder("root", [workspace("a", 2, 3), folder("mid", [workspace("b", 1, 4)])]);
     expect(countTerminals(tree)).toBe(10);
+  });
+});
+
+describe("workspacesInOrder", () => {
+  it("flattens folders in sidebar order, collapsed ones included", () => {
+    const closed: Folder = { ...folder("f2", [workspace("c")]), expanded: false };
+    const tree: Node[] = [workspace("a"), folder("f1", [workspace("b"), closed]), workspace("d")];
+    expect(workspacesInOrder(tree).map((w) => w.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("is empty for a tree with no workspaces", () => {
+    expect(workspacesInOrder([folder("f")])).toEqual([]);
   });
 });

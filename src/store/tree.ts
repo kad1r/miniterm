@@ -152,6 +152,15 @@ export function updateWorkspace(tree: Node[], id: string, p: Partial<Workspace>)
   );
 }
 
+/** Every workspace in the order the sidebar lists them, folders flattened.
+ *  A collapsed folder's workspaces count too: the position a shortcut points at
+ *  should not shift because a folder was folded away. */
+export function workspacesInOrder(tree: Node[]): Workspace[] {
+  return tree.flatMap((node) =>
+    node.kind === "workspace" ? [node] : workspacesInOrder(node.children),
+  );
+}
+
 export function countTerminals(node: Node): number {
   if (node.kind === "workspace") return node.rows * node.cols;
   return node.children.reduce((sum, child) => sum + countTerminals(child), 0);

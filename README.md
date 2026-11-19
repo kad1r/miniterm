@@ -65,6 +65,7 @@ where it left off when you come back.
 - `Ctrl` + `+` / `−` / `0` and `Ctrl` + wheel change the font size; only the
   terminal scales, not the window chrome
 - `F2` renames the selected workspace
+- `Ctrl+1` … `Ctrl+9` switch to the workspace at that position in the sidebar
 
 **Agents**
 - Every pane gets an **agent name**, shown as a chip in its header and unique

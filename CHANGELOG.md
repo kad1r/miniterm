@@ -7,6 +7,26 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.15.0 — 2026-11-20
+
+### Message log
+
+- **Every prompt you typed into Claude Code, in one list.** Open it from the
+  speech-bubble button in the sidebar footer. It covers every project and session
+  on this machine, older ones included, read from Claude Code's own transcripts.
+- **Score, tokens, time and model per prompt.** Each prompt gets the prompt-score
+  mod's 0–100 score; click it for the per-dimension breakdown, the input, output,
+  cache and subagent tokens, the time to the first reply and to the end of the
+  turn, and the models and tool calls the turn used.
+- **Search, filter and sort** by text, project, model and session, and sort by
+  date, score, tokens or reply time.
+- **A Models tab** shows how much each model was used: its share of tokens, the
+  prompts it led, main and subagent calls, average score and median reply time.
+
+### Interface
+
+- **The sidebar uses JetBrains Mono.**
+
 ## 0.14.0 — 2026-11-19
 
 ### Shortcuts

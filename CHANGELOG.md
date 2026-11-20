@@ -7,6 +7,19 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.16.0 — 2026-11-20
+
+### Sidebar font
+
+- **Pick the sidebar's fonts in Settings → Appearance.** One picker sets the text,
+  another the monospace figures (version, pomodoro time, counters). Each lists 20
+  popular Google Fonts, shown in their own face, with a live preview.
+- **All 20 are bundled**, Turkish characters included: nothing is downloaded, and
+  only the font you choose is loaded.
+- **Or use a font installed on your machine.** System font… suggests the installed
+  fonts and also accepts a typed name.
+- The sidebar now defaults to **Roboto** with **Roboto Mono**.
+
 ## 0.15.0 — 2026-11-20
 
 ### Message log

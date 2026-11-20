@@ -386,7 +386,11 @@
     height: 100%;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
-    font-family: var(--font-mono);
+    /* The sidebar has its own pair, chosen in Settings → Appearance: a text
+       face, and a mono face that reaches every figure inside it by overriding
+       --font-mono here. */
+    --font-mono: var(--sidebar-font-mono);
+    font-family: var(--sidebar-font);
     transition: width 160ms ease, min-width 160ms ease;
   }
   /* Form controls don't inherit font-family by default. */

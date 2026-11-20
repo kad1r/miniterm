@@ -6,6 +6,7 @@ pub mod config;
 pub mod prompt_log;
 pub mod pty;
 pub mod shell;
+pub mod system_fonts;
 pub mod update;
 
 #[cfg(not(test))]
@@ -102,6 +103,7 @@ pub fn run() {
             commands::uninstall_claude_hook,
             commands::set_window_chrome,
             commands::prompt_history,
+            commands::system_fonts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running miniterm");

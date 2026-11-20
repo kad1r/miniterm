@@ -255,3 +255,9 @@ pub async fn prompt_history(app: AppHandle, state: State<'_, AppState>) -> Resul
     .await
     .map_err(map_err)?
 }
+
+/// Font families installed on this machine, for the sidebar font picker.
+#[tauri::command]
+pub fn system_fonts() -> Vec<String> {
+    crate::system_fonts::list()
+}

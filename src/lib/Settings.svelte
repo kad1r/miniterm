@@ -12,6 +12,7 @@
   import { locale, setLocale, t } from "../i18n/locale.svelte"
   import SettingsAbout from "./SettingsAbout.svelte"
   import SettingsAgents from "./SettingsAgents.svelte"
+  import SettingsSidebarFont from "./SettingsSidebarFont.svelte"
 
   let tab = $state<"tools" | "dirs" | "terminal" | "appearance" | "about">("tools")
   let editingTool = $state<AiTool | null>(null)
@@ -272,6 +273,8 @@
           onclick={() => setFontScale(DEFAULT_FONT_SCALE)}
         >{t("settings.appearance.reset")}</button>
       </div>
+
+      <SettingsSidebarFont />
 
     {:else}
       <SettingsAbout />

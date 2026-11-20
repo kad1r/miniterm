@@ -344,3 +344,8 @@ export interface ModelUsage {
 export function promptHistory(): Promise<PromptRecord[]> {
   return invoke<PromptRecord[]>("prompt_history");
 }
+
+/** Installed font family names, sorted; empty where they cannot be listed. */
+export function systemFonts(): Promise<string[]> {
+  return invoke<string[]>("system_fonts");
+}

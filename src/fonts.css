@@ -8,6 +8,7 @@
  *
  * Both are variable fonts: one file spans the whole weight axis, so no separate
  * bold face is fetched. Licences: Geist and JetBrains Mono are both SIL OFL 1.1.
+ * The sidebar's selectable faces are in sidebarFonts.css.
  *
  * font-display is deliberately absent (i.e. `auto`). `swap` would paint a
  * fallback first and reflow on arrival, which for xterm means measuring cell

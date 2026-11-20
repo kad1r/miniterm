@@ -10,6 +10,7 @@
   import { fontAction, termFontSize } from "./store/font"
   import { applyFontAction, fontScale, initFontScale } from "./store/font.svelte"
   import { initTheme } from "./store/theme.svelte"
+  import { initSidebarFonts } from "./store/sidebarFont.svelte"
   import { TERM_FONT_SIZE } from "./term/theme"
   import { initLocale, locale, t } from "./i18n/locale.svelte"
   import {
@@ -37,6 +38,7 @@
     initLocale()
     initFontScale()
     initTheme()
+    initSidebarFonts()
     const exits = listenExits()
     const agents = listenAgentStatus()
     await bootstrap()

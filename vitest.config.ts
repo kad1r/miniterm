@@ -7,5 +7,11 @@ export default defineConfig({
   // browser build of svelte rather than the server one Node would pick.
   plugins: [svelte()],
   resolve: { conditions: ["browser"] },
-  test: { environment: "node", include: ["src/**/*.test.ts"] },
+  test: {
+    environment: "node",
+    include: ["src/**/*.test.ts"],
+    // CSS is stubbed to "" by default, `?raw` included; the font tests read
+    // these two to check every selectable face is declared.
+    css: { include: [/fonts\.css/, /sidebarFonts\.css/] },
+  },
 });

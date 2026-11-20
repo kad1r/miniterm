@@ -52,6 +52,10 @@
      Windows) and would otherwise shadow every face after it. */
   --font-mono: "JetBrains Mono Variable", "Cascadia Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
   --font-ui: "Geist Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Sidebar faces; replaced at start-up by the choice in Settings → Appearance
+     (store/sidebarFont.svelte.ts). These match its defaults. */
+  --sidebar-font: "Roboto Variable", system-ui, "Segoe UI", sans-serif;
+  --sidebar-font-mono: "Roboto Mono Variable", "Cascadia Mono", Consolas, ui-monospace, monospace;
   /* ── Backward-compat aliases ──
      Older component styles still say --bg / --bg-raised / --text / --text-dim /
      --claude. Map them onto the new tokens so both spellings stay in step and a

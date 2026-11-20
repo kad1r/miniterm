@@ -327,6 +327,16 @@
     </button>
     <button
       class="icon"
+      class:on={app.view === "messages"}
+      title={t("messages.open")}
+      aria-label={t("messages.open")}
+      aria-pressed={app.view === "messages"}
+      onclick={() => (app.view = app.view === "messages" ? "workspace" : "messages")}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path><line x1="8" y1="9" x2="16" y2="9"></line><line x1="8" y1="12.5" x2="13" y2="12.5"></line></svg>
+    </button>
+    <button
+      class="icon"
       class:on={app.view === "settings"}
       title={t("sidebar.settings")}
       aria-label={t("sidebar.settings")}
@@ -376,7 +386,13 @@
     height: 100%;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
+    font-family: var(--font-mono);
     transition: width 160ms ease, min-width 160ms ease;
+  }
+  /* Form controls don't inherit font-family by default. */
+  .sidebar :global(button),
+  .sidebar :global(input) {
+    font-family: inherit;
   }
   .sidebar.collapsed {
     width: 56px;

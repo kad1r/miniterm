@@ -3,6 +3,7 @@ pub mod agents;
 pub mod chrome;
 pub mod claude_hooks;
 pub mod config;
+pub mod prompt_log;
 pub mod pty;
 pub mod shell;
 pub mod update;
@@ -36,6 +37,7 @@ pub fn run() {
                 sessions: pty::SessionManager::new(),
                 config_dir: commands::config_dir(&handle),
                 downloaded_installer: std::sync::Mutex::new(None),
+                prompt_cache: Default::default(),
             };
 
             let emit_handle = handle.clone();
@@ -99,6 +101,7 @@ pub fn run() {
             commands::install_claude_hook,
             commands::uninstall_claude_hook,
             commands::set_window_chrome,
+            commands::prompt_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running miniterm");

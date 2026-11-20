@@ -1,6 +1,7 @@
 use crate::agents;
 use crate::claude_hooks;
 use crate::config::{self, Config, LoadResult};
+use crate::prompt_log::{self, Prompt};
 use crate::pty::{SessionManager, SpawnOpts};
 use crate::shell::{self, ShellInfo};
 use crate::update::{self, UpdateInfo};
@@ -14,6 +15,8 @@ pub struct AppState {
     /// The installer `download_update` wrote. `install_update` launches this
     /// file and nothing else, whatever path the frontend hands it.
     pub downloaded_installer: std::sync::Mutex<Option<PathBuf>>,
+    /// Parsed Claude Code transcripts, kept between opens of the message log.
+    pub prompt_cache: std::sync::Arc<std::sync::Mutex<prompt_log::Cache>>,
 }
 
 fn map_err<E: std::fmt::Display>(e: E) -> String {
@@ -237,4 +240,18 @@ pub fn uninstall_claude_hook(app: AppHandle) -> Result<(), String> {
     let path = claude_settings_path(&app)?;
     let settings = claude_hooks::uninstall(claude_hooks::read(&path)?);
     claude_hooks::write(&path, &settings)
+}
+
+/// Every prompt typed into Claude Code on this machine, newest first, read from
+/// `~/.claude/projects`. Off the main thread: a cold scan reads every transcript.
+#[tauri::command]
+pub async fn prompt_history(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<Prompt>, String> {
+    let dir = prompt_log::projects_dir(&app.path().home_dir().map_err(map_err)?);
+    let cache = state.prompt_cache.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut cache = cache.lock().map_err(|_| "prompt cache poisoned".to_string())?;
+        Ok(cache.scan(&dir))
+    })
+    .await
+    .map_err(map_err)?
 }

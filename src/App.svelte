@@ -23,6 +23,7 @@
   import TerminalGrid from "./lib/TerminalGrid.svelte"
   import TitleBar from "./lib/TitleBar.svelte"
   import Board from "./lib/Board.svelte"
+  import Messages from "./lib/Messages.svelte"
   import UpdateBanner from "./lib/UpdateBanner.svelte"
   import { runCheck } from "./store/update.svelte"
 
@@ -148,8 +149,12 @@
 
 <div class="shell">
   <TitleBar
-    title={app.view === "settings" ? "" : (activeWs?.name ?? "")}
-    board={activeWs && app.view !== "settings" ? app.view === "board" : null}
+    title={app.view === "settings"
+      ? ""
+      : app.view === "messages" ? t("messages.title.view") : (activeWs?.name ?? "")}
+    board={activeWs && app.view !== "settings" && app.view !== "messages"
+      ? app.view === "board"
+      : null}
     onboard={() => (app.view = app.view === "board" ? "workspace" : "board")}
   />
   {#if !app.ready}
@@ -166,6 +171,8 @@
       <div class="stage">
       {#if app.view === "settings"}
         <Settings />
+      {:else if app.view === "messages"}
+        <Messages />
       {:else if app.activeWorkspaceId === null}
         <div class="placeholder">{t("app.placeholder")}</div>
       {:else}

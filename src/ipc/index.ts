@@ -304,3 +304,43 @@ function toBytes(value: ArrayBuffer | Uint8Array | number[]): Uint8Array {
   if (value instanceof ArrayBuffer) return new Uint8Array(value);
   return Uint8Array.from(value);
 }
+
+/** One prompt typed into Claude Code, with what its turn cost. See prompt_log.rs. */
+export interface PromptRecord {
+  sessionId: string;
+  title: string | null;
+  cwd: string | null;
+  branch: string | null;
+  timestamp: string;
+  timeMs: number;
+  text: string;
+  images: number;
+  source: string | null;
+  model: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  subagentTokens: number;
+  apiCalls: number;
+  toolCalls: number;
+  firstReplyMs: number | null;
+  durationMs: number | null;
+  /** Per model, the turn's own calls and its subagents' as separate rows. */
+  models: ModelUsage[];
+}
+
+export interface ModelUsage {
+  model: string;
+  subagent: boolean;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+/** Every prompt from `~/.claude/projects`, newest first. */
+export function promptHistory(): Promise<PromptRecord[]> {
+  return invoke<PromptRecord[]>("prompt_history");
+}

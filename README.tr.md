@@ -119,8 +119,9 @@ döndüğünüzde çıktı olduğu yerden sürer.
 - WebGL renderer; bağlam kaybında sessizce canvas'a düşer
 - Claude Code'a yazdığınız her mesajın puanı, token'ı, süresi ve modeliyle
   listelendiği bir **mesaj geçmişi** — bkz. [Mesaj geçmişi](#mesaj-geçmişi)
-- **Geist** (arayüz) ve **JetBrains Mono** (terminaller ve kenar çubuğu) gömülü
-  gelir, sistem fontlarına bağımlı değildir
+- **Geist** (arayüz) ve **JetBrains Mono** (terminaller) gömülü gelir, sistem
+  fontlarına bağımlı değildir. **Kenar çubuğunun fontlarını siz seçersiniz:**
+  gömülü 20 Google Fonts fontundan biri ya da makinede yüklü herhangi bir font
 
 ## Kimlik bilgileri
 
@@ -261,6 +262,16 @@ Kabuklar diskten taranarak bulunur, elle yol girmek gerekmez.
 
 **Görünüm** — dil ve yazı ölçeği. Ölçek arayüzü ve açık terminalleri birlikte
 büyütür; kutular ve boşluklar sabit kalır.
+
+**Kenar çubuğu fontu** için iki seçici var: biri yazılar, diğeri rakamlar (sürüm,
+pomodoro süresi, sayaçlar) için monospace. Her ikisi de 20 popüler Google Fonts
+fontunu listeler — Inter, Roboto, Open Sans, Montserrat, Nunito, Raleway, Work
+Sans, DM Sans, Manrope, Source Sans 3, Noto Sans, IBM Plex Sans, Rubik, Plus
+Jakarta Sans, Geist ve monospace olarak Roboto Mono, JetBrains Mono, Fira Code,
+Source Code Pro, Geist Mono — her biri kendi fontuyla gösterilir. Gömülü gelirler,
+internet gerekmez ve yalnızca seçilen yüklenir. **Sistem fontu…** makinede yüklü
+fontları önerir, elle yazılan bir adı da kabul eder. Önizleme sonucu gösterir;
+varsayılan Roboto ile Roboto Mono'dur.
 
 ![Dil ve yazı boyutu sekmesi](docs/screenshots/settings-appearance.png)
 

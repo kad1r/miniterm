@@ -117,8 +117,9 @@ where it left off when you come back.
 - WebGL renderer; falls back to canvas silently on context loss
 - A **message log** of every prompt you typed into Claude Code, scored and with
   its tokens, timing and model — see [Message log](#message-log)
-- **Geist** (interface) and **JetBrains Mono** (terminals and sidebar) ship
-  embedded, no dependency on system fonts
+- **Geist** (interface) and **JetBrains Mono** (terminals) ship embedded, no
+  dependency on system fonts. The **sidebar's fonts are your pick** from 20
+  bundled Google Fonts or any font installed on the machine
 
 ## Credentials
 
@@ -259,6 +260,16 @@ shell. Shells are discovered by scanning the disk; no need to type a path.
 
 **Appearance** — language and font scale. The scale grows the interface and open
 terminals together; boxes and spacing stay fixed.
+
+The **sidebar font** has two pickers: one for its text and a monospace one for
+its figures (version, pomodoro time, counters). Each lists 20 popular Google
+Fonts — Inter, Roboto, Open Sans, Montserrat, Nunito, Raleway, Work Sans, DM
+Sans, Manrope, Source Sans 3, Noto Sans, IBM Plex Sans, Rubik, Plus Jakarta Sans,
+Geist, and the monospace Roboto Mono, JetBrains Mono, Fira Code, Source Code Pro
+and Geist Mono — each shown in its own face. They are bundled, so no network is
+needed, and only the chosen one is loaded. **System font…** suggests the fonts
+installed on the machine and also takes a typed name. A preview shows the result;
+the default is Roboto with Roboto Mono.
 
 ![The language and font size tab](docs/screenshots/settings-appearance.png)
 

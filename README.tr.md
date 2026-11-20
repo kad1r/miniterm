@@ -117,8 +117,10 @@ döndüğünüzde çıktı olduğu yerden sürer.
 - Açılışta ve Ayarlar → Hakkında'dan GitHub'da yeni sürüm olup olmadığına bakar;
   güncelleme uygulamanın içinden indirilip kurulur
 - WebGL renderer; bağlam kaybında sessizce canvas'a düşer
-- **Geist** (arayüz) ve **JetBrains Mono** (terminaller) gömülü gelir, sistem
-  fontlarına bağımlı değildir
+- Claude Code'a yazdığınız her mesajın puanı, token'ı, süresi ve modeliyle
+  listelendiği bir **mesaj geçmişi** — bkz. [Mesaj geçmişi](#mesaj-geçmişi)
+- **Geist** (arayüz) ve **JetBrains Mono** (terminaller ve kenar çubuğu) gömülü
+  gelir, sistem fontlarına bağımlı değildir
 
 ## Kimlik bilgileri
 
@@ -204,6 +206,31 @@ sunar. Pano açıkken başka bir workspace seçildiğinde onun panosu gösterili
 Pano, workspace'iyle birlikte config dosyasında saklanır ve yalnızca workspace
 silindiğinde gider.
 
+## Mesaj geçmişi
+
+Kenar çubuğunun altındaki konuşma balonu düğmesi, bu makinede Claude Code'a
+yazdığınız her mesajı listeler — her projeden, her session'dan, miniterm'den
+öncekiler dahil. Claude Code'un `~/.claude/projects` altındaki kendi kayıtlarını
+okur, oraya hiçbir şey yazmaz; hook gerekmez.
+
+- **Her satırda** mesaj, gönderildiği zaman, proje, session başlığı ve model;
+  yanında puan rozeti, toplam token ve yanıtın ne kadar sürdüğü
+- **Satıra tıklayınca** mesajın tamamı ve kırılımı: boyut boyut puan ve öneri;
+  girdi / çıktı / cache okuma / cache yazma / subagent token'ları; ilk yanıta ve
+  turun sonuna kadar geçen süre; model ve tool çağrıları; session'ın id'si,
+  klasörü ve branch'i. **Sadece bu session** listeyi o session'a daraltır
+- Metne, projeye ve modele göre **arama ve filtre**; tarihe, puana, token'a ya
+  da süreye göre **sıralama**. Üstteki rakamlar filtreyi izler
+- **Modeller** sekmesi her modeli toplar: tüm token'lardaki payı, yönettiği
+  mesajlar, ana ve subagent çağrıları, ortalama puan ve medyan yanıt süresi. Bir
+  modele tıklayınca mesajları listelenir
+- **Puan** (0–100: netlik, bağlam, kapsam, doğrulanabilirlik; her biri 25)
+  prompt-score Claude Code mod'u ile aynı sezgisel hesaptır. Çok kısa mesajlar,
+  slash komutları ve basit onaylar puanlanmaz
+
+Kayıtlar yüzlerce megabayta ulaşabilir. Arka uçta paralel okunur ve önbelleğe
+alınır; geçmiş yeniden açıldığında yalnızca büyüyen session'lar tekrar okunur.
+
 ## Pomodoro
 
 Kenar çubuğunun altındaki kum saati bir odak zamanlayıcısı açar: 25 dk, 45 dk,
@@ -252,7 +279,8 @@ src/
   ipc/      Tauri komut sarmalayıcıları
   lib/      Svelte 5 bileşenleri (runes)
 src-tauri/  Rust arka uç — PTY yaşam döngüsü, ring buffer, config G/Ç, ajan durumu
-            izleyicisi, Claude Code hook kurulumu
+            izleyicisi, Claude Code hook kurulumu, mesaj geçmişi için kayıt
+            okuyucu
 ```
 
 İş mantığı Svelte'den ayrı saf modüllerde durur; bileşenler yalnız bağlar. Bu

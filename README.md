@@ -115,8 +115,10 @@ where it left off when you come back.
 - Checks GitHub for a newer release on start and from Settings → About; an
   update is downloaded and installed from inside the app
 - WebGL renderer; falls back to canvas silently on context loss
-- **Geist** (interface) and **JetBrains Mono** (terminals) ship embedded, no
-  dependency on system fonts
+- A **message log** of every prompt you typed into Claude Code, scored and with
+  its tokens, timing and model — see [Message log](#message-log)
+- **Geist** (interface) and **JetBrains Mono** (terminals and sidebar) ship
+  embedded, no dependency on system fonts
 
 ## Credentials
 
@@ -202,6 +204,31 @@ board.
 The board is stored with its workspace in the config file and goes away only
 when the workspace is deleted.
 
+## Message log
+
+The speech-bubble button in the sidebar footer lists every prompt you have typed
+into Claude Code on this machine, in any project and any session — including the
+ones from before miniterm. It reads Claude Code's own transcripts under
+`~/.claude/projects` and never writes there; the hook is not needed.
+
+- **Each row** shows the prompt, when it was sent, the project, the session title
+  and the model, with a score badge, the total tokens and how long the reply took
+- **Click a row** for the full text and the breakdown: the score per dimension
+  with a hint, input / output / cache read / cache write / subagent tokens, time
+  to the first reply and to the end of the turn, model and tool calls, and the
+  session's id, folder and branch. **Only this session** narrows the list to it
+- **Search, filter and sort** by text, project and model; sort by date, score,
+  tokens or duration. The figures across the top follow the filter
+- The **Models** tab totals each model: its share of all tokens, the prompts it
+  led, main and subagent calls, average score and median reply time. Click a
+  model to list its prompts
+- The **score** (0–100: clarity, context, specificity, verifiability, 25 each) is
+  the same heuristic as the prompt-score Claude Code mod. Very short prompts,
+  slash commands and plain acknowledgements are not scored
+
+Transcripts can add up to hundreds of megabytes. They are parsed in parallel in
+the backend and cached; reopening the log only re-reads the sessions that grew.
+
 ## Pomodoro
 
 The hourglass at the bottom of the sidebar opens a focus timer: pick 25 min,
@@ -250,7 +277,8 @@ src/
   ipc/      Tauri command wrappers
   lib/      Svelte 5 components (runes)
 src-tauri/  Rust backend — PTY lifecycle, ring buffer, config I/O, agent-status
-            watcher, Claude Code hook install
+            watcher, Claude Code hook install, transcript reader for the
+            message log
 ```
 
 Business logic lives in pure modules outside Svelte; components only bind. That

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { systemFonts } from "../ipc"
+  import { appVersion, systemFonts } from "../ipc"
   import {
     DEFAULT_SIDEBAR_FONTS, SIDEBAR_FONTS, fontStack, systemChoice, systemFamily,
     type FontKind, type SidebarFonts,
@@ -8,6 +8,10 @@
   import { t } from "../i18n/locale.svelte"
 
   const SYSTEM_VALUE = "__system__"
+
+  /** The preview mirrors the sidebar footer, so it shows the running build's version. */
+  let version = $state("")
+  appVersion().then((v) => (version = v)).catch(() => {})
 
   /** Installed families, fetched the first time a system font is wanted. */
   let installed = $state<string[] | null>(null)
@@ -113,7 +117,7 @@
   <div class="preview" style:font-family="var(--sidebar-font)">
     <span class="ws">{t("settings.appearance.previewFolder")}</span>
     <span class="ws">{t("settings.appearance.previewWorkspace")}</span>
-    <span class="figs" style:font-family="var(--sidebar-font-mono)">v0.15.0 · 25:00 · 3/4</span>
+    <span class="figs" style:font-family="var(--sidebar-font-mono)">v{version} · 25:00 · 3/4</span>
   </div>
 </div>
 

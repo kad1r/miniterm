@@ -260,7 +260,7 @@
           disabled={fontScale.level <= MIN_FONT_SCALE}
           onclick={() => applyFontAction("out")}
         >−</button>
-        <output class="level">%{Math.round(fontScale.level * 100)}</output>
+        <output class="level">{t("settings.appearance.level", { percent: Math.round(fontScale.level * 100) })}</output>
         <button
           class="ghost step"
           aria-label={t("settings.appearance.larger")}

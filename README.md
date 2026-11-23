@@ -15,7 +15,7 @@ Windows · macOS · Linux — Tauri 2 + Svelte 5 + xterm.js
 
 </div>
 
-![A 2×2 workspace — two Claude Code agents, a Gemini agent and a shell, each pane tagged with its agent name; the focused pane has an orange frame](docs/screenshots/workspace-grid.png)
+![A 2×2 workspace — two Claude Code agents, a Gemini agent and a shell, each pane tagged with its agent name and status (done, working with 2 subagents, waiting for you); the sidebar dots roll the status up per workspace](docs/screenshots/workspace-grid.png)
 
 ---
 
@@ -205,6 +205,8 @@ board.
 The board is stored with its workspace in the config file and goes away only
 when the workspace is deleted.
 
+![A workspace's task board with To Do, In Progress, Test and Done columns; cards carry tags and due dates, an overdue one in red](docs/screenshots/task-board.png)
+
 ## Message log
 
 The speech-bubble button in the sidebar footer lists every prompt you have typed
@@ -229,6 +231,10 @@ ones from before miniterm. It reads Claude Code's own transcripts under
 
 Transcripts can add up to hundreds of megabytes. They are parsed in parallel in
 the backend and cached; reopening the log only re-reads the sessions that grew.
+
+![The message log: score, tokens and reply time per prompt, with totals across the top](docs/screenshots/message-log.png)
+
+![The Models tab: each model's share of tokens, prompts led, calls, average score and median reply time](docs/screenshots/message-log-models.png)
 
 ## Pomodoro
 
@@ -271,7 +277,7 @@ needed, and only the chosen one is loaded. **System font…** suggests the fonts
 installed on the machine and also takes a typed name. A preview shows the result;
 the default is Roboto with Roboto Mono.
 
-![The language and font size tab](docs/screenshots/settings-appearance.png)
+![The appearance tab: theme, language, text size and the sidebar font pickers with a live preview](docs/screenshots/settings-appearance.png)
 
 **About** — the installed version, what changed in it, and a button that checks
 for updates.

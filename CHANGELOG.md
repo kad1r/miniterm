@@ -7,6 +7,14 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.16.1 — 2026-11-23
+
+### Fixes
+
+- **Text size reads `100%` in English.** Settings → Appearance put the percent sign
+  first in every language; it now follows the interface language.
+- **The sidebar font preview shows the running version** instead of a fixed `v0.15.0`.
+
 ## 0.16.0 — 2026-11-20
 
 ### Sidebar font

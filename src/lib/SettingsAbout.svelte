@@ -71,6 +71,7 @@
 <h3>{t("update.checkButton")}</h3>
 <div class="update-check">
   <button
+    class="accent"
     onclick={checkForUpdates}
     disabled={update.status === "checking" || update.status === "downloading"}
   >
@@ -82,7 +83,7 @@
     <span class="hint err">{t("update.failed")}</span>
   {:else if update.status === "available"}
     <span class="hint">{t("update.bannerAvailable", { version: update.info?.latest ?? "" })}</span>
-    <button onclick={downloadAndInstall}>{t("update.download")}</button>
+    <button class="accent" onclick={downloadAndInstall}>{t("update.download")}</button>
   {:else if update.status === "downloading"}
     <span class="hint">{t("update.downloading", { percent: update.progress?.total ? Math.floor((update.progress.downloaded / update.progress.total) * 100) : 0 })}</span>
   {:else if update.status === "ready"}
@@ -134,6 +135,25 @@
   }
   .update-check .hint {
     margin: 0;
+  }
+  /* Same tinted accent as the sidebar's "new workspace" button. */
+  .accent {
+    padding: 6px 14px;
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    font: inherit;
+    font-size: calc(13px * var(--font-scale, 1));
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .accent:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+  .accent:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .update-check .hint.err {
     color: var(--err);

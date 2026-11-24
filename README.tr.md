@@ -170,13 +170,13 @@ npm run tauri build
 
 Boş bir kurulumda kenar çubuğu sizi tek bir işe yönlendirir:
 
-![Workspace'i olmayan boş kenar çubuğu](docs/screenshots/empty-state.png)
+![Workspace'i olmayan boş kenar çubuğu](docs/screenshots/tr/empty-state.png)
 
 **+** düğmesi tek ekranlık sihirbazı açar — dizin, ad, kabuk, AI aracı, terminal
 sayısı ve ızgara düzeni aynı yerde. Kayıtlı dizinler ve son kullanılanlar tek
 tıkla doldurulur; zorunlu tek alan dizindir.
 
-![Tek ekranlık yeni workspace sihirbazı](docs/screenshots/new-workspace.png)
+![Tek ekranlık yeni workspace sihirbazı](docs/screenshots/tr/new-workspace.png)
 
 Birden fazla terminal istediğinizde her terminal için bir satır çıkar, her biri
 kendi aracını seçer. Dokunmazsanız hepsi workspace'in aracını izler; birini
@@ -246,7 +246,7 @@ Kenar çubuğunun altındaki kum saati bir odak zamanlayıcısı açar: 25 dk, 4
 kenarı süre ilerledikçe kırmızıdan yeşile doğru çizilir. Bitişi kısa bir zil
 sesi ve bildirim haber verir.
 
-![Oturum ortasında pomodoro paneli ve kenar çubuğundaki sabit geri sayım satırı](docs/screenshots/pomodoro.png)
+![Oturum ortasında pomodoro paneli ve kenar çubuğundaki sabit geri sayım satırı](docs/screenshots/tr/pomodoro.png)
 
 ## Ayarlar
 
@@ -255,16 +255,16 @@ argüman olarak değil kabuğa yazılarak çalıştırıldığını gösterir. L
 **Ajan durumu** bölümü Claude Code hook'unu kurar veya kaldırır; Windows bildirimini
 ve görev çubuğu yanıp sönmesini açıp kapatır.
 
-![AI araçları sekmesi](docs/screenshots/settings-ai-tools.png)
+![AI araçları sekmesi](docs/screenshots/tr/settings-ai-tools.png)
 
 **Dizinler** — sihirbazda çip olarak çıkan kısayollar, altında son kullanılanlar.
 
-![Dizin kısayolları sekmesi](docs/screenshots/settings-directories.png)
+![Dizin kısayolları sekmesi](docs/screenshots/tr/settings-directories.png)
 
 **Terminal** — kendi kabuğunu seçmemiş workspace'lerin kullanacağı varsayılan.
 Kabuklar diskten taranarak bulunur, elle yol girmek gerekmez.
 
-![Varsayılan kabuk sekmesi](docs/screenshots/settings-terminal.png)
+![Varsayılan kabuk sekmesi](docs/screenshots/tr/settings-terminal.png)
 
 **Görünüm** — dil ve yazı ölçeği. Ölçek arayüzü ve açık terminalleri birlikte
 büyütür; kutular ve boşluklar sabit kalır.
@@ -284,7 +284,7 @@ varsayılan Roboto ile Roboto Mono'dur.
 **Hakkında** — kurulu sürüm, o sürümdeki değişiklikler ve güncellemeleri
 denetleyen bir düğme.
 
-![Sürüm notlarıyla Hakkında sekmesi](docs/screenshots/settings-about.png)
+![Sürüm notlarıyla Hakkında sekmesi](docs/screenshots/tr/settings-about.png)
 
 ## Mimari
 

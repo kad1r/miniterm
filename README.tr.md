@@ -15,7 +15,7 @@ Windows · macOS · Linux — Tauri 2 + Svelte 5 + xterm.js
 
 </div>
 
-![2×2 bir workspace — iki Claude Code agent'ı, bir Gemini agent'ı ve bir kabuk, her panelin başlığında agent adı ve durumu (bitti, 2 alt ajanla çalışıyor, seni bekliyor); kenar çubuğundaki noktalar durumu workspace bazında özetler](docs/screenshots/workspace-grid.png)
+![2×2 bir workspace — iki Claude Code agent'ı, bir Gemini agent'ı ve bir kabuk, her panelin başlığında agent adı ve durumu (bitti, 2 alt ajanla çalışıyor, seni bekliyor); kenar çubuğundaki noktalar durumu workspace bazında özetler](docs/screenshots/tr/workspace-grid.png)
 
 ---
 
@@ -207,7 +207,7 @@ sunar. Pano açıkken başka bir workspace seçildiğinde onun panosu gösterili
 Pano, workspace'iyle birlikte config dosyasında saklanır ve yalnızca workspace
 silindiğinde gider.
 
-![Yapılacak, Devam Ediyor, Test ve Tamamlandı bölümleriyle bir workspace'in görev panosu; kartlarda etiketler ve bitiş tarihleri, geçmiş olan kırmızı](docs/screenshots/task-board.png)
+![Yapılacak, Devam Ediyor, Test ve Tamamlandı bölümleriyle bir workspace'in görev panosu; kartlarda etiketler ve bitiş tarihleri, geçmiş olan kırmızı](docs/screenshots/tr/task-board.png)
 
 ## Mesaj geçmişi
 
@@ -234,9 +234,9 @@ okur, oraya hiçbir şey yazmaz; hook gerekmez.
 Kayıtlar yüzlerce megabayta ulaşabilir. Arka uçta paralel okunur ve önbelleğe
 alınır; geçmiş yeniden açıldığında yalnızca büyüyen session'lar tekrar okunur.
 
-![Mesaj geçmişi: her mesaj için puan, token ve yanıt süresi, üstte toplamlar](docs/screenshots/message-log.png)
+![Mesaj geçmişi: her mesaj için puan, token ve yanıt süresi, üstte toplamlar](docs/screenshots/tr/message-log.png)
 
-![Modeller sekmesi: her modelin token payı, yönettiği mesajlar, çağrılar, ortalama puan ve medyan yanıt süresi](docs/screenshots/message-log-models.png)
+![Modeller sekmesi: her modelin token payı, yönettiği mesajlar, çağrılar, ortalama puan ve medyan yanıt süresi](docs/screenshots/tr/message-log-models.png)
 
 ## Pomodoro
 
@@ -279,7 +279,7 @@ internet gerekmez ve yalnızca seçilen yüklenir. **Sistem fontu…** makinede 
 fontları önerir, elle yazılan bir adı da kabul eder. Önizleme sonucu gösterir;
 varsayılan Roboto ile Roboto Mono'dur.
 
-![Görünüm sekmesi: tema, dil, yazı boyutu ve canlı önizlemeli kenar çubuğu font seçicileri](docs/screenshots/settings-appearance.png)
+![Görünüm sekmesi: tema, dil, yazı boyutu ve canlı önizlemeli kenar çubuğu font seçicileri](docs/screenshots/tr/settings-appearance.png)
 
 **Hakkında** — kurulu sürüm, o sürümdeki değişiklikler ve güncellemeleri
 denetleyen bir düğme.

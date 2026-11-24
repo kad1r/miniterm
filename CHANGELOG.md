@@ -7,6 +7,14 @@ version matches the running build, so it is also what `gh release create --notes
 should be pointed at. Keep the format — `## <version> — <date>`, `### section`,
 `- bullet`, plain paragraphs, `**bold**` and `` `code` `` inline. Nothing else is rendered.
 
+## 0.16.2 — 2026-11-24
+
+### Fixes
+
+- **The update buttons in About look like buttons again.** **Check for updates** and
+  **Download & install** rendered as plain grey system buttons; they now carry the
+  same orange tint as the sidebar's new-workspace button.
+
 ## 0.16.1 — 2026-11-23
 
 ### Fixes
